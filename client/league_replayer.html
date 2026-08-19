@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CTF · League Replayer</title>
+<!-- Inline data-URI favicon (amber heart on warm-dark), matching the board
+     client — inlined so the theater shell never triggers a /favicon.ico 404. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='6'%20fill='%2316110d'/%3E%3Cpath%20d='M16%2025S6%2018.4%206%2012.1C6%208.7%208.7%206%2012%206c2%200%203.3%201%204%202.2C16.7%207%2018%206%2020%206c3.3%200%206%202.7%206%206.1C26%2018.4%2016%2025%2016%2025Z'%20fill='%23e8a33d'/%3E%3C/svg%3E">
+<style>
+@font-face {
+  font-family: 'rajdhani';
+  /* Rajdhani SemiBold (Indian Type Foundry, SIL OFL 1.1 — see
+     data/FONT_LICENSE.txt), subset to Latin. The scoreboard face:
+     replaces the blocky nes-pixel chrome so HUD text renders as
+     smooth vector type on the supersampled board. */
+  src: url(data:font/ttf;base64,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ILACQ2BkI7ADQ2FkUFiwAkNhG7ADQ2BZsAMlsAJiILAAUFiwQGBZZrABY2GwAiVGYTgjIDwjOBshICBGI0ewASsjYTghWbErARQrLbBCLLA1Ky6xKwEUKy2wQyywNishIyAgPLAEI0IjOLErARQrsARDLrArKy2wRCywABUgR7AAI0KyAAEBFRQTLrAxKi2wRSywABUgR7AAI0KyAAEBFRQTLrAxKi2wRiyxAAEUE7AyKi2wRyywNCotsEgssAAWRSMgLiBGiiNhOLErARQrLbBJLLAII0KwSCstsEossgAAQSstsEsssgABQSstsEwssgEAQSstsE0ssgEBQSstsE4ssgAAQistsE8ssgABQistsFAssgEAQistsFEssgEBQistsFIssgAAPistsFMssgABPistsFQssgEAPistsFUssgEBPistsFYssgAAQCstsFcssgABQCstsFgssgEAQCstsFkssgEBQCstsFossgAAQystsFsssgABQystsFwssgEAQystsF0ssgEBQystsF4ssgAAPystsF8ssgABPystsGAssgEAPystsGEssgEBPystsGIssDcrLrErARQrLbBjLLA3K7A7Ky2wZCywNyuwPCstsGUssAAWsDcrsD0rLbBmLLA4Ky6xKwEUKy2wZyywOCuwOystsGgssDgrsDwrLbBpLLA4K7A9Ky2waiywOSsusSsBFCstsGsssDkrsDsrLbBsLLA5K7A8Ky2wbSywOSuwPSstsG4ssDorLrErARQrLbBvLLA6K7A7Ky2wcCywOiuwPCstsHEssDorsD0rLbByLLMJBAIDRVghGyMhWUIrsAhlsAMkUHiwARUwLQBLuAAyUlixAQGOWbABuQgACABjcLEABUKzLRkCACqxAAVCtSAIDgcCCCqxAAVCtSoGFwUCCCqxAAdCuwhAA8AAAgAJKrEACUK7AEAAQAACAAkqsQMARLEkAYhRWLBAiFixA2REsSYBiFFYugiAAAEEQIhjVFixAwBEWVlZWbUiCBAHAgwquAH/hbAEjbECAEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFkAWQIoAFEAUQN2Am8CbwAn/wMD6P4MA3YCcAJvAAD/AwPo/gwAYQBhAFUAVQKDAAACvwH+AAD/bAPo/gwCgwAAAr8B/gAA/2wD6P4MAAAABwBaAAMAAQQJAAAAhgAAAAMAAQQJAAEAIgCGAAMAAQQJAAIADgCoAAMAAQQJAAMAOAC2AAMAAQQJAAQAIgCGAAMAAQQJAAUA8ADuAAMAAQQJAAYAIgHeAEMAbwBwAHkAcgBpAGcAaAB0ACAAKABjACkAIAAyADAAMQA0ACAASQBuAGQAaQBhAG4AIABUAHkAcABlACAARgBvAHUAbgBkAHIAeQAgACgAaQBuAGYAbwBAAGkAbgBkAGkAYQBuAHQAeQBwAGUAZgBvAHUAbgBkAHIAeQAuAGMAbwBtACkAUgBhAGoAZABoAGEAbgBpACAAUwBlAG0AaQBCAG8AbABkAFIAZQBnAHUAbABhAHIAMQAuADIAMAAxADsASQBUAEYATwA7AFIAYQBqAGQAaABhAG4AaQAtAFMAZQBtAGkAQgBvAGwAZABWAGUAcgBzAGkAbwBuACAAMQAuADIAMAAxADsAUABTACAAMQAuADAAOwBoAG8AdABjAG8AbgB2ACAAMQAuADAALgA3ADgAOwBtAGEAawBlAG8AdABmAC4AbABpAGIAMgAuADUALgA2ADEAOQAzADAAOwAgAHQAdABmAGEAdQB0AG8AaABpAG4AdAAgACgAdgAxAC4AMQApACAALQBsACAANwAgAC0AcgAgADIAOAAgAC0ARwAgADUAMAAgAC0AeAAgADEAMwAgAC0ARAAgAGwAYQB0AG4AIAAtAGYAIABkAGUAdgBhACAALQB3ACAARwBSAGEAagBkAGgAYQBuAGkALQBTAGUAbQBpAEIAbwBsAGQAAAADAAAAAAAA/7UAMgAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAf//AA8AAQAAAAwAAAAAAAAAAgABAAEAYwABAAAAAQAAAAoADAAOAAAAAAAAAAEAAAAKABYAGAABZGV2YQAIAAAAAAAAAAAAAA==) format('truetype');
+  font-display: block;
+}
+
+  :root{
+    --stage-lo:#16110d; --stage-hi:#241a12; --surround:#0b0805;
+    --paper:#f2e8d8; --paper-dim:#b8ac98;
+    --ink:#2a1f16; --ink-soft:rgba(20,14,9,.72);
+    --red:#e0523a; --blue:#3f7cc4; --green:#45a85e; --yellow:#ddc531;
+    --amber:#e8a33d; --ghost:#8a7f72;
+    --pixfont:'rajdhani','Segoe UI',system-ui,sans-serif;
+    --finefont:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    --u:1px;              /* HUD unit; scaled by layout() from board width */
+  }
+  /* Team color utility: an element carrying a team-name class exposes that
+     team's tint as --tc; team-colored rules read var(--tc, <fallback>).
+     Mirrors replay_broadcast.html. */
+  .red{--tc:var(--red)} .blue{--tc:var(--blue)}
+  .green{--tc:var(--green)} .yellow{--tc:var(--yellow)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--surround); color:var(--paper); font-family:var(--finefont); overflow:hidden}
+
+  /* ============================================================
+     THE LEAGUE REPLAYER: a walled stone pit. The embedded replay
+     iframe is the lit floor in the middle; four dungeon walls rise
+     around it to a shared vanishing point; the REAL designed
+     scorebug + transport chroma (ported 1:1 from the broadcast
+     replay) plus the league KDA tables + division standings ride as
+     flat readable panels over the wall stone (no black bars — the
+     bars ARE walls, so the HUD floats on the stone).
+     ============================================================ */
+  #shell{position:fixed; inset:0; overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 42%, var(--stage-hi), var(--surround) 78%);}
+
+  /* the 4 projected dungeon walls (rebuilt by buildWalls on every layout) */
+  #walls{position:absolute; inset:0; z-index:1; pointer-events:none; overflow:hidden}
+  #walls .lv-wall{position:absolute; transform-origin:0 0;
+    background-size:100% 100%; background-repeat:no-repeat;
+    image-rendering:auto; filter:brightness(1.0) contrast(1.03) saturate(.96)}
+  #walls .lv-shade{position:absolute; inset:0}
+
+  /* the embedded replay — the lit pit floor */
+  #floor{position:absolute; z-index:2; overflow:hidden;
+    box-shadow:0 0 calc(40*var(--u)) calc(10*var(--u)) rgba(232,163,61,.10),
+               0 0 0 2px rgba(0,0,0,.55),
+               inset 0 0 0 1px rgba(242,232,216,.05);
+    background:#120c08}
+  #floor iframe{width:100%; height:100%; border:0; display:block; background:#120c08}
+
+  /* HUD panels ride ABOVE the walls */
+  .hud{position:absolute; z-index:5; font-family:var(--pixfont)}
+
+  /* ============================================================
+     TOP WALL — match clock centered, with the (possibly long) TEAM
+     NAMES flanking it in the corners. The wall band has the horizontal
+     room the narrow side columns don't, so long league/policy names
+     live up here. Flag + lives stay in the side-column header below.
+     ============================================================ */
+  #scorebug{display:flex; align-items:center; justify-content:center;
+    padding:calc(6*var(--u)) calc(14*var(--u)); gap:calc(16*var(--u)); pointer-events:none}
+  #scorebug > *{pointer-events:auto}
+  /* one names column per side of the clock: 1 name for classic 2-team play,
+     2 stacked for a 3-4 team game (matching the stacked side plaques below) */
+  .wallnames{flex:1 1 0; min-width:0; display:flex; flex-direction:column;
+    justify-content:center; gap:calc(2*var(--u))}
+  .wallname{min-width:0; font-family:var(--pixfont); font-size:calc(26*var(--u));
+    letter-spacing:.5px; line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    color:var(--tc, var(--paper));
+    text-shadow:0 calc(2*var(--u)) 0 var(--ink), 0 0 calc(11*var(--u)) rgba(0,0,0,.72)}
+  .wallnames.side-l .wallname{text-align:left}
+  .wallnames.side-r .wallname{text-align:right}
+  /* two stacked names shrink so both corners still read */
+  .wallnames.stacked .wallname{font-size:calc(19*var(--u))}
+  /* name + handicap chip on one line; the chip sits toward the center clock */
+  .wallrow{display:flex; align-items:baseline; gap:calc(6*var(--u)); min-width:0}
+  .wallnames.side-l .wallrow{flex-direction:row}
+  .wallnames.side-r .wallrow{flex-direction:row-reverse}
+  .wallrow .wallname{flex:0 1 auto}
+  /* Handicap chip: an amber pill; the full delta breakdown rides in the native
+     `title` on hover (cursor:help). Hidden when the team is unhandicapped. */
+  .hcap{flex:none; font-family:var(--finefont); font-size:calc(11*var(--u));
+    letter-spacing:.04em; line-height:1; color:var(--ink); background:var(--amber);
+    border-radius:calc(4*var(--u)); padding:calc(3*var(--u)) calc(5*var(--u));
+    white-space:nowrap; cursor:help}
+  .clock{flex:none; position:relative; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:calc(3*var(--u))}
+  .clock .time{font-family:var(--pixfont); font-size:calc(34*var(--u)); line-height:1; color:var(--paper);
+    text-shadow:0 calc(2*var(--u)) 0 var(--ink), 0 0 calc(10*var(--u)) rgba(0,0,0,.7); font-variant-numeric:tabular-nums}
+  .clock .caption{font-family:var(--finefont); font-size:calc(9*var(--u)); letter-spacing:.18em;
+    text-transform:uppercase; color:var(--paper-dim); white-space:nowrap; text-shadow:0 calc(1*var(--u)) 0 #000}
+  .clock.tiebreak-warn .time{color:var(--amber)}
+  .ffwd-mini{display:none; position:absolute; left:calc(100% + 5*var(--u)); top:calc(6*var(--u));
+    font-family:var(--pixfont); font-size:calc(13*var(--u)); color:var(--amber);
+    text-shadow:0 calc(2*var(--u)) 0 var(--ink)}
+  .ffwd-mini.show{display:block}
+  .clock.amb{animation:clocktick 2s ease-in-out infinite}
+  @keyframes clocktick{0%,100%{opacity:.94}50%{opacity:1}}
+
+  /* ============================================================
+     KDA PLAQUES (side walls) — team header (flag + NAME inline with
+     LIVES) atop the league roster + standings footer.
+     ============================================================ */
+  /* one side column holds 1-2 team plaques stacked (2-team play keeps one per
+     side; 3-4 teams stack a second below the first) */
+  .plaque-col{display:flex; flex-direction:column; justify-content:flex-start;
+    gap:calc(10*var(--u)); pointer-events:none}
+  .plaque{display:flex; flex-direction:column; padding:calc(6*var(--u)) calc(10*var(--u));
+    pointer-events:auto; min-height:0; overflow:hidden}
+
+  /* team header block: flag icon + LIVES counter. (Team NAME lives up in
+     the top-wall corners — see .wallname — so long names never truncate.) */
+  .team-head{display:flex; align-items:center; gap:calc(9*var(--u)); min-width:0;
+    margin-bottom:calc(8*var(--u))}
+  .plaque.right .team-head{flex-direction:row-reverse}
+  .team-head .lives-line{display:flex; align-items:baseline; gap:calc(5*var(--u))}
+  .plaque.right .team-head .lives-line{flex-direction:row-reverse}
+  .lives-num{font-family:var(--pixfont); font-size:calc(20*var(--u)); line-height:1;
+    color:var(--paper); flex:none; text-shadow:0 calc(2*var(--u)) 0 var(--ink), 0 0 calc(9*var(--u)) rgba(0,0,0,.7)}
+  .lives-label{font-family:var(--finefont); font-size:calc(8*var(--u)); letter-spacing:.14em;
+    text-transform:uppercase; color:var(--paper-dim); flex:none; text-shadow:0 calc(1*var(--u)) 0 #000}
+  .team-head.leader .lives-num{animation:leaderpulse 1.9s ease-in-out infinite}
+  /* Team-perk badges + CTF-Doubles split meters (chrome_common's
+     renderTeamMeters fills .meters). Split meters keep a FIXED DOM order
+     (icons,num | num,icons) in headline policy order on both plaques —
+     numerals adjacent at the cluster center, badges outside, no
+     side-dependent CSS. Only the classic single team meter (renderTeamMeters
+     stamps .single) mirrors on the right plaque, preserving the old
+     "N Lives" innermost-numeral read the lives-line row-reverse used to
+     provide before the meter markup moved into .meters. */
+  .team-head .meters{display:flex; align-items:baseline; gap:calc(5*var(--u))}
+  .plaque.right .team-head .meters.single{flex-direction:row-reverse}
+  .team-head .pgrp{display:flex; align-items:baseline; gap:calc(4*var(--u))}
+  .team-head .perk-icos{display:flex; align-items:center; gap:calc(3*var(--u));
+    align-self:center}
+  .team-head .perk-ico{display:inline-flex}
+  .team-head .perk-ico svg{width:calc(11*var(--u)); height:calc(11*var(--u)); display:block}
+  .team-head .lives-num.sub{font-size:calc(16*var(--u))}
+  @keyframes leaderpulse{0%,100%{text-shadow:0 calc(2*var(--u)) 0 var(--ink)}
+    50%{text-shadow:0 0 calc(11*var(--u)) var(--amber)}}
+
+  /* flag-state icon — HOME (on pedestal) / TAKEN (riding a carrier) */
+  .flagicon{position:relative; width:calc(26*var(--u)); height:calc(30*var(--u)); flex:none;
+    filter:drop-shadow(0 calc(1*var(--u)) calc(3*var(--u)) rgba(0,0,0,.7))}
+  .flagicon svg{width:100%; height:100%; display:block}
+  .flagicon .cloth{transition:transform 90ms steps(3); transform-box:fill-box; transform-origin:left center}
+  .flagicon.taken .cloth{transform:scaleX(.62) skewX(-8deg)}
+  .flagicon.flip{animation:flagflip 260ms steps(3); transform-box:fill-box; transform-origin:center}
+  @keyframes flagflip{0%{transform:scaleY(.2)}100%{transform:scaleY(1)}}
+  .khead,.krow{display:grid; align-items:center; gap:calc(5*var(--u));
+    grid-template-columns:1fr calc(16*var(--u)) calc(16*var(--u)) calc(34*var(--u))}
+  .khead{font-family:var(--finefont); font-size:calc(8*var(--u)); letter-spacing:.08em; text-transform:uppercase;
+    color:var(--paper-dim); padding:0 calc(3*var(--u)) calc(4*var(--u)); border-bottom:1px solid rgba(242,232,216,.18)}
+  .khead span:not(:first-child){text-align:center}
+  .krow{font-family:var(--pixfont); font-size:calc(12*var(--u)); padding:calc(3.5*var(--u)) calc(3*var(--u));
+    border-radius:calc(2*var(--u)); cursor:pointer}
+  .krow:nth-child(odd){background:rgba(242,232,216,.035)}
+  .krow:hover{background:rgba(242,232,216,.09)}
+  .krow.dead{opacity:.42}
+  .krow.pov{background:rgba(232,163,61,.16); box-shadow:inset 0 0 0 1px rgba(232,163,61,.5)}
+  /* The seat # is a name DISAMBIGUATOR, not a stat: it sits glued right after the
+     name's ellipsis (small gap, dimmed, tabular) so "Richard Higg… 1" reads as one
+     label. It must NOT drift to the right edge where it reads as a K/D/Lives value. */
+  .seatno{flex:none; font-variant-numeric:tabular-nums; color:var(--paper-dim);
+    font-size:calc(10*var(--u)); opacity:.7}
+  .krow .who{display:flex; align-items:center; gap:calc(3*var(--u)); min-width:0}
+  /* min-width:0 lets a long name actually SHRINK + ellipsize inside the flex row;
+     without it the name keeps its full nowrap width and pushes the seat # away. */
+  .who .nm{min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    color:var(--paper-dim); font-size:calc(11*var(--u))}
+  /* the carry heart rides a FIXED-width slot that is always present (empty when not
+     carrying) so a mid-game grab never shifts the name/seat to its left. */
+  .who .carry{flex:none; width:calc(10*var(--u)); text-align:center; color:var(--amber)}
+  .krow .n{font-variant-numeric:tabular-nums; text-align:center}
+  .krow .k{color:var(--paper)} .krow .d{color:var(--paper-dim)} .krow .c{color:var(--amber)}
+  .lives{display:flex; gap:calc(2*var(--u)); justify-content:center; flex-wrap:wrap}
+  .lp{width:calc(5*var(--u)); height:calc(5*var(--u)); border-radius:1px}
+  .plaque .lp.on{background:var(--tc, var(--paper))}
+  .lp.off{background:rgba(242,232,216,.16)}
+
+  /* standing footer — sits directly under the roster rows (NOT pinned to the
+     column bottom). Hidden entirely when there are no standings, so no empty
+     divider line floats at the bottom of the column. */
+  .pfoot{margin-top:calc(10*var(--u)); padding-top:calc(8*var(--u)); border-top:1px solid rgba(242,232,216,.14)}
+  .pfoot:empty{display:none}
+  .pfoot .lab{font-family:var(--finefont); font-size:calc(8*var(--u)); letter-spacing:.13em;
+    text-transform:uppercase; color:var(--paper-dim)}
+  .plaque.right .pfoot{text-align:right}
+  .standline{display:flex; align-items:baseline; gap:calc(7*var(--u)); margin-top:calc(3*var(--u))}
+  .plaque.right .standline{justify-content:flex-end}
+  .standline .rk{font-family:var(--pixfont); font-size:calc(24*var(--u)); color:var(--tc, var(--paper))}
+  .standline .sc{font-family:var(--pixfont); font-size:calc(13*var(--u)); color:var(--paper)}
+  .standline .of{font-family:var(--finefont); font-size:calc(8*var(--u)); color:var(--paper-dim)}
+
+  /* ============================================================
+     TRANSPORT (bottom wall) — real designed chroma: tbar buttons +
+     speed chips over a full-timeline momentum (lives-lead) graph
+     with a click-to-seek track + beat markers.
+     ============================================================ */
+  #transport{display:flex; flex-direction:column; gap:calc(5*var(--u));
+    padding:calc(8*var(--u)) calc(12*var(--u)); pointer-events:auto; justify-content:center}
+  #transport.disabled{opacity:.35; pointer-events:none}
+  .tbar{display:flex; align-items:center; gap:calc(5*var(--u)); flex-wrap:wrap}
+  .tbtn{font-family:var(--pixfont); font-size:calc(11*var(--u)); color:var(--paper);
+    background:rgba(20,14,9,.55); border:none; padding:calc(5*var(--u)) calc(8*var(--u));
+    min-width:calc(26*var(--u)); cursor:pointer; line-height:1; box-shadow:0 0 calc(3*var(--u)) rgba(0,0,0,.5)}
+  .tbtn:hover{background:rgba(242,232,216,.2)}
+  .tbtn.on{color:var(--amber); box-shadow:inset 0 calc(-2*var(--u)) 0 var(--amber)}
+  .lull-span{position:absolute; top:calc(6*var(--u)); height:calc(10*var(--u));
+    background:rgba(18,13,9,.6); pointer-events:none}
+  .ffwd-chip{display:none; font-family:var(--pixfont); font-size:calc(9*var(--u));
+    color:var(--amber); padding:0 calc(6*var(--u)); white-space:nowrap}
+  .ffwd-chip.show{display:inline}
+  .tsep{flex:1}
+  .tick-clock{font-family:var(--pixfont); font-size:calc(9*var(--u)); color:var(--paper-dim);
+    font-variant-numeric:tabular-nums; white-space:nowrap}
+  .speedchips{display:flex; gap:calc(2*var(--u))}
+  .chip{font-family:var(--pixfont); font-size:calc(9*var(--u)); color:var(--paper-dim);
+    background:rgba(20,14,9,.55); border:none; padding:calc(4*var(--u)) calc(5*var(--u));
+    cursor:pointer; line-height:1}
+  .chip.on{color:var(--stage-lo); background:var(--amber)}
+  .scrub{position:relative; height:calc(60*var(--u)); cursor:pointer}
+  /* The track/fill are the VISIBLE bar (the 60u height is only the click-catcher +
+     momentum band), so a thin 5u line read as a tiny scrubber. Thicken it to a
+     real broadcast seek bar with a rounded fill. */
+  .scrub-track{position:absolute; left:0; right:0; top:calc(6*var(--u)); height:calc(10*var(--u));
+    background:rgba(242,232,216,.16); border-radius:calc(5*var(--u))}
+  .scrub-fill{position:absolute; left:0; top:calc(6*var(--u)); height:calc(10*var(--u));
+    background:var(--paper); width:0; border-radius:calc(5*var(--u))}
+  /* The playhead is a grabbable handle: a bright amber stem down the whole track +
+     momentum band, topped with a round knob so it reads as draggable, not a hairline. */
+  .scrub-head{position:absolute; top:calc(2*var(--u)); width:calc(5*var(--u)); height:calc(56*var(--u));
+    background:var(--amber); transform:translateX(calc(-2.5*var(--u))); left:0; z-index:3;
+    border-radius:calc(2.5*var(--u)); box-shadow:0 0 calc(4*var(--u)) rgba(232,163,61,.55)}
+  .scrub-head::before{content:''; position:absolute; left:50%; top:calc(-2*var(--u));
+    width:calc(13*var(--u)); height:calc(13*var(--u)); transform:translateX(-50%);
+    background:var(--amber); border-radius:50%; box-shadow:0 0 calc(4*var(--u)) rgba(232,163,61,.6)}
+  .momentum{position:absolute; left:0; width:100%; top:calc(16*var(--u)); height:calc(42*var(--u));
+    display:block; overflow:visible}
+  .momentum-label{position:absolute; left:0; top:calc(18*var(--u)); font-family:var(--finefont);
+    font-size:calc(7*var(--u)); letter-spacing:.12em; color:var(--paper-dim); opacity:.5;
+    pointer-events:none; z-index:2}
+  .beat-marker{position:absolute; top:0; width:calc(2*var(--u)); height:calc(13*var(--u));
+    transform:translateX(-1px); z-index:2}
+  /* kill ticks: short, colored by the killer's team (team-kill/ambiguous stay
+     neutral). Flag beats: colored by the flag's team — steal = full tick with
+     a flag head, return = dimmed (heart snapped home), capture = chunky match
+     point in the capturing team's color. */
+  .beat-marker.kill{background:var(--tc, var(--paper-dim)); height:calc(8*var(--u))}
+  .beat-marker.steal{background:var(--tc, var(--amber))}
+  .beat-marker.steal::after{content:''; position:absolute; left:0; top:0;
+    width:calc(6*var(--u)); height:calc(4*var(--u)); background:inherit}
+  .beat-marker.return{background:var(--tc, var(--paper-dim)); opacity:.45}
+  .beat-marker.capture{background:var(--tc, var(--amber)); width:calc(3*var(--u)); height:calc(16*var(--u))}
+  /* winner cap past the track's right end + "RED WINS" chip in the tbar. */
+  .scrub-win{display:none; position:absolute; right:calc(-6*var(--u)); top:calc(4*var(--u));
+    width:calc(8*var(--u)); height:calc(14*var(--u)); z-index:3; border-radius:calc(2*var(--u))}
+  .scrub-win.show{display:block; background:var(--tc, var(--paper-dim))}
+  .win-chip{display:none; font-family:var(--pixfont); font-size:calc(10*var(--u));
+    padding:0 calc(6*var(--u)); white-space:nowrap}
+  .win-chip.show{display:inline; color:var(--tc, var(--paper-dim))}
+
+  /* connection status toast */
+  #status{position:absolute; z-index:9; left:50%; top:calc(50% - 10px); transform:translate(-50%,-50%);
+    font-family:var(--finefont); font-size:13px; color:var(--paper-dim); background:var(--ink-soft);
+    padding:8px 16px; border-radius:20px; display:none}
+  #status.show{display:block}
+  /* escalated load-failure card: the embedded board never sent a frame. Wider,
+     readable, with a direct top-level link that sidesteps an embedding block. */
+  #status.err{max-width:min(64%,520px); padding:15px 20px; border-radius:12px;
+    font-size:14px; line-height:1.5; color:var(--paper); text-align:center;
+    box-shadow:0 0 0 1px rgba(242,232,216,.08)}
+  #status.err .st-sub{display:block; margin-top:5px; font-size:12px; color:var(--paper-dim)}
+  #status.err a{display:inline-block; margin-top:11px; color:var(--amber); text-decoration:none;
+    font-family:var(--pixfont); font-weight:600; letter-spacing:.02em}
+  #status.err a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="walls"></div>
+  <div id="floor"><iframe id="game" title="CTF replay"></iframe></div>
+
+  <!-- top wall: match clock centered, team names (1-2 per side) in the corners.
+       Names and side plaques are generated per active team by ensureShellTeams(). -->
+  <div id="scorebug" class="hud">
+    <div class="wallnames side-l" id="names-l"></div>
+    <div class="clock amb" id="clock">
+      <div class="time" id="clock-time">0:00</div>
+      <span class="ffwd-mini" id="ffwd-mini">▸▸</span>
+      <div class="caption" id="clock-caption">In the locker room</div>
+    </div>
+    <div class="wallnames side-r" id="names-r"></div>
+  </div>
+
+  <div class="plaque-col hud" id="kda-l"></div>
+  <div class="plaque-col hud" id="kda-r"></div>
+
+  <div id="transport" class="hud">
+    <div class="tbar">
+      <button class="tbtn" id="btn-restart" title="Restart (,)">⟲</button>
+      <button class="tbtn" id="btn-back" title="Back one tick (b)">◂|</button>
+      <button class="tbtn" id="btn-play" title="Play / pause (space)">▶</button>
+      <button class="tbtn" id="btn-fwd" title="Skip +5s (.)">+5s</button>
+      <button class="tbtn" id="btn-end" title="Jump to end (e)">|▸</button>
+      <button class="tbtn" id="btn-loop" title="Loop (r)">↻</button>
+      <button class="tbtn" id="btn-skip" title="Auto-skip lulls (f)">▸▸</button>
+      <button class="tbtn" id="btn-spoilers" title="Spoilers: kills / flag story / winner on the timeline ahead of the playhead (o)">spoilers</button>
+      <span class="ffwd-chip" id="ffwd-chip">▸▸ SKIPPING LULL</span>
+      <span class="win-chip" id="win-chip"></span>
+      <span class="tick-clock" id="tick-clock">0 / 0</span>
+      <span class="tsep"></span>
+      <div class="speedchips" id="speedchips"></div>
+    </div>
+    <div class="scrub" id="scrub">
+      <svg class="momentum" id="momentum" viewBox="0 0 1000 100"
+           preserveAspectRatio="none" aria-hidden="true"></svg>
+      <span class="momentum-label">LIVES LEAD</span>
+      <div class="scrub-track"></div>
+      <div class="scrub-fill" id="scrub-fill"></div>
+      <div id="lulls"></div>
+      <div class="scrub-win" id="scrub-win"></div>
+      <div class="scrub-head" id="scrub-head"></div>
+    </div>
+  </div>
+
+  <div id="status">connecting…</div>
+</div>
+
+<!-- WIRE_CONSTANTS -->
+<!-- CHROME_COMMON -->
+<script>
+(function(){
+  'use strict';
+  // Shared replay chrome (chrome_common.js, spliced over the CHROME_COMMON
+  // marker by the server / dist bundle; the literal marker must not appear
+  // inside this script or the splice would corrupt it). A raw file:// open of
+  // this source has no splice — fail loud and early instead of throwing mid-file.
+  if (!window.ChromeCommon) {
+    console.error('league_replayer: chrome_common.js missing — this page must be served spliced (native server or dist bundle), not opened raw.');
+    return;
+  }
+  var C = window.ChromeCommon({
+    send: function(cmd){ sendCmd(cmd); },
+    sendPov: function(slot){ sendPov(slot); },
+    getState: function(){ return lastState; },
+    // During the server's end-segment hold the board end-card counts down to
+    // the loop restart; mirror it up here so the clock never reads stalled.
+    holdCaption: function(s){ return (s.lp && s.hold>0) ? ('Replaying in '+s.hold+'s') : null; }
+  });
+  // Aliases so the shell code below reads exactly as before.
+  var $ = C.$;
+  var RED=C.RED, BLUE=C.BLUE, AMBER=C.AMBER, PAPER=C.PAPER;
+  var GREEN=C.GREEN, YELLOW=C.YELLOW;
+  var TEAM_ORDER=C.TEAM_ORDER, TEAM_COLOR=C.TEAM_COLOR;
+  var teamCol=C.teamCol, activeTeams=C.activeTeams, teamOf=C.teamOf;
+  var otherTeam=C.otherTeam, stripSeatSuffix=C.stripSeatSuffix;
+  var teamPolicies=C.teamPolicies, teamName=C.teamName, teamHeadline=C.teamHeadline;
+  var rosterName=C.rosterName, setName=C.setName, esc=C.esc, fmt=C.fmt;
+  var setHandicap=C.setHandicap, renderTeamMeters=C.renderTeamMeters;
+  var togglePov=C.togglePov, renderClock=C.renderClock, renderTransport=C.renderTransport;
+  var ingestLullSpans=C.ingestLullSpans, renderLullSpans=C.renderLullSpans;
+  var markBeat=C.markBeat, killMarkerTeam=C.killMarkerTeam, renderBeatMarkers=C.renderBeatMarkers;
+  var captureTeam=C.captureTeam, ingestBeats=C.ingestBeats, setVerdict=C.setVerdict;
+  var ingestLeadSeries=C.ingestLeadSeries, recordMomentum=C.recordMomentum;
+  var getSpoilers=C.getSpoilers, setSpoilers=C.setSpoilers;
+  var renderMomentum=C.renderMomentum;
+  // Pre-stream defaults only: each embedded replay posts its board's real
+  // native size on every frame (the game supports multiple map sizes), and
+  // the stage re-layouts when it changes.
+  var BOARD_W=1235, BOARD_H=659, BOARD_ASPECT=BOARD_W/BOARD_H;
+  function syncBoardAspect(s){
+    if (!s || !(s.boardW > 1) || !(s.boardH > 1)) return;
+    var aspect = s.boardW / s.boardH;
+    if (Math.abs(aspect - BOARD_ASPECT) < 0.001) return;
+    BOARD_W = s.boardW; BOARD_H = s.boardH; BOARD_ASPECT = aspect;
+    layout();
+  }
+  // Engine-authoritative wire constants (read via the shared chrome; the
+  // fallback literals for raw file:// opens live in chrome_common.js).
+  var WIRE=C.WIRE, SPEEDS=C.SPEEDS, FPS=C.FPS;
+  var MAXLIVES=3;   // per player (3 lives each); refined up if the stream disagrees
+
+  // Proxy-aware route base. Observatory serves this shell (and every /client/*
+  // asset + the embedded board) behind a per-session proxy prefix, e.g.
+  //   /v2/coworlds/replays/<key>/sessions/<id>/proxy/client/replay
+  // so root-relative paths ("/client/...") would drop the whole prefix and 404.
+  // Strip the trailing "/client/<page>" to recover the prefix ("" when served
+  // bare locally); every asset + the iframe src hang off it. Mirrors the board
+  // client, which strips "/client/replay" the same way to build its ws path.
+  var ROUTE_BASE = location.pathname.replace(/\/client\/[^/]*$/, "");
+
+  // ---- URL params: replay uri + Observatory-injected standings -------------
+  // Two delivery modes share this shell:
+  //  - NATIVE (a live replay server): served at /client/league, `uri` carries
+  //    the replay source and the embedded board is /client/replay on the same
+  //    (possibly session-proxied) prefix, talking over its own websocket.
+  //  - STATIC (the browser-only WASM bundle): served as league.html NEXT TO
+  //    the bundle's index.html, `replay` carries the replay URL (the same
+  //    param the bundle's board reads) and the embedded board is
+  //    ./index.html — no server, the sim runs in WASM inside the iframe. The
+  //    postMessage bridge (frames up, transport commands down) is identical.
+  var params = new URLSearchParams(location.search);
+  var staticReplayUri = params.get('replay') || '';
+  var STATIC_BUNDLE = staticReplayUri !== '';
+  var replayUri = params.get('uri') || '';
+  // standings: base64/JSON of {division, competitors:{red,blue}, ladder:[{name,rank,score,you}]}
+  var standings = null;
+  try {
+    var st0 = params.get('standings');
+    if (st0) standings = JSON.parse(decodeURIComponent(escape(atob(st0))));
+  } catch(e){ standings = null; }
+
+  // dungeon-wall textures (nanobanana generations, served as static assets so
+  // the shell stays small and editable). Wide tex for top/bottom, tall for
+  // sides. The static bundle ships them beside the shell; the native server
+  // serves them under /client/art on the shell's own route prefix.
+  var ART_BASE = STATIC_BUNDLE ? "./art/walls" : ROUTE_BASE + "/client/art/walls";
+  var WALL_H = ART_BASE + "/wall_h.jpg";
+  var WALL_V = ART_BASE + "/wall_v.jpg";
+
+  // ---- build the embedded replay src (board-only embed mode) ---------------
+  // Native: same-prefix as the shell so the board's own websocket (derived
+  // from its location.pathname) stays inside the session proxy. Static: the
+  // sibling index.html with the bundle's own `replay` param.
+  (function(){
+    var src;
+    if (STATIC_BUNDLE) {
+      src = './index.html?embed=1&replay=' + encodeURIComponent(staticReplayUri);
+    } else {
+      src = ROUTE_BASE + '/client/replay?embed=1';
+      if (replayUri) src += '&uri=' + encodeURIComponent(replayUri);
+    }
+    $('game').src = src;
+  })();
+
+  // ==========================================================================
+  //  WALL GEOMETRY — projective homography, one shared vanishing point.
+  //  Each wall is the trapezoid from a SCREEN edge (outer, near) to the matching
+  //  BOARD edge (inner, far). Textures are oriented GRAVITY-UP: floor edge toward
+  //  the bottom of the screen, arches upright, so no wall is upside-down or
+  //  sideways. Adjacent walls share the screen-corner→board-corner diagonal.
+  // ==========================================================================
+  function adj(m){return [m[4]*m[8]-m[5]*m[7],m[2]*m[7]-m[1]*m[8],m[1]*m[5]-m[2]*m[4],
+    m[5]*m[6]-m[3]*m[8],m[0]*m[8]-m[2]*m[6],m[2]*m[3]-m[0]*m[5],
+    m[3]*m[7]-m[4]*m[6],m[1]*m[6]-m[0]*m[7],m[0]*m[4]-m[1]*m[3]];}
+  function mul(a,b){var c=[];for(var i=0;i<3;i++)for(var j=0;j<3;j++){var s=0;
+    for(var k=0;k<3;k++)s+=a[3*i+k]*b[3*k+j];c[3*i+j]=s;}return c;}
+  function mv(m,v){return [m[0]*v[0]+m[1]*v[1]+m[2]*v[2],m[3]*v[0]+m[4]*v[1]+m[5]*v[2],m[6]*v[0]+m[7]*v[1]+m[8]*v[2]];}
+  function basis(x1,y1,x2,y2,x3,y3,x4,y4){var m=[x1,x2,x3,y1,y2,y3,1,1,1];
+    var v=mv(adj(m),[x4,y4,1]);return mul(m,[v[0],0,0,0,v[1],0,0,0,v[2]]);}
+  function proj(sw,sh,d0x,d0y,d1x,d1y,d2x,d2y,d3x,d3y){
+    var s=basis(0,0,sw,0,0,sh,sw,sh), d=basis(d0x,d0y,d1x,d1y,d2x,d2y,d3x,d3y);
+    var t=mul(d,adj(s));for(var i=0;i<9;i++)t[i]/=t[8];
+    return 'matrix3d('+[t[0],t[3],0,t[6], t[1],t[4],0,t[7], 0,0,1,0, t[2],t[5],0,t[8]].join(',')+')';
+  }
+  var wallsEl = $('walls');
+  function buildWalls(bx,by,bw,bh,vw,vh){
+    var bR=bx+bw, bB=by+bh;
+    // per-wall shade: a STEEP shadowbox — dark hugs the outer/near screen edge and
+    // falls off fast, so by the inner/board edge the stone is at floor brightness
+    // (only a faint shadow remains) and the wall reads as the SAME world as the
+    // floor, not a separate panel. The concentrated outer band still lets the HUD
+    // tables/scorebug pop off the stone.
+    var g='rgba(5,3,2,.86)', mid='rgba(8,5,3,.22)', lit='rgba(8,5,3,0)';
+    // src rect corners: TL(0,0)->d0, TR(sw,0)->d1, BL(0,sh)->d2, BR(sw,sh)->d3.
+    function wall(tex,sw,sh, d0x,d0y,d1x,d1y,d2x,d2y,d3x,d3y, grad){
+      return '<div class="lv-wall" style="background-image:url(\''+tex+'\');width:'+sw+'px;height:'+sh+
+        'px;transform:'+proj(sw,sh,d0x,d0y,d1x,d1y,d2x,d2y,d3x,d3y)+
+        '"><div class="lv-shade" style="background:'+grad+'"></div></div>';
+    }
+    var out='';
+    // TOP: unchanged (reads correctly). tex top→screen top, tex floor→board top.
+    out += wall(WALL_H, vw, by,        0,0,  vw,0,  bx,by, bR,by,
+                'linear-gradient(to top,'+lit+' 35%,'+mid+' 62%,'+g+')');
+    // BOTTOM: FLIPPED over its x-axis (was upside-down). Same trapezoid region;
+    //   src top row → outer/screen edge, src bottom row → inner/board edge.
+    out += wall(WALL_H, vw, vh-bB,     0,vh, vw,vh, bx,bB, bR,bB,
+                'linear-gradient(to bottom,'+g+','+mid+' 38%,'+lit+' 65%)');
+    // LEFT: rotated 90° COUNTER-CLOCKWISE within its trapezoid.
+    //   Because the tex is rotated, the DEPTH axis (screen→floor) is the source
+    //   Y axis: y=0→screen edge (outer,dark), y=sh→board edge (inner,light).
+    out += wall(WALL_V, bx, vh,        0,vh, 0,0,   bx,bB, bx,by,
+                'linear-gradient(to top,'+lit+' 35%,'+mid+' 62%,'+g+')');
+    // RIGHT: rotated 90° CLOCKWISE within its trapezoid.
+    out += wall(WALL_V, vw-bR, vh,     vw,0, vw,vh, bR,by, bR,bB,
+                'linear-gradient(to top,'+lit+' 35%,'+mid+' 62%,'+g+')');
+    wallsEl.innerHTML = out;
+  }
+
+  // ==========================================================================
+  //  LAYOUT — maximize the board; walls take only the leftover (kept thin).
+  // ==========================================================================
+  function clamp(a,x,b){return Math.max(a,Math.min(b,x));}
+  var lastLayout = null;
+  function layout(){
+    var vw = window.innerWidth, vh = window.innerHeight;
+    // minimum wall thickness that still fits the HUD (scorebug/KDA/transport).
+    var sideMin = clamp(150, vw*0.135, 300);
+    var topMin  = clamp(56,  vh*0.08,  120);
+    var botMin  = clamp(88,  vh*0.135, 175);
+    var availW = Math.max(1, vw - 2*sideMin);
+    var availH = Math.max(1, vh - topMin - botMin);
+    var bw, bh;
+    if (availW/availH > BOARD_ASPECT){ bh=availH; bw=Math.round(bh*BOARD_ASPECT); }
+    else { bw=availW; bh=Math.round(bw/BOARD_ASPECT); }
+    var bx = Math.round((vw-bw)/2);
+    var by = Math.round(topMin + (availH-bh)/2);
+    var bR = bx+bw, bB = by+bh;
+
+    // one HUD unit scales with board width (authored ~ 760px reference).
+    var u = clamp(0.62, bw/1180, 1.35);
+    document.documentElement.style.setProperty('--u', u+'px');
+
+    // place the floor (embedded replay)
+    var floor = $('floor');
+    floor.style.left=bx+'px'; floor.style.top=by+'px'; floor.style.width=bw+'px'; floor.style.height=bh+'px';
+
+    // build the walls to these exact edges
+    buildWalls(bx,by,bw,bh,vw,vh);
+
+    // ---- position flat HUD panels over the wall zones ----
+    // scorebug spans the FULL viewport so each team plate hugs its true top
+    // corner — vertically over the side-wall column that holds its roster table
+    // below (red↔left table, blue↔right table). Its horizontal padding matches
+    // the tables' (10u) so the plates line up with the table columns.
+    var sb=$('scorebug'); sb.style.left='0px'; sb.style.width=vw+'px'; sb.style.top='0px'; sb.style.height=by+'px';
+    var kr=$('kda-l'); kr.style.left='0px';  kr.style.width=bx+'px';       kr.style.top=by+'px'; kr.style.height=bh+'px';
+    var kb=$('kda-r'); kb.style.right='0px'; kb.style.width=(vw-bR)+'px';  kb.style.top=by+'px'; kb.style.height=bh+'px';
+    var tp=$('transport'); tp.style.left=bx+'px'; tp.style.width=bw+'px'; tp.style.top=bB+'px'; tp.style.height=(vh-bB)+'px';
+
+    lastLayout = {vw:vw,vh:vh,bx:bx,by:by,bw:bw,bh:bh};
+  }
+  window.addEventListener('resize', layout);
+
+  // ==========================================================================
+  //  FRAME STREAM — the embedded replay postMessages each parsed state here.
+  // ==========================================================================
+  var lastState=null, lastTick=-1, lastFf=false;
+
+  // Relay an Esc up to the Observatory theater host (the frame that embeds THIS
+  // shell). keydown never crosses an iframe boundary, so the host can't see
+  // Escape once focus is anywhere inside the theater; both the shell (below)
+  // and the board (which forwards its own Esc as {src:'ctf-replay',type:'esc'})
+  // bubble it up here. No-ops when this shell isn't itself embedded.
+  function postEscToHost(){
+    if (window.parent === window) return;
+    try { window.parent.postMessage({ src:'ctf-shell', type:'esc' }, '*'); } catch(e){}
+  }
+
+  window.addEventListener('message', function(ev){
+    var m=ev.data; if(!m || m.src!=='ctf-replay') return;
+    if(m.type==='frame'){ syncBoardAspect(m.data); onFrame(m.data); }
+    else if(m.type==='boot'){ onBoardBoot(); }
+    else if(m.type==='esc'){ postEscToHost(); }
+  });
+  // The embedded board announced it is alive and showing its locker-room
+  // loading scene on the pit floor. Drop the shell's own toast (it would float
+  // mid-scene saying "loading replay…" over bots who are visibly loading) and
+  // re-arm the failure escalation with a much longer leash: the board being
+  // alive rules out an embed block, leaving only a slow (or truly stuck) wasm
+  // boot, which deserves minutes, not the 12s no-signal timeout.
+  var boardBooted=false;
+  function onBoardBoot(){
+    boardBooted=true;
+    if(lastState) return;               // frames already flowing — nothing to do
+    hideStatus();                       // also clears statusTimer + failTimer
+    failTimer=setTimeout(showLoadFailure, 45000);
+  }
+  // Direct Esc while the shell chrome (transport, KDA rows, scrubber) holds
+  // focus; 'o' mirrors the [spoilers] transport button (a shell-local UI
+  // toggle, so it never goes down the command channel to the board).
+  window.addEventListener('keydown', function(ev){
+    if(ev.metaKey||ev.ctrlKey||ev.altKey) return;
+    if(ev.key==='Escape'){ postEscToHost(); }
+    else if(ev.key==='o'){ setSpoilers(!getSpoilers()); }
+  });
+
+  // ---- names (shared chrome: stripSeatSuffix / teamPolicies / teamName /
+  // teamHeadline / rosterName — chrome_common.js) ---------------------------
+  function shortName(n){
+    // Strip any @domain, then let the .nm cell's CSS ellipsis do the visual
+    // truncation — the char cap is only a runaway guard so a pathologically
+    // long name can't blow out the flex row. No mid-word hard cut like before.
+    n=String(n||'');
+    var at=n.indexOf('@'); if (at>0) n=n.slice(0,at);
+    if (n.length>28) n=n.slice(0,27)+'…';
+    return n||'?';
+  }
+  // (esc / setName live in the shared chrome — chrome_common.js)
+
+  // ---- flag icon svg (HOME/TAKEN are the only two states) ------------------
+  // The carrier's identity is shown by the ♥ marker in the roster table, so the
+  // flag icon carries no name tag here — just the home/taken cloth state.
+  function buildFlag(el, color){
+    el.innerHTML =
+      '<svg viewBox="0 0 26 30" aria-hidden="true">' +
+      '<rect x="4" y="2" width="2" height="26" fill="#2a1f16"/>' +
+      '<g class="cloth"><path d="M6 3 L22 3 L18 9 L22 15 L6 15 Z" fill="'+color+'"/></g>' +
+      '<rect x="1" y="26" width="10" height="3" fill="#8a7f72"/>' +
+      '</svg>';
+  }
+  function updateFlag(id, team, tstate, s){
+    var el=$(id);
+    /* GV32: 'captured' (heart retired, team eliminated) reads off-pedestal
+       like 'taken'. */
+    var taken = tstate.flag==='taken' || tstate.flag==='captured';
+    var was = el.classList.contains('taken');
+    el.classList.toggle('taken', taken);
+    if (was!==taken){ el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip'); }
+  }
+
+  // Rebuild the wall-corner names + side plaques when the active team set
+  // changes (once per match in practice). Teams alternate sides in TEAM_ORDER —
+  // index 0/2 left, 1/3 right — matching the board's plate layout.
+  var shellTeams=null;
+  function ensureShellTeams(teams){
+    var key=teams.join(',');
+    if (shellTeams===key) return;
+    shellTeams=key;
+    var names=[$('names-l'), $('names-r')];
+    var cols=[$('kda-l'), $('kda-r')];
+    names[0].innerHTML=''; names[1].innerHTML='';
+    cols[0].innerHTML=''; cols[1].innerHTML='';
+    names[0].classList.toggle('stacked', teams.length>2);
+    names[1].classList.toggle('stacked', teams.length>2);
+    teams.forEach(function(team, i){
+      var side=i%2;
+      var row=document.createElement('div');
+      row.className='wallrow '+team;
+      var nm=document.createElement('div');
+      nm.className='wallname '+team;
+      nm.id='name-'+team;
+      nm.textContent=team.toUpperCase();
+      var hc=document.createElement('span');
+      hc.className='hcap'; hc.id='hcap-'+team; hc.style.display='none';
+      row.appendChild(nm); row.appendChild(hc);
+      names[side].appendChild(row);
+      var pl=document.createElement('div');
+      pl.className='plaque '+(side===0?'left':'right')+' '+team;
+      pl.id='kda-'+team;
+      pl.innerHTML=
+        '<div class="team-head '+team+'" data-team="'+team+'">'+
+        '<div class="flagicon" id="flag-'+team+'"></div>'+
+        '<div class="lives-line">'+
+        '<span class="meters" id="meters-'+team+'"></span>'+
+        '</div>'+
+        '</div>'+
+        '<div class="khead"><span>Name</span><span>K</span><span>D</span><span>Lives</span></div>'+
+        '<div id="rows-'+team+'"></div>'+
+        '<div class="pfoot" id="foot-'+team+'"></div>';
+      cols[side].appendChild(pl);
+      buildFlag($('flag-'+team), teamCol(team) || AMBER);
+      // clicking a KDA row → POV lens on that player (toggles)
+      $('rows-'+team).addEventListener('click', function(ev){
+        var row=ev.target.closest('.krow'); if(!row) return;
+        togglePov(parseInt(row.getAttribute('data-slot'),10));
+      });
+    });
+  }
+
+  function renderScorebug(s){
+    var teams=activeTeams(s);
+    ensureShellTeams(teams);
+    var tr=s.teams||{};
+    var lives={};
+    teams.forEach(function(team){ lives[team]=(tr[team]&&tr[team].lives)||0; });
+    teams.forEach(function(team){
+      setName('name-'+team, teamName(s, team, team.toUpperCase()));
+      setHandicap('hcap-'+team, s, team);
+      // Life meter(s) + perk badges — shared chrome (chrome_common.js
+      // renderTeamMeters): the classic single "Lives N", or per-policy split
+      // meters in CTF-Doubles.
+      renderTeamMeters($('meters-'+team), s, team);
+      updateFlag('flag-'+team, team, tr[team]||{}, s);
+      // leader pulse when this team leads EVERY rival by >= 3
+      var bestRival=-Infinity;
+      teams.forEach(function(o){ if(o!==team) bestRival=Math.max(bestRival, lives[o]); });
+      var headEl=document.querySelector('.team-head[data-team="'+team+'"]');
+      if(headEl) headEl.classList.toggle('leader', lives[team]-bestRival>=3 && s.ph==='playing');
+    });
+  }
+
+  // ---- clock (shared chrome: fmt / renderClock; the looping-hold caption
+  // rides in via ctx.holdCaption) --------------------------------------------
+
+  // ---- KDA plaques (league-specific) ---------------------------------------
+  // Rows are built as PERSISTENT DOM keyed by seat slot and only re-created when
+  // the roster set changes; every other frame updates text/classes IN PLACE. The
+  // old code rewrote el.innerHTML ~24×/s, so a POV click whose mousedown→mouseup
+  // straddled a re-render landed on a node that no longer existed and the browser
+  // never fired `click` — POV selection felt unreliable even on the first try.
+  // (Same cached-DOM discipline the board's squad pips use.)
+  function makeRow(el, slot){
+    var row=document.createElement('div');
+    row.className='krow'; row.setAttribute('data-slot', slot);
+    var who=document.createElement('span'); who.className='who';
+    var nm=document.createElement('span'); nm.className='nm';
+    var seatno=document.createElement('span'); seatno.className='seatno';
+    var carry=document.createElement('span'); carry.className='carry';
+    who.appendChild(nm); who.appendChild(seatno); who.appendChild(carry);
+    var k=document.createElement('span'); k.className='n k';
+    var d=document.createElement('span'); d.className='n d';
+    var lives=document.createElement('span'); lives.className='lives';
+    row.appendChild(who); row.appendChild(k); row.appendChild(d); row.appendChild(lives);
+    el.appendChild(row);
+    return {row:row, nm:nm, seatno:seatno, carry:carry, k:k, d:d, lives:lives, pipKey:''};
+  }
+  function setLivePips(cell, n, max){
+    var key=n+'/'+max;
+    if (cell.pipKey===key) return;      // only rebuild when lives or max changed
+    cell.pipKey=key;
+    var o='';
+    for (var i=0;i<max;i++) o+='<span class="lp '+(i<n?'on':'off')+'"></span>';
+    cell.lives.innerHTML=o;
+  }
+  function renderRows(s, team, el){
+    var r=(s.roster||[]).filter(function(p){return p.team===team;}).slice().sort(function(a,b){return a.s-b.s;});
+    var mx=MAXLIVES; r.forEach(function(p){ if(p.lives>mx) mx=p.lives; });
+    var key=r.map(function(p){return p.s;}).join(',');
+    if (el._rowKey!==key){          // roster set changed → (re)build the row DOM once
+      el.innerHTML=''; el._cells={};
+      r.forEach(function(p){ el._cells[p.s]=makeRow(el, p.s); });
+      el._rowKey=key;
+    }
+    var cells=el._cells;
+    r.forEach(function(p,idx){
+      var c=cells[p.s]; if(!c) return;
+      var seat=idx+1;
+      // Row label = the PER-PLAYER name the board units carry (via rosterName)
+      // then the seat number as a small disambiguator, e.g. "Richard Higg… 1".
+      // No team color: replays identify players by name, and the trailing seat
+      // disambiguates teammates who share one policy name. Team identity rides
+      // the wall-corner headline above the table.
+      var who=shortName(rosterName(s, p.s));
+      if (c.nm.textContent!==who) c.nm.textContent=who;
+      var seatTxt=String(seat);
+      if (c.seatno.textContent!==seatTxt) c.seatno.textContent=seatTxt;
+      var heart=p.carry?'♥':'';
+      if (c.carry.textContent!==heart) c.carry.textContent=heart;
+      var kTxt=String(p.k||0); if (c.k.textContent!==kTxt) c.k.textContent=kTxt;
+      var dTxt=String(p.d||0); if (c.d.textContent!==dTxt) c.d.textContent=dTxt;
+      setLivePips(c, p.lives||0, mx);
+      c.row.classList.toggle('dead', !p.alive);
+      c.row.classList.toggle('pov', s.pov!=null && s.pov===p.s);
+    });
+  }
+
+  function renderStandings(teams){
+    // Observatory injects standings as {competitors:{<team>:name}, ladder:[…]}
+    // — keyed by team name, historically just red/blue. Render whatever teams
+    // the frame carries; a team with no competitor entry gets an empty footer.
+    (teams||['red','blue']).forEach(function(team){
+      var el=$('foot-'+team);
+      if(!el) return;
+      if(!standings || !standings.competitors){ el.innerHTML=''; return; }
+      var name = standings.competitors[team];
+      var row = (standings.ladder||[]).filter(function(r){return r.name===name;})[0];
+      if(!row){ el.innerHTML=''; return; }
+      var tot = (standings.ladder||[]).length;
+      el.innerHTML = '<div class="lab">'+esc(standings.division||'Division')+'</div>'+
+        '<div class="standline"><span class="rk">#'+row.rank+'</span>'+
+        '<span class="sc">'+(row.score!=null? Number(row.score).toFixed(2):'—')+'</span>'+
+        '<span class="of">of '+tot+' · EWMA</span></div>';
+    });
+  }
+
+  // ---- transport / lull shading / beat markers / beats + verdict (shared
+  // chrome: renderTransport, ingestLullSpans, renderLullSpans, markBeat,
+  // teamOf, killMarkerTeam, otherTeam, captureTeam, renderBeatMarkers,
+  // ingestBeats, setVerdict — chrome_common.js) ------------------------------
+
+  // ---- momentum graph (shared chrome: ingestLeadSeries / recordMomentum /
+  // renderMomentum and their state — chrome_common.js) --------------------
+
+  // ==========================================================================
+  //  onFrame — paint every wall-mounted HUD from the streamed state.
+  // ==========================================================================
+  function onFrame(s){
+    lastState=s;
+
+    // Detect a jump (seek/loop) — nothing transient to clear here, but we keep
+    // beat markers collected so far (markBeat dedups by tick|kind anyway).
+    // A skip-lulls fast-forward frame advances up to 64 ticks (this frame or
+    // the previous one crossing out of the lull) — not a seek.
+    var stride = (s.ff || lastFf) ? Math.min((s.sp||1)*8, 64) : (s.sp||1);
+    var jumped = (s.t < lastTick) || (lastTick>=0 && s.t-lastTick > stride*4+2);
+    lastFf = !!s.ff;
+
+    renderScorebug(s);
+    renderClock(s);
+    renderTransport(s);
+
+    // KDA rosters (league-specific); team name/lives ride the header above them
+    var teams=activeTeams(s);
+    teams.forEach(function(team){
+      var rowsEl=$('rows-'+team);
+      if (rowsEl) renderRows(s, team, rowsEl);
+    });
+    renderStandings(teams);
+
+    // beat markers from events; momentum from lead series
+    if (s.events && s.events.length && !jumped){
+      for (var i=0;i<s.events.length;i++){
+        var e=s.events[i];
+        if (e.k==='kill') markBeat(e.t,'kill', killMarkerTeam(e, s));
+        else if (e.k==='steal') markBeat(e.t,'steal', e.flag);
+        else if (e.k==='return') markBeat(e.t,'return', e.flag);
+        else if (e.k==='capture') markBeat(e.t,'capture', captureTeam(s, e));
+      }
+    }
+    ingestLeadSeries(s);
+    ingestLullSpans(s);
+    ingestBeats(s);
+    recordMomentum(s);
+    if (s.ph==='gameover' && s.over) setVerdict(s.over);
+
+    lastTick = s.t;
+    hideStatus();
+  }
+
+  // ==========================================================================
+  //  TRANSPORT DRIVE — relay commands to the embedded replay (single WS, sync).
+  // ==========================================================================
+  function sendCmd(cmd){ var f=$('game'); if(f && f.contentWindow) f.contentWindow.postMessage({src:'ctf-shell',type:'cmd',cmd:cmd},'*'); }
+  function sendSeek(tick){ var f=$('game'); if(f && f.contentWindow) f.contentWindow.postMessage({src:'ctf-shell',type:'seek',tick:tick},'*'); }
+  function sendPov(slot){ var f=$('game'); if(f && f.contentWindow) f.contentWindow.postMessage({src:'ctf-shell',type:'pov',slot:slot},'*'); }
+  // (togglePov lives in the shared chrome, driven via ctx.sendPov)
+
+  // transport buttons → command chars (same vocabulary the local transport uses)
+  $('btn-restart').addEventListener('click', function(){ sendCmd(','); });
+  $('btn-back').addEventListener('click',    function(){ sendCmd('b'); });
+  $('btn-play').addEventListener('click',    function(){ sendCmd(' '); });
+  $('btn-fwd').addEventListener('click',     function(){ sendCmd('.'); });
+  $('btn-end').addEventListener('click',     function(){ sendCmd('e'); });
+  $('btn-loop').addEventListener('click',    function(){ sendCmd('r'); });
+  $('btn-skip').addEventListener('click',    function(){ sendCmd('f'); });
+
+  // (speed chips are built + rendered by the shared chrome via ctx.send)
+
+  // click-to-seek on the scrub track (maps onto the shown [startTick, maxTick] axis)
+  $('scrub').addEventListener('click', function(ev){
+    if (!lastState || !lastState.en) return;
+    var r=this.getBoundingClientRect();
+    var frac=clamp(0,(ev.clientX-r.left)/r.width,1);
+    var st=Math.max(0, lastState.st||0);
+    var mx=Math.max(st+1, lastState.mx||1);
+    sendSeek(st + Math.round(frac*(mx-st)));
+  });
+
+  // (KDA row → POV click handlers are attached per generated roster table in
+  // ensureShellTeams.)
+
+  var statusTimer=null, failTimer=null;
+  function hideStatus(){
+    var el=$('status'); el.classList.remove('show'); el.classList.remove('err');
+    if(statusTimer){clearTimeout(statusTimer);statusTimer=null;}
+    if(failTimer){clearTimeout(failTimer);failTimer=null;}
+  }
+  function showStatus(t){ var el=$('status'); el.classList.remove('err'); el.textContent=t; el.classList.add('show'); }
+  // Escalation: the shell learns of the replay ONLY via a `frame` postMessage
+  // from the embedded board iframe. If the iframe is refused from embedding
+  // (the proxy/CDN denies framing → Chrome's "This content is blocked" box) or
+  // its socket never connects, no frame ever arrives and the toast would hang
+  // on "waiting for replay frames…" forever. Surface a real error with a direct
+  // TOP-LEVEL link to the board — opening it un-framed sidesteps an embed block.
+  function showLoadFailure(){
+    if(lastState) return; // frames arrived after all — nothing to escalate
+    var el=$('status'); el.classList.add('show','err');
+    var direct=(ROUTE_BASE||'')+'/client/replay'+location.search;
+    el.innerHTML='';
+    var head=document.createElement('div'); head.textContent='Replay didn’t load';
+    var sub=document.createElement('span'); sub.className='st-sub';
+    // A booted board rules out an embed block — the replay itself is stuck.
+    sub.textContent=boardBooted
+      ? 'The board came up but the replay never produced a frame — it may be stuck loading.'
+      : 'The embedded board sent no frames — it may be blocked from embedding here.';
+    var link=document.createElement('a'); link.textContent='Open the board directly →';
+    link.href=direct; link.target='_top'; link.rel='noopener';
+    el.appendChild(head); el.appendChild(sub); el.appendChild(link);
+  }
+  showStatus('loading replay…');
+  statusTimer=setTimeout(function(){ if(!lastState) showStatus('waiting for replay frames…'); }, 4000);
+  failTimer=setTimeout(showLoadFailure, 12000);
+
+  layout();
+})();
+</script>
+</body>
+</html>

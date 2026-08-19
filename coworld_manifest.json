@@ -1,0 +1,797 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Metta-AI/metta/main/packages/coworld/src/coworld/coworld_manifest_schema.json",
+  "tags": [
+    "multiplayer",
+    "competitive",
+    "ants",
+    "stigmergy",
+    "foraging",
+    "artificial-life"
+  ],
+  "game": {
+    "name": "emerg-ant",
+    "replay_viewer": {
+      "bundle": "static-replay-viewer"
+    },
+    "description": "Emerg-ant is a competitive 8v8 colony-foraging Coworld. Ants raid a replenishing enemy food cache, return food to their nest, and coordinate through public pheromone trails that rival colonies can cancel or erase. First to five returns wins; a unique score leader wins when the clock expires.",
+    "owner": "treeform@softmax.com",
+    "runnable": {
+      "type": "game",
+      "image": "{{GAME_IMAGE}}",
+      "run": [
+        "/bin/emerg-ant"
+      ],
+      "source_url": "https://github.com/Metta-AI/coworld-emerg-ant/tree/main"
+    },
+    "config_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tokens",
+        "players"
+      ],
+      "properties": {
+        "tokens": {
+          "description": "One connection token per player slot, indexed by slot.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "players": {
+          "description": "One player display-name object per player slot, indexed by slot.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "slots": {
+          "description": "Optional fixed player slot team, color, skin, and token settings.",
+          "type": "array",
+          "maxItems": 32,
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "token": {
+                "type": "string"
+              },
+              "team": {
+                "type": "string",
+                "enum": [
+                  "red",
+                  "blue",
+                  "green",
+                  "yellow"
+                ],
+                "description": "Fixed team for this seat. Green and yellow are only valid when teams is 4; with no team the seat is dealt slot mod teams."
+              },
+              "skin": {
+                "description": "Cosmetic body-art skin for this slot's player. Rendering only: no gameplay effect and no observation-label change.",
+                "type": "string",
+                "enum": [
+                  "default",
+                  "crown"
+                ]
+              },
+              "color": {
+                "type": "string",
+                "enum": [
+                  "red",
+                  "orange",
+                  "yellow",
+                  "light blue",
+                  "pink",
+                  "lime",
+                  "blue",
+                  "pale blue",
+                  "gray",
+                  "white",
+                  "dark brown",
+                  "brown",
+                  "dark teal",
+                  "green",
+                  "dark navy",
+                  "black"
+                ]
+              }
+            }
+          }
+        },
+        "closedRoster": {
+          "description": "Reject players outside the configured token/slot roster.",
+          "type": "boolean",
+          "default": false
+        },
+        "seed": {
+          "description": "Random seed.",
+          "type": "integer",
+          "default": 679961
+        },
+        "minPlayers": {
+          "description": "Players needed before the game countdown starts.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 16
+        },
+        "lives": {
+          "description": "Lives per player. Out of lives = out for the round.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "hitPoints": {
+          "description": "Hit points per life. Each shot removes one; at zero you die.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "respawnTicks": {
+          "description": "Ticks dead before respawning at home (~3s at 24 ticks/s).",
+          "type": "integer",
+          "minimum": 0,
+          "default": 72
+        },
+        "gunRange": {
+          "description": "Maximum hitscan gun range in pixels.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 1300
+        },
+        "fireCooldownTicks": {
+          "description": "Minimum ticks between shots (~0.5s at 24 ticks/s).",
+          "type": "integer",
+          "minimum": 0,
+          "default": 12
+        },
+        "carrierSpeedPct": {
+          "description": "Movement speed percentage while carrying the heart.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 70
+        },
+        "aimTurnRate": {
+          "description": "Aim rotation speed in brads (256ths of a turn) per tick while a rotate button is held. B rotates counter-clockwise, Select clockwise; movement never changes the aim.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 5
+        },
+        "visionConeDeg": {
+          "description": "Vision cone half-angle in degrees around the aim angle. Fog of war hides everything outside the cone, the vision bubble, and line of sight.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 180,
+          "default": 45
+        },
+        "visionBubble": {
+          "description": "Omnidirectional vision radius in pixels around each player, seen regardless of aim.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 90
+        },
+        "startWaitTicks": {
+          "description": "Lobby countdown ticks after enough players join.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 120
+        },
+        "lobbyJoinTimeoutTicks": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Finite matches only: abort the lobby when the roster is still short of minPlayers after this many lobby ticks (24 ticks = 1s), declaring the stuck seat via COGAME_PLAYER_FAILURE_URI so the platform charges the no-show to that policy. 0 = wait forever (default). The clock runs on lobby ticks, so board bake time never eats the budget."
+        },
+        "gameOverTicks": {
+          "description": "Game over display duration in ticks.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 360
+        },
+        "maxTicks": {
+          "description": "Maximum game ticks before tiebreak, where 0 means no limit.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 10000
+        },
+        "maxGames": {
+          "description": "Maximum games before shutdown.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "showPlayerLabels": {
+          "description": "Show player labels.",
+          "type": "boolean",
+          "default": true
+        },
+        "fastMode": {
+          "description": "Advance frames early when all players report ready.",
+          "type": "boolean",
+          "default": true
+        },
+        "mapPath": {
+          "description": "Arena map identifier (procedurally generated).",
+          "type": "string",
+          "default": "arena"
+        },
+        "num_agents": {
+          "description": "Number of agent seats; must equal the player slot count. Used by the platform ladder service for block seating.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 16
+        },
+        "fireWindupTicks": {
+          "description": "Ticks from trigger pull to the shot releasing (~0.2s at 24 ticks/s). Aim locks at the pull; a peeking target can duck back behind cover before the bullet leaves.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 5
+        },
+        "teams": {
+          "description": "Active team count: 2 (classic sides) or 4 (corner/plus free-for-all).",
+          "type": "integer",
+          "enum": [
+            2,
+            4
+          ]
+        },
+        "mapLayout": {
+          "description": "Generated-map layout lock: sides, corners, or plus. Empty draws corners/plus from the map seed for 4-team games.",
+          "type": "string",
+          "enum": [
+            "sides",
+            "corners",
+            "plus"
+          ]
+        },
+        "mapSeed": {
+          "description": "Terrain seed for mapPath gen/pool; -1 derives from the per-episode game seed.",
+          "type": "integer"
+        },
+        "scoring": {
+          "description": "End-of-game reward rule. \"classic\": the winning team scores +1 per losing team and each loser -1. \"pot\": every team antes one point and the winning team takes the whole pot, the losing teams splitting the forfeit evenly - 2 teams pay +2/-2, 4 teams pay +4/-1/-1/-1.",
+          "type": "string",
+          "enum": [
+            "classic",
+            "pot"
+          ],
+          "default": "classic"
+        },
+        "gameMode": {
+          "description": "Objective ruleset. ctf is single-capture elimination; emerg-ant is a repeated food-return race with public, erasable pheromone trails.",
+          "type": "string",
+          "enum": [
+            "ctf",
+            "emerg-ant"
+          ],
+          "default": "ctf"
+        },
+        "forageGoal": {
+          "description": "Emerg-ant food returns needed for a colony win. A unique score leader wins when the clock expires.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 5
+        },
+        "mapSize": {
+          "description": "Generated-map size-class lock: small, standard, large, huge, or giant. Empty draws the size from the map seed.",
+          "type": "string",
+          "enum": [
+            "small",
+            "standard",
+            "large",
+            "huge",
+            "giant"
+          ]
+        },
+        "handicaps": {
+          "description": "Per-team handicap that weakens a team, keyed by team name. Each value is 0..1: 0 = normal, 1 = 50% of shots miss, 1 life, 1 hit point, half max speed; values in between interpolate linearly. Omitted teams are unhandicapped. Intended for a league (e.g. Campaign) to level a dominating team.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "red": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "blue": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "green": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "yellow": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "mapSpec": {
+          "description": "Full expanded map geometry (obstacles, trenches, endzones) as a JSON object. Pins an exact authored map — e.g. a campaign cell's custom organic terrain — overriding mapPath/mapSeed/mapSize. Same format the replay config carries.",
+          "type": "object"
+        },
+        "perks": {
+          "perkVocabulary": [
+            {
+              "id": "armor",
+              "effect": "+1 max hp"
+            },
+            {
+              "id": "scope",
+              "effect": "50% tighter gun aim"
+            },
+            {
+              "id": "grenade",
+              "effect": "+25% throw range"
+            },
+            {
+              "id": "thruster",
+              "effect": "+10% max speed"
+            },
+            {
+              "id": "luck",
+              "effect": "10% of landed gun shots deal 2 damage"
+            }
+          ],
+          "description": "Per-team perk buffs, keyed by team name. Vocabulary: armor (+1 max hp), scope (50% tighter gun aim), grenade (+25% throw range), thruster (+10% max speed), luck (10% of landed gun shots deal 2 damage) — magnitudes tunable via perkMods. A team's value is a flat array of perk names (the whole team shares them), an array of such arrays (per-policy groups for 2v2 seats, dealt to the team's distinct policies in join order), or an object keyed by policy name pinning each group to exactly that policy (unmatched policies get nothing). Omitted teams have no perks.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "red": {
+              "type": [
+                "array",
+                "object"
+              ]
+            },
+            "blue": {
+              "type": [
+                "array",
+                "object"
+              ]
+            },
+            "green": {
+              "type": [
+                "array",
+                "object"
+              ]
+            },
+            "yellow": {
+              "type": [
+                "array",
+                "object"
+              ]
+            }
+          }
+        },
+        "perkMods": {
+          "description": "Perk magnitude overrides. Fractions are 0..1: scopeAim = fraction of aim deviation removed, grenadeRange/thrusterSpeed = extra range/speed, luckChance = chance a landed shot is lucky; armorHp/luckDamage are hit-point counts (0..100).",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "armorHp": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "scopeAim": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "grenadeRange": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "thrusterSpeed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "luckChance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "luckDamage": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "barrierPickups": {
+          "description": "Cardboard-barrier pickups per team, staged between base and center. A carried barrier places with the grenade button as a standing half-hex that blocks paint but not sight, takes 10 paintball hits, and is flattened by any cog that drives into it; carrying one excludes carrying a grenade. 0 disables the item (the default).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0
+        },
+        "barrageMaxPerSec": {
+          "description": "Grenade-barrage endgame: the launch rate the bombardment ramps up to, in grenades/second across the whole board. 0 disables the mode; requires maxTicks > 0 when set. With the barrage on, the time limit no longer ends the game — it plays past 0:00 under full bombardment until one team is wiped.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50,
+          "default": 0
+        },
+        "barrageStartPerSec": {
+          "description": "Grenade-barrage launch rate at the latch, along the map edges, grenades/second.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 4
+        },
+        "barrageStartSec": {
+          "description": "Clock seconds remaining that latch the barrage on (30 = starts at 4:30 on a 5:00 clock).",
+          "type": "integer",
+          "minimum": 1,
+          "default": 30
+        },
+        "barrageSaturateSec": {
+          "description": "Seconds from the latch until full saturation: whole board targeted at barrageMaxPerSec (30 = saturated exactly at 5:00 with the default start).",
+          "type": "integer",
+          "minimum": 1,
+          "default": 30
+        }
+      }
+    },
+    "results_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scores"
+      ],
+      "properties": {
+        "names": {
+          "description": "One player name or address per player slot.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "string"
+          }
+        },
+        "scores": {
+          "description": "One scalar score per player slot.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "number"
+          }
+        },
+        "win": {
+          "description": "One win flag per player slot.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "boolean"
+          }
+        },
+        "team": {
+          "description": "One team name (red or blue) per player slot.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "string"
+          }
+        },
+        "kills": {
+          "description": "One kill count per player slot.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "deaths": {
+          "description": "One death count per player slot.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "captures": {
+          "description": "One heart-capture count per player slot.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "protocols": {
+      "player": {
+        "type": "uri",
+        "value": "https://github.com/Metta-AI/coworld-emerg-ant/blob/main/docs/PROTOCOL.md"
+      },
+      "global": {
+        "type": "uri",
+        "value": "https://github.com/Metta-AI/coworld-emerg-ant/blob/main/docs/PROTOCOL.md"
+      }
+    },
+    "docs": {
+      "readme": {
+        "type": "uri",
+        "value": "https://github.com/Metta-AI/coworld-emerg-ant/blob/main/README.md"
+      },
+      "pages": [
+        {
+          "id": "rules.md",
+          "title": "Rules",
+          "content": {
+            "type": "uri",
+            "value": "https://github.com/Metta-AI/coworld-emerg-ant/blob/main/docs/RULES.md"
+          }
+        }
+      ]
+    }
+  },
+  "player": [
+    {
+      "id": "baseline",
+      "name": "baseline",
+      "type": "player",
+      "description": "Reference bot image used for Coworld smoke certification.",
+      "image": "{{PLAYER_IMAGE}}",
+      "run": [
+        "/bin/baseline"
+      ],
+      "source_url": "https://github.com/Metta-AI/coworld-emerg-ant/tree/main/players/baseline",
+      "resources": {
+        "requests": {
+          "cpu": "500m",
+          "memory": "384Mi"
+        },
+        "limits": {
+          "cpu": "2"
+        }
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "emerg-ant",
+      "name": "Emerg-ant Foraging",
+      "description": "Sixteen ants in two rival colonies raid replenishing food caches and coordinate through public pheromone trails. First colony to five returns wins; a unique score leader wins at the clock.",
+      "game_config": {
+        "players": [
+          {
+            "name": "Ant1"
+          },
+          {
+            "name": "Ant2"
+          },
+          {
+            "name": "Ant3"
+          },
+          {
+            "name": "Ant4"
+          },
+          {
+            "name": "Ant5"
+          },
+          {
+            "name": "Ant6"
+          },
+          {
+            "name": "Ant7"
+          },
+          {
+            "name": "Ant8"
+          },
+          {
+            "name": "Ant9"
+          },
+          {
+            "name": "Ant10"
+          },
+          {
+            "name": "Ant11"
+          },
+          {
+            "name": "Ant12"
+          },
+          {
+            "name": "Ant13"
+          },
+          {
+            "name": "Ant14"
+          },
+          {
+            "name": "Ant15"
+          },
+          {
+            "name": "Ant16"
+          }
+        ],
+        "num_agents": 16,
+        "minPlayers": 16,
+        "gameMode": "emerg-ant",
+        "forageGoal": 5,
+        "lives": 5,
+        "hitPoints": 3,
+        "respawnTicks": 72,
+        "gunRange": 1050,
+        "fireCooldownTicks": 18,
+        "fireWindupTicks": 5,
+        "carrierSpeedPct": 80,
+        "aimTurnRate": 5,
+        "visionConeDeg": 60,
+        "visionBubble": 90,
+        "startWaitTicks": 120,
+        "gameOverTicks": 360,
+        "maxTicks": 3600,
+        "maxGames": 1,
+        "mapPath": "arena",
+        "showPlayerLabels": true,
+        "teams": 2,
+        "scoring": "classic",
+        "lobbyJoinTimeoutTicks": 2880,
+        "barrageMaxPerSec": 0
+      }
+    }
+  ],
+  "certification": {
+    "players": [
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      }
+    ],
+    "game_config": {
+      "players": [
+        {
+          "name": "Ant1"
+        },
+        {
+          "name": "Ant2"
+        },
+        {
+          "name": "Ant3"
+        },
+        {
+          "name": "Ant4"
+        },
+        {
+          "name": "Ant5"
+        },
+        {
+          "name": "Ant6"
+        },
+        {
+          "name": "Ant7"
+        },
+        {
+          "name": "Ant8"
+        },
+        {
+          "name": "Ant9"
+        },
+        {
+          "name": "Ant10"
+        },
+        {
+          "name": "Ant11"
+        },
+        {
+          "name": "Ant12"
+        },
+        {
+          "name": "Ant13"
+        },
+        {
+          "name": "Ant14"
+        },
+        {
+          "name": "Ant15"
+        },
+        {
+          "name": "Ant16"
+        }
+      ],
+      "num_agents": 16,
+      "minPlayers": 16,
+      "gameMode": "emerg-ant",
+      "forageGoal": 1,
+      "lives": 1,
+      "hitPoints": 1,
+      "respawnTicks": 72,
+      "gunRange": 1050,
+      "fireCooldownTicks": 18,
+      "fireWindupTicks": 5,
+      "carrierSpeedPct": 80,
+      "aimTurnRate": 5,
+      "visionConeDeg": 60,
+      "visionBubble": 90,
+      "startWaitTicks": 0,
+      "gameOverTicks": 1,
+      "maxTicks": 300,
+      "maxGames": 1,
+      "mapPath": "arena",
+      "showPlayerLabels": true,
+      "teams": 2,
+      "scoring": "classic",
+      "lobbyJoinTimeoutTicks": 2880,
+      "barrageMaxPerSec": 0,
+      "seed": 679961
+    }
+  }
+}

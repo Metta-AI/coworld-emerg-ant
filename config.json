@@ -1,0 +1,155 @@
+{
+  "maxGames": 1,
+  "gameMode": "emerg-ant",
+  "forageGoal": 5,
+  "lives": 5,
+  "hitPoints": 3,
+  "respawnTicks": 72,
+  "fireCooldownTicks": 18,
+  "carrierSpeedPct": 80,
+  "playerBouncePct": 40,
+  "aimTurnRate": 5,
+  "visionConeDeg": 60,
+  "visionBubble": 90,
+  "maxTicks": 3600,
+  "mapPath": "arena",
+  "tokens": [
+    "0xBADA55_0",
+    "0xBADA55_1",
+    "0xBADA55_2",
+    "0xBADA55_3",
+    "0xBADA55_4",
+    "0xBADA55_5",
+    "0xBADA55_6",
+    "0xBADA55_7",
+    "0xBADA55_8",
+    "0xBADA55_9",
+    "0xBADA55_10",
+    "0xBADA55_11",
+    "0xBADA55_12",
+    "0xBADA55_13",
+    "0xBADA55_14",
+    "0xBADA55_15"
+  ],
+  "players": [
+    {
+      "name": "player1"
+    },
+    {
+      "name": "player2"
+    },
+    {
+      "name": "player3"
+    },
+    {
+      "name": "player4"
+    },
+    {
+      "name": "player5"
+    },
+    {
+      "name": "player6"
+    },
+    {
+      "name": "player7"
+    },
+    {
+      "name": "player8"
+    },
+    {
+      "name": "player9"
+    },
+    {
+      "name": "player10"
+    },
+    {
+      "name": "player11"
+    },
+    {
+      "name": "player12"
+    },
+    {
+      "name": "player13"
+    },
+    {
+      "name": "player14"
+    },
+    {
+      "name": "player15"
+    },
+    {
+      "name": "player16"
+    }
+  ],
+  "slots": [
+    {
+      "team": "red",
+      "color": "red"
+    },
+    {
+      "team": "blue",
+      "color": "blue"
+    },
+    {
+      "team": "red",
+      "color": "red"
+    },
+    {
+      "team": "blue",
+      "color": "blue"
+    },
+    {
+      "team": "red",
+      "color": "red"
+    },
+    {
+      "team": "blue",
+      "color": "blue"
+    },
+    {
+      "team": "red",
+      "color": "red"
+    },
+    {
+      "team": "blue",
+      "color": "blue"
+    },
+    {
+      "team": "red",
+      "color": "red"
+    },
+    {
+      "team": "blue",
+      "color": "blue"
+    },
+    {
+      "team": "red",
+      "color": "red"
+    },
+    {
+      "team": "blue",
+      "color": "blue"
+    },
+    {
+      "team": "red",
+      "color": "red"
+    },
+    {
+      "team": "blue",
+      "color": "blue"
+    },
+    {
+      "team": "red",
+      "color": "red"
+    },
+    {
+      "team": "blue",
+      "color": "blue"
+    }
+  ],
+  "fireWindupTicks": 5,
+  "barrageMaxPerSec": 0,
+  "barrageStartPerSec": 4,
+  "barrageStartSec": 30,
+  "barrageSaturateSec": 30
+}

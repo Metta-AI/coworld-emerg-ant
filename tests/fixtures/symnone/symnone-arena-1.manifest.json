@@ -1,0 +1,375 @@
+{
+  "name": "symnone-arena-1",
+  "width": 1235,
+  "height": 659,
+  "flagRing": 70,
+  "captureClear": 210,
+  "spawnClearW": 70,
+  "spawnClearH": 130,
+  "gunRange": 1050,
+  "symmetry": "none",
+  "layout": "sides",
+  "endzone": "column",
+  "endzoneRadius": 0,
+  "homeDepth": 0,
+  "medKitSpawns": [
+    [
+      617,
+      329
+    ],
+    [
+      583,
+      295
+    ],
+    [
+      360,
+      90
+    ],
+    [
+      860,
+      590
+    ]
+  ],
+  "medKitCandidates": [
+    [
+      617,
+      329
+    ],
+    [
+      583,
+      295
+    ],
+    [
+      360,
+      90
+    ],
+    [
+      860,
+      590
+    ]
+  ],
+  "leftObstacles": [
+    {
+      "kind": "rect",
+      "x": 96,
+      "y": 169,
+      "w": 45,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 231,
+      "y": 169,
+      "w": 65,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 96,
+      "y": 455,
+      "w": 200,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 96,
+      "y": 169,
+      "w": 34,
+      "h": 125
+    },
+    {
+      "kind": "rect",
+      "x": 96,
+      "y": 364,
+      "w": 34,
+      "h": 125
+    },
+    {
+      "kind": "rect",
+      "x": 262,
+      "y": 169,
+      "w": 34,
+      "h": 90
+    },
+    {
+      "kind": "rect",
+      "x": 262,
+      "y": 399,
+      "w": 34,
+      "h": 90
+    },
+    {
+      "kind": "rect",
+      "x": 262,
+      "y": 225,
+      "w": 102,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 262,
+      "y": 399,
+      "w": 102,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 919,
+      "y": 209,
+      "w": 230,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 919,
+      "y": 415,
+      "w": 85,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 1094,
+      "y": 415,
+      "w": 55,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 919,
+      "y": 209,
+      "w": 34,
+      "h": 50
+    },
+    {
+      "kind": "rect",
+      "x": 919,
+      "y": 399,
+      "w": 34,
+      "h": 50
+    },
+    {
+      "kind": "rect",
+      "x": 1115,
+      "y": 209,
+      "w": 34,
+      "h": 85
+    },
+    {
+      "kind": "rect",
+      "x": 1115,
+      "y": 364,
+      "w": 34,
+      "h": 85
+    },
+    {
+      "kind": "rect",
+      "x": 851,
+      "y": 225,
+      "w": 102,
+      "h": 34
+    },
+    {
+      "kind": "rect",
+      "x": 851,
+      "y": 399,
+      "w": 102,
+      "h": 34
+    },
+    {
+      "kind": "polygon",
+      "points": [
+        [
+          560,
+          150
+        ],
+        [
+          700,
+          210
+        ],
+        [
+          660,
+          300
+        ],
+        [
+          520,
+          240
+        ]
+      ]
+    },
+    {
+      "kind": "disc",
+      "cx": 720,
+      "cy": 470,
+      "r": 40
+    },
+    {
+      "kind": "polygon",
+      "points": [
+        [
+          430,
+          500
+        ],
+        [
+          520,
+          470
+        ],
+        [
+          540,
+          560
+        ],
+        [
+          450,
+          580
+        ]
+      ]
+    },
+    {
+      "kind": "rect",
+      "x": 600,
+      "y": 380,
+      "w": 120,
+      "h": 34
+    }
+  ],
+  "teamPickups": {
+    "shields": [
+      [
+        60,
+        470
+      ],
+      [
+        1175,
+        250
+      ]
+    ],
+    "cans": [
+      [
+        60,
+        210
+      ],
+      [
+        1175,
+        470
+      ]
+    ],
+    "barriers": []
+  },
+  "designManifest": {
+    "map": "symnone-arena-1",
+    "symmetry": "none",
+    "entrances": [
+      {
+        "side": "red",
+        "name": "ramp",
+        "face": "E",
+        "character": "fast-exposed",
+        "gap": 140
+      },
+      {
+        "side": "red",
+        "name": "crevice",
+        "face": "N",
+        "character": "slow-safe",
+        "gap": 90
+      },
+      {
+        "side": "red",
+        "name": "crest",
+        "face": "W",
+        "character": "tight-egress",
+        "gap": 70
+      },
+      {
+        "side": "blue",
+        "name": "ramp",
+        "face": "W",
+        "character": "fast-exposed",
+        "gap": 140
+      },
+      {
+        "side": "blue",
+        "name": "crevice",
+        "face": "S",
+        "character": "slow-safe",
+        "gap": 90
+      },
+      {
+        "side": "blue",
+        "name": "crest",
+        "face": "E",
+        "character": "tight-egress",
+        "gap": 70
+      }
+    ],
+    "pedestals": [
+      {
+        "side": "red",
+        "xy": [
+          186,
+          329
+        ]
+      },
+      {
+        "side": "blue",
+        "xy": [
+          1049,
+          329
+        ]
+      }
+    ],
+    "items": [
+      {
+        "job": "destination stash — the contested central bar",
+        "kind": "medkit-stash",
+        "points": [
+          [
+            617,
+            329
+          ],
+          [
+            583,
+            295
+          ]
+        ]
+      },
+      {
+        "job": "route bribe — top flat lane",
+        "kind": "medkit-single",
+        "points": [
+          [
+            360,
+            90
+          ]
+        ]
+      },
+      {
+        "job": "route bribe — bottom flat lane",
+        "kind": "medkit-single",
+        "points": [
+          [
+            860,
+            590
+          ]
+        ]
+      }
+    ],
+    "returns": [
+      {
+        "side": "red",
+        "attack": "ramp (E, fast-exposed)",
+        "return": "crevice (N flank, quiet)",
+        "support": "flank crevice off the contest axis; NW ridge breaks LOS on egress"
+      },
+      {
+        "side": "blue",
+        "attack": "ramp (W, fast-exposed)",
+        "return": "crevice (S flank, quiet)",
+        "support": "S bunker gives a retreat magnet; keeps are function-balanced not mirrored"
+      }
+    ],
+    "findings": [
+      "Full-board asymmetric: red keep is TALL/narrow opening E, blue is SHORT/wide opening W — genuinely different geometry, not a mirror or rot image. Midfield cover (NW ridge, S bunker, SW spur) has no twins. Only expressible under symNone (#280).",
+      "Per-team pickups authored explicitly (no symmetry orbit); asymmetric y-offsets per team."
+    ]
+  }
+}

@@ -1,0 +1,115 @@
+name: Upload Coworld
+
+# Builds the game/player images and uploads one Emerg-ant Coworld version after
+# the test workflow ("Github Actions") passes on main. The standalone manifest
+# publishes only the competitive 16-player `emerg-ant` variant.
+#
+# Auth: the SOFTMAX_TOKEN repo secret for the coworld-emerg-ant-ci user credential.
+
+on:
+  workflow_run:
+    workflows: ["Github Actions"]
+    types: [completed]
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Explicit game version (default: bump patch of latest uploaded emerg-ant)"
+        required: false
+
+# One upload at a time; queued runs wait so version query/bump cannot race.
+concurrency:
+  group: upload-coworld-emerg-ant
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    # Manual dispatch always runs; workflow_run only after a green test run
+    # AND only for a push to this repo's main. The event/repo checks matter:
+    # the workflow_run `branches` filter matches the triggering run's HEAD
+    # branch, so a fork PR whose source branch is named "main" would
+    # otherwise fire this job — with repo secrets — on unreviewed fork code.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: coworld-emerg-ant
+          # For workflow_run, build the exact SHA the tests certified.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+      - name: Check the certified SHA is still main's HEAD
+        id: freshness
+        working-directory: coworld-emerg-ant
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "workflow_run" ]; then
+            echo "stale=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --quiet origin main
+          latest=$(git rev-parse origin/main)
+          certified="${{ github.event.workflow_run.head_sha }}"
+          if [ "$latest" != "$certified" ]; then
+            echo "::notice::Skipping upload: certified SHA $certified is not origin/main HEAD ($latest) — superseded or a re-run of an old run."
+            echo "stale=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=0" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: astral-sh/setup-uv@v6
+      - uses: docker/setup-buildx-action@v3
+      - name: Authenticate to Softmax
+        if: steps.freshness.outputs.stale != '1'
+        run: uvx --from "coworld[auth]==0.1.34" softmax set-token "${{ secrets.SOFTMAX_TOKEN }}"
+      - name: Determine version
+        if: steps.freshness.outputs.stale != '1'
+        id: version
+        env:
+          SOFTMAX_TOKEN: ${{ secrets.SOFTMAX_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 coworld-emerg-ant/tools/ci/test_next_coworld_version.py
+          version="${{ inputs.version || '' }}"
+          if [ -z "$version" ]; then
+            version=$(python3 coworld-emerg-ant/tools/ci/next_coworld_version.py emerg-ant)
+          fi
+          echo "Uploading as emerg-ant $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build, certify, and upload
+        if: steps.freshness.outputs.stale != '1'
+        working-directory: coworld-emerg-ant
+        run: |
+          uvx --from "coworld[auth]==0.1.34" coworld build \
+            --version "${{ steps.version.outputs.version }}" \
+            --project . \
+            --compose compose.yaml \
+            --template coworld_manifest.json \
+            --output build/coworld-package/coworld_manifest.json
+          uvx --from "coworld[auth]==0.1.34" coworld upload-coworld \
+            build/coworld-package/coworld_manifest.json \
+            --timeout-seconds 900 \
+            --wait-hosted-smoke \
+            --hosted-smoke-timeout-seconds 1800
+      - name: Verify upload
+        if: steps.freshness.outputs.stale != '1'
+        run: |
+          set -euo pipefail
+          uvx --from "coworld[auth]==0.1.34" coworld list --json --limit 500 > /tmp/coworlds-after.json
+          python3 - "${{ steps.version.outputs.version }}" <<'EOF'
+          import json, sys
+          expected = sys.argv[1]
+          rows = json.load(open("/tmp/coworlds-after.json"))
+          match = [r for r in rows if r.get("name") == "emerg-ant" and r.get("version") == expected]
+          if not match:
+              raise SystemExit(f"uploaded version {expected} not found on server")
+          entry = match[0]
+          if not entry.get("canonical"):
+              raise SystemExit(
+                  f"emerg-ant:{expected} uploaded but is not canonical; "
+                  "the league will not advance. Hosted smoke certification likely did not pass."
+              )
+          print(entry["id"], entry["name"], entry["version"], "canonical")
+          EOF

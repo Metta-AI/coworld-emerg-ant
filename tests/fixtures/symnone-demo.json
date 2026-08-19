@@ -1,0 +1,29 @@
+{
+  "name": "symnone-demo",
+  "width": 1235,
+  "height": 659,
+  "flagRing": 70,
+  "captureClear": 210,
+  "spawnClearW": 70,
+  "spawnClearH": 130,
+  "gunRange": 1050,
+  "symmetry": "none",
+  "layout": "sides",
+  "endzone": "column",
+  "endzoneRadius": 0,
+  "homeDepth": 0,
+  "redAnchorOverride": [280, 329],
+  "medKitSpawns": [[617, 219], [617, 439]],
+  "medKitCandidates": [[617, 219], [617, 439]],
+  "leftObstacles": [
+    {"kind": "rect", "x": 300, "y": 120, "w": 40, "h": 200},
+    {"kind": "disc", "cx": 760, "cy": 250, "r": 34},
+    {"kind": "polygon", "points": [[520, 300], [611, 330], [540, 430]]},
+    {"kind": "rect", "x": 880, "y": 470, "w": 120, "h": 24}
+  ],
+  "teamPickups": {
+    "shields": [[40, 494], [1195, 494]],
+    "cans": [[40, 164], [1195, 164]],
+    "barriers": []
+  }
+}

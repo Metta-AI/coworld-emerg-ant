@@ -1,0 +1,107 @@
+name: build-decoder
+# Builds the replay/terrain extraction tools as fully static linux binaries and
+# publishes them to a GitHub release, so agent sandboxes can fetch ready-to-run
+# tooling in seconds instead of installing the nim toolchain (~10 min).
+#
+# Published binaries (all linux x86-64, static, with a .sha256 next to each):
+#   expand_replay-linux-x64   tools/expand_replay.nim   — text event log of a replay
+#   extract_events-linux-x64  tools/extract_events.nim  — JSON-lines events + --frames per-tick seat state
+#   dump_map_mask-linux-x64   tools/dump_map_mask.nim   — map mask png + --raw walkability + --geom json
+#
+# The binaries bake GameDir = /workspace/coworld-emerg-ant at compile time
+# (currentSourcePath in tools/*.nim), which is exactly where the
+# agent sandboxes mount the game repo — so the source is cloned to that same
+# path on the runner before compiling. At runtime the binaries still need a
+# repo checkout at /workspace/coworld-emerg-ant for map assets.
+#
+# Release tag: decoder-gv<GameVersion>-<shortsha>. Pin consumers via
+# cogames/ctf/team/bin/fetch-decoder.sh in daveey/cogamer.
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "coworld-emerg-ant ref (branch/tag/sha) to build the decoder from"
+        default: "main"
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Clone game repo at the sandbox path
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          sudo mkdir -p /workspace
+          sudo chown "$USER" /workspace
+          git init /workspace/coworld-emerg-ant
+          cd /workspace/coworld-emerg-ant
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth 1 origin "$SOURCE_REF"
+          git checkout --detach FETCH_HEAD
+      - name: Install nim toolchain (nimby)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nimby" https://github.com/treeform/nimby/releases/download/0.1.26/nimby-Linux-X64
+          chmod +x "$RUNNER_TEMP/nimby"
+          "$RUNNER_TEMP/nimby" use 2.2.4
+          echo "$HOME/.nimby/nim/bin" >> "$GITHUB_PATH"
+      - name: Sync nim deps
+        working-directory: /workspace/coworld-emerg-ant
+        run: |
+          "$RUNNER_TEMP/nimby" --global sync nimby.lock
+      - name: Build static tools
+        working-directory: /workspace/coworld-emerg-ant
+        run: |
+          for tool in expand_replay extract_events dump_map_mask; do
+            nim c -d:release --opt:speed \
+              --path:"$HOME/.nimby/pkgs" \
+              --passL:-static \
+              --nimcache:"$RUNNER_TEMP/nimcache-$tool" \
+              -o:"$RUNNER_TEMP/$tool-linux-x64" \
+              "tools/$tool.nim"
+            strip "$RUNNER_TEMP/$tool-linux-x64"
+          done
+      - name: Smoke test (static linkage + run from foreign cwd)
+        run: |
+          for tool in expand_replay extract_events dump_map_mask; do
+            file "$RUNNER_TEMP/$tool-linux-x64" | grep -q "statically linked"
+          done
+          cd /tmp
+          "$RUNNER_TEMP/expand_replay-linux-x64" /workspace/coworld-emerg-ant/tests/replays/ctf.bitreplay | tail -1 | grep -qx done
+
+          "$RUNNER_TEMP/extract_events-linux-x64" /workspace/coworld-emerg-ant/tests/replays/ctf.bitreplay \
+            --out /tmp/events.jsonl --frames /tmp/frames.bin
+          test -s /tmp/events.jsonl
+          head -1 /tmp/events.jsonl | python3 -c 'import json,sys; json.loads(sys.stdin.readline())'
+          test -s /tmp/frames.bin
+          test "$(head -c 8 /tmp/frames.bin)" = "CTFFRM01"
+
+          "$RUNNER_TEMP/dump_map_mask-linux-x64" /tmp/mask.png arena --raw /tmp/mask.bin --geom /tmp/geom.json
+          test -s /tmp/mask.png
+          test -s /tmp/mask.bin
+          test -s /tmp/geom.json
+          python3 -m json.tool /tmp/geom.json > /dev/null
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /workspace/coworld-emerg-ant
+          GV="$(grep -oP 'GameVersion\* = "\K[0-9]+' src/ctf/sim.nim)"
+          FULL_SHA="$(git rev-parse HEAD)"
+          TAG="decoder-gv${GV}-$(git rev-parse --short HEAD)"
+          cd "$RUNNER_TEMP"
+          for tool in expand_replay extract_events dump_map_mask; do
+            sha256sum "$tool-linux-x64" > "$tool-linux-x64.sha256"
+          done
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$FULL_SHA" \
+              --title "Static replay/terrain tools (GV${GV}, ${FULL_SHA:0:7})" \
+              --notes "Static linux x86-64 builds of tools/expand_replay, tools/extract_events and tools/dump_map_mask from ${FULL_SHA} (GameVersion ${GV}). Need a coworld-emerg-ant checkout mounted at /workspace/coworld-emerg-ant for map assets. Built by the build-decoder workflow, run ${GITHUB_RUN_ID}."
+          fi
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            expand_replay-linux-x64 expand_replay-linux-x64.sha256 \
+            extract_events-linux-x64 extract_events-linux-x64.sha256 \
+            dump_map_mask-linux-x64 dump_map_mask-linux-x64.sha256
+          echo "published $TAG"

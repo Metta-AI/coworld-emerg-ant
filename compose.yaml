@@ -1,0 +1,18 @@
+x-coworld-role-contexts:
+  game: &game_context ${GAME_CONTEXT:-.}
+
+services:
+  game:
+    image: coworld-emerg-ant-game:latest
+    platform: linux/amd64
+    build:
+      context: *game_context
+      dockerfile: Dockerfile
+      network: host
+  player:
+    image: coworld-emerg-ant-baseline:latest
+    platform: linux/amd64
+    build:
+      context: *game_context
+      dockerfile: players/baseline/Dockerfile
+      network: host

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<!--
+  Serve the repository root, build replay-viewer/dist, then open:
+  /tools/static_replay_multiview_bench.html?viewers=4&warmup=2000&duration=5000
+
+  Measurement starts only after every viewer reports data-replay-loaded, so
+  the result describes incremental frame responsiveness rather than startup.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Static replay multi-view benchmark</title>
+<style>
+  html, body { margin: 0; min-height: 100%; background: #111; color: #eee; }
+  #viewers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; }
+  iframe { width: 100%; height: 340px; border: 0; }
+  #result { position: fixed; inset: auto 0 0; padding: 8px; background: #000d; }
+</style>
+</head>
+<body>
+<main id="viewers"></main>
+<pre id="result">waiting</pre>
+<script>
+(function () {
+  'use strict';
+
+  var params = new URLSearchParams(location.search);
+  var bundle = params.get('bundle') || '/replay-viewer/dist';
+  var replay = params.get('replay') || '/tests/fixtures/capture-seed1.bitreplay';
+  var viewerCount = Math.max(1, Math.min(8, Number(params.get('viewers')) || 4));
+  var warmupMs = Math.max(0, Number(params.get('warmup')) || 2000);
+  var durationMs = Math.max(1000, Number(params.get('duration')) || 5000);
+  var result = document.getElementById('result');
+  var viewers = document.getElementById('viewers');
+  var frames = [];
+
+  for (var i = 0; i < viewerCount; i++) {
+    var frame = document.createElement('iframe');
+    frame.src = bundle + '/index.html?replay=' + encodeURIComponent(replay);
+    viewers.appendChild(frame);
+    frames.push(frame);
+  }
+
+  function percentile(sorted, quantile) {
+    if (!sorted.length) return 0;
+    return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * quantile))];
+  }
+
+  function loadedCount() {
+    var count = 0;
+    frames.forEach(function (frame) {
+      try {
+        if (frame.contentDocument &&
+            frame.contentDocument.documentElement.dataset.replayLoaded === 'true') {
+          count++;
+        }
+      } catch (ignored) {}
+    });
+    return count;
+  }
+
+  function waitForViewers(deadline) {
+    var loaded = loadedCount();
+    result.textContent = 'loading ' + loaded + '/' + viewerCount;
+    if (loaded === viewerCount) {
+      setTimeout(measure, warmupMs);
+      return;
+    }
+    if (performance.now() >= deadline) {
+      result.textContent = JSON.stringify({ error: 'viewer load timeout', loaded: loaded });
+      result.dataset.complete = 'true';
+      return;
+    }
+    setTimeout(function () { waitForViewers(deadline); }, 100);
+  }
+
+  function measure() {
+    var started = performance.now();
+    var previous = started;
+    var gaps = [];
+
+    function sample(now) {
+      gaps.push(now - previous);
+      previous = now;
+      if (now - started < durationMs) {
+        requestAnimationFrame(sample);
+        return;
+      }
+      gaps.shift();
+      var sorted = gaps.slice().sort(function (a, b) { return a - b; });
+      var elapsed = now - started;
+      var summary = {
+        viewers: viewerCount,
+        elapsed_ms: Number(elapsed.toFixed(1)),
+        raf_samples: gaps.length,
+        raf_fps: Number((gaps.length * 1000 / elapsed).toFixed(1)),
+        p50_gap_ms: Number(percentile(sorted, 0.50).toFixed(1)),
+        p95_gap_ms: Number(percentile(sorted, 0.95).toFixed(1)),
+        max_gap_ms: Number((sorted[sorted.length - 1] || 0).toFixed(1)),
+        gaps_over_50ms: gaps.filter(function (gap) { return gap > 50; }).length
+      };
+      result.textContent = JSON.stringify(summary);
+      result.dataset.complete = 'true';
+      document.title = 'COMPLETE ' + summary.raf_fps + 'fps';
+      console.log('STATIC_REPLAY_BENCH ' + JSON.stringify(summary));
+    }
+    requestAnimationFrame(sample);
+  }
+
+  waitForViewers(performance.now() + 60000);
+})();
+</script>
+</body>
+</html>

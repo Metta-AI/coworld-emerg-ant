@@ -1,0 +1,74 @@
+{
+  "frame": 192,
+  "hub": [
+    96.0,
+    88.0
+  ],
+  "anchor": {
+    "head": [
+      96.0,
+      88.0
+    ],
+    "arm_l": [
+      70.0,
+      84.0
+    ],
+    "arm_r": [
+      120.0,
+      84.0
+    ],
+    "leg_fl": [
+      72.0,
+      100.0
+    ],
+    "leg_fr": [
+      120.0,
+      100.0
+    ],
+    "leg_rear": [
+      96.0,
+      80.0
+    ],
+    "wheel_l": [
+      75.0,
+      132.0
+    ],
+    "wheel_r": [
+      116.0,
+      131.0
+    ],
+    "wheel_rear": [
+      96.0,
+      50.0
+    ]
+  },
+  "hip": {
+    "fl": [
+      72.0,
+      100.0
+    ],
+    "fr": [
+      120.0,
+      100.0
+    ],
+    "rear": [
+      96.0,
+      80.0
+    ]
+  },
+  "axle": {
+    "fl": [
+      75.0,
+      132.0
+    ],
+    "fr": [
+      116.0,
+      131.0
+    ],
+    "rear": [
+      96.0,
+      50.0
+    ]
+  },
+  "_note": "frame-space (192px agent_s). head+arms rotate to AIM about hub; legs rotate to MOVEMENT about their hip; wheels caster about axle. The rear leg+wheel are flipped 180\u00b0 about the hub to sit at the BACK. Segments recompose to the south master at rest."
+}

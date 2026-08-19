@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>CTF Map Editor</title>
+  <link id="editor-styles" rel="stylesheet" href="/static/editor.css">
+  <script>
+    if (window.location.protocol === 'file:') {
+      document.getElementById('editor-styles').href = './editor.css';
+    }
+  </script>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>CTF map editor</h1>
+      <p>Nim-authoritative terrain authoring</p>
+    </div>
+    <div class="header-status">
+      <span id="connection-status" class="connection-status">Connecting to local service</span>
+      <span id="mock-badge" class="mock-badge" hidden>Mock data · no Nim service</span>
+    </div>
+  </header>
+
+  <section class="source-strip" aria-labelledby="source-heading">
+    <div class="source-heading">
+      <h2 id="source-heading">Map source</h2>
+      <div class="source-tabs" role="tablist" aria-label="Map source">
+        <button id="tab-pool" class="source-tab" type="button" role="tab"
+                aria-selected="true" aria-controls="panel-pool" data-source-tab="pool">
+          Curated pool
+        </button>
+        <button id="tab-generator" class="source-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="generator-form" tabindex="-1" data-source-tab="generator">
+          Generator seed
+        </button>
+        <button id="tab-json" class="source-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="panel-json" tabindex="-1" data-source-tab="json">
+          Spec JSON
+        </button>
+      </div>
+    </div>
+
+    <div id="panel-pool" class="source-panel" role="tabpanel" aria-labelledby="tab-pool">
+      <label for="pool-index">Pool entry</label>
+      <select id="pool-index" disabled>
+        <option>Loading pool…</option>
+      </select>
+      <button id="load-pool" class="button-primary" type="button" disabled>Load entry</button>
+    </div>
+
+    <form id="generator-form" class="source-panel" role="tabpanel"
+          aria-labelledby="tab-generator" hidden>
+      <label for="generator-seed">Seed</label>
+      <input id="generator-seed" name="seed" type="number" step="1" value="1001" required>
+      <label for="generator-teams">Teams</label>
+      <select id="generator-teams" name="teams">
+        <option value="2">2 teams</option>
+        <option value="4">4 teams</option>
+      </select>
+      <label class="check-label" for="generator-validated">
+        <input id="generator-validated" name="validated" type="checkbox" checked>
+        Retry until play-valid
+      </label>
+      <button class="button-primary" type="submit">Generate map</button>
+
+      <details class="override-details">
+        <summary>Generator overrides</summary>
+        <p class="field-help">Blank values are drawn independently from the seed.</p>
+        <div class="override-grid">
+          <label for="override-size">Size class</label>
+          <select id="override-size" name="size">
+            <option value="">Draw from seed</option>
+            <option value="small">Small</option>
+            <option value="standard">Standard</option>
+            <option value="large">Large</option>
+            <option value="huge">Huge</option>
+            <option value="giant">Giant</option>
+            <option value="colossal">Colossal</option>
+          </select>
+
+          <label for="override-symmetry">Symmetry</label>
+          <select id="override-symmetry" name="symmetry">
+            <option value="">Draw from seed</option>
+            <option value="mirror">Mirror</option>
+            <option value="rot180">Rotate 180°</option>
+          </select>
+
+          <label for="override-columns">Columns per seed half</label>
+          <input id="override-columns" name="columns" type="number" min="3" max="8" step="1" placeholder="Draw">
+
+          <label for="override-windows">Glass windows per seed half</label>
+          <input id="override-windows" name="windows" type="number" min="0" max="6" step="1" placeholder="Draw">
+
+          <label for="override-center-feature">Center feature</label>
+          <select id="override-center-feature" name="centerFeature">
+            <option value="">Draw from seed</option>
+            <option value="bracket">Bracket</option>
+            <option value="ring">Ring</option>
+            <option value="walls">Walls</option>
+          </select>
+
+          <label for="override-layout">4-team layout</label>
+          <select id="override-layout" name="layout">
+            <option value="">Draw from seed</option>
+            <option value="corners">Corners</option>
+            <option value="plus">Plus</option>
+          </select>
+
+          <label for="override-pits">Total trenches</label>
+          <input id="override-pits" name="pits" type="number" min="0" max="64" step="1" placeholder="Draw">
+
+          <label for="override-pit-density">Trench density</label>
+          <input id="override-pit-density" name="pitDensity" type="number" min="0" max="1000" step="1" placeholder="Default 100">
+
+          <label for="override-endzone">Endzone shape</label>
+          <select id="override-endzone" name="endzone">
+            <option value="">Draw from seed</option>
+            <option value="column">Column</option>
+            <option value="disc">Disc</option>
+            <option value="square">Square</option>
+          </select>
+
+          <label for="override-endzone-radius">Endzone radius</label>
+          <input id="override-endzone-radius" name="endzoneRadius" type="number" min="1" step="1" placeholder="Draw · px">
+
+          <label for="override-base-depth">Base depth</label>
+          <input id="override-base-depth" name="baseDepth" type="number" min="400" max="800" step="1" placeholder="Draw · ‰ half-field">
+        </div>
+      </details>
+    </form>
+
+    <div id="panel-json" class="source-panel source-panel-json" role="tabpanel"
+         aria-labelledby="tab-json" hidden>
+      <label for="spec-json">Paste a complete mapSpec object</label>
+      <textarea id="spec-json" rows="5" spellcheck="false"
+                placeholder="{ &quot;name&quot;: &quot;review-map&quot;, … }"></textarea>
+      <div class="json-actions">
+        <label class="file-label" for="spec-file">Choose JSON file</label>
+        <input id="spec-file" type="file" accept="application/json,.json">
+        <button id="load-json" class="button-primary" type="button">Load JSON</button>
+      </div>
+    </div>
+
+    <p id="source-error" class="source-error" role="alert" hidden></p>
+  </section>
+
+  <main class="workspace">
+    <section class="map-column" aria-labelledby="map-heading">
+      <header class="map-toolbar">
+        <div>
+          <h2 id="map-heading">Expanded board</h2>
+          <p id="map-caption">Load a map to inspect the server-rendered terrain.</p>
+        </div>
+        <div class="viewport-actions">
+          <button id="fit-map" type="button" disabled>Fit board</button>
+          <label for="render-resolution">Render</label>
+          <select id="render-resolution">
+            <option value="1600">Preview · max 1600 px</option>
+            <option value="0">Native map pixels</option>
+          </select>
+        </div>
+      </header>
+
+      <div id="map-viewport" class="map-viewport" tabindex="0"
+           aria-label="Server-rendered map. Drag to pan, use the mouse wheel to zoom, double-click to fit, or use arrow keys to nudge the selected authored item.">
+        <canvas id="map-canvas"></canvas>
+        <canvas id="overlay-canvas" aria-hidden="true"></canvas>
+        <div id="empty-map" class="empty-map">
+          <strong>No map loaded</strong>
+          <span>Choose a curated entry, generator seed, or JSON spec.</span>
+        </div>
+      </div>
+
+      <footer class="map-status">
+        <span id="render-status" role="status" aria-live="polite">Waiting for a map</span>
+        <span id="pointer-position">Pointer outside board</span>
+        <span id="zoom-status">Zoom —</span>
+      </footer>
+    </section>
+
+    <aside class="inspector" aria-label="Map inspection details">
+      <section class="inspector-section editing-section" aria-labelledby="editing-heading">
+        <div class="section-heading-row">
+          <h2 id="editing-heading">Authored obstacles</h2>
+          <div class="history-actions" aria-label="Edit history">
+            <button id="undo-edit" type="button" disabled title="Undo (Ctrl/Cmd-Z)">Undo</button>
+            <button id="redo-edit" type="button" disabled title="Redo (Ctrl/Cmd-Shift-Z)">Redo</button>
+          </div>
+        </div>
+        <div class="create-actions" aria-label="Create obstacle">
+          <button type="button" data-create-obstacle="rect" disabled>New rectangle</button>
+          <button type="button" data-create-obstacle="disc" disabled>New disc</button>
+          <button type="button" data-create-obstacle="diamond" disabled>New diamond</button>
+          <button type="button" data-create-obstacle="diagonal" disabled>New diagonal</button>
+        </div>
+        <div id="precision-controls" class="precision-controls" aria-label="Editing precision" hidden>
+          <label><input id="snap-to-grid" type="checkbox"> Snap pointer edits</label>
+          <label for="grid-size">Grid</label>
+          <input id="grid-size" type="number" min="1" step="1" value="8" disabled>
+          <span>px</span>
+        </div>
+        <p class="section-intro">
+          This list is the canonical authored seed set. Symmetric copies are
+          generated by Nim and are not independently editable. With the board
+          focused, arrow keys nudge the selection 1 px; hold Shift for 10 px.
+        </p>
+        <div id="obstacle-list" class="authored-list">
+          <p class="empty-detail">Load a map to edit obstacles.</p>
+        </div>
+        <div id="obstacle-editor" class="numeric-editor" hidden></div>
+        <p id="editing-warning" class="editing-warning" hidden></p>
+      </section>
+
+      <section class="inspector-section" aria-labelledby="placements-heading">
+        <h2 id="placements-heading">Trenches &amp; med kits</h2>
+        <div class="placement-actions">
+          <button id="new-trench" type="button" disabled>New trench</button>
+          <button id="new-med-kit" type="button" disabled>New med-kit orbit</button>
+        </div>
+        <p class="section-intro">Place one seed item; Nim writes its deduplicated full symmetry orbit into the spec.</p>
+        <div id="placement-status" class="quiet-label">Load a map to author placements.</div>
+        <div id="trench-list" class="placement-list"></div>
+        <div id="med-kit-list" class="placement-list"></div>
+        <div id="placement-editor" class="numeric-editor" hidden></div>
+        <p id="placement-warning" class="editing-warning" hidden></p>
+      </section>
+
+      <section class="inspector-section" aria-labelledby="parameters-heading">
+        <h2 id="parameters-heading">Map parameters</h2>
+        <p class="section-intro">Committed values are re-derived and validated by the Nim service. Layout and symmetry switch together to preserve their required pairing.</p>
+        <div id="tier-one-editor" class="parameter-grid"></div>
+        <p id="parameter-warning" class="editing-warning" hidden></p>
+      </section>
+
+      <section class="inspector-section overlay-section" aria-labelledby="overlay-heading">
+        <h2 id="overlay-heading">Overlays</h2>
+        <div class="overlay-controls">
+          <label><input type="checkbox" data-overlay="seedRegion" checked> Authored seed guide</label>
+          <label><input type="checkbox" data-overlay="protected" checked> Protected floor</label>
+          <label><input type="checkbox" data-overlay="pickups" checked> Nominal pickups</label>
+          <label><input type="checkbox" data-overlay="spin" checked> Spinning diamonds</label>
+          <label><input type="checkbox" data-overlay="sightlines"> Open sightlines</label>
+          <label><input type="checkbox" data-overlay="reachability"> Reachability</label>
+        </div>
+        <div class="overlay-legend" aria-label="Overlay legend">
+          <span><i class="legend-swatch protected"></i>Protected floor</span>
+          <span><i class="legend-swatch pickups"></i>Nominal pickups</span>
+          <span><i class="legend-swatch spin"></i>Spinning diamonds</span>
+          <span><i class="legend-swatch seed"></i>Seed guide</span>
+          <span><i class="legend-swatch sightlines"></i>Open sightlines</span>
+          <span><i class="legend-swatch reachability"></i>Unreachable floor</span>
+        </div>
+        <p class="overlay-note">
+          Pickup points are nominal spawn targets. At match start each one is
+          nudged to the nearest walkable floor, so play positions can differ on
+          hand-authored terrain. Each family is labelled once on the board;
+          every exact coordinate is listed under Markers.
+        </p>
+      </section>
+
+      <section class="inspector-section validation-section" aria-labelledby="validation-heading">
+        <div class="section-heading-row">
+          <h2 id="validation-heading">Play validation</h2>
+          <span id="validation-state" class="validation-state neutral">Not run</span>
+        </div>
+        <p id="validation-reason" class="validation-reason">Load a map to run the Nim validators.</p>
+        <dl id="validation-details" class="detail-list"></dl>
+        <div id="validation-failures" class="validation-failures" hidden></div>
+        <p id="diagnostic-status" class="visually-hidden" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="inspector-section" aria-labelledby="summary-heading">
+        <div class="section-heading-row">
+          <h2 id="summary-heading">Map summary</h2>
+          <span id="document-source" class="quiet-label">No source</span>
+        </div>
+        <dl id="map-summary" class="detail-list"></dl>
+        <p id="seed-region-note" class="seed-region-note" hidden></p>
+      </section>
+
+      <section class="inspector-section" aria-labelledby="derived-heading">
+        <h2 id="derived-heading">Derived markers</h2>
+        <p class="section-intro">Coordinates are map pixels. Pickup positions are nominal and may be nudged to walkable floor at match start.</p>
+        <div id="derived-markers" class="marker-groups">
+          <p class="empty-detail">No derived data yet.</p>
+        </div>
+      </section>
+
+      <section class="inspector-section export-section" aria-labelledby="spec-heading">
+        <h2 id="spec-heading">Save map spec</h2>
+        <p class="section-intro">Exports the current authored spec. Play-invalid or service-rejected specs require confirmation.</p>
+        <div class="export-actions">
+          <button id="copy-spec" type="button" disabled>Copy JSON</button>
+          <button id="download-spec" type="button" disabled>Download JSON</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <noscript>This inspector requires JavaScript to call the local Nim map service.</noscript>
+  <script>
+    const editorScript = document.createElement('script');
+    editorScript.src = window.location.protocol === 'file:'
+      ? './editor.js'
+      : '/static/editor.js';
+    document.body.append(editorScript);
+  </script>
+</body>
+</html>

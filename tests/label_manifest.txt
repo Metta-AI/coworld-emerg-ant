@@ -1,0 +1,85 @@
+# The sprite-label vocabulary the engine emits, normalized to patterns
+# (<n> a number, <color> a team/player color, <name> a slot letter, <side> a
+# facing, <shape> an endzone shape token). GENERATED — regenerate with:
+#   nim r -d:writeLabelManifest tests/test_label_contract.nim
+# A diff here is a change to the observation contract every policy reads.
+<color> flag
+<color> flag carried
+<color> flag carrier glow
+<color> flag planted
+<color> shout <name>
+Room Blue Base
+Room Center
+Room Green Base
+Room Red Base
+Room Yellow Base
+barrier
+barrier carried
+barrier up <n>,<n> f<n> hp <n>
+blast stage <n>
+cog arm <color>
+cog gun <color>
+cog leg <color>
+cog spray can <color>
+cog wheel <color>
+corpse <color> <side>
+damage pop <color> -<n> stage <n>
+damage pop <color> KO stage <n>
+diamond
+endzone <color> <shape> <n>,<n> <n>,<n>
+endzone <color> power <n> band <n>
+fire icon
+fire icon cooldown
+fog
+game teams <n> map <n>x<n>
+grenade
+grenade air
+grenade barrage depth <n> rate <n> start <n> sat <n>
+grenade carried
+grenade sound
+handicap <color> <n> hp <n> lives <n> spd <n> miss <n>
+hit splat <color> stage <n>
+hp <n>/<n>
+hp <n>/<n> shield <n>
+identity <color> <name> gun
+identity <color> <name> nade gun
+identity <color> <name> shield gun
+identity <color> <name> spray
+interstitial background
+lives <n>hp x<n>
+map
+map band <n>
+med kit
+muzzle bloom stage <n>
+name p<n>
+name p<n> flag <n>
+own aim <n>
+paint stain <color> variant <n>
+perks <color> -
+perks <color> armor,scope mods hp <n> aim <n> nade <n> spd <n> luck <n> dmg <n>
+perks <color> grenade thruster,luck mods hp <n> aim <n> nade <n> spd <n> luck <n> dmg <n>
+player <color>
+player <color> <side>
+puddle <n>,<n> <n>,<n>
+score p<n> <n> color <n>
+score pip <color>
+selected player <color> <side>
+self <color> <side>
+shield
+shield carried
+shot head <color> stage <n>
+shot impact
+shot trail <color> stage <n> bucket <n>
+splatter <color> stage <n>
+spray can
+spray can carried
+spray paint puff
+team score BLUE <n>/1
+team score GREEN <n>/0
+team score RED <n>/0
+team score YELLOW <n>/0
+throw target
+trench <n>,<n> <n>,<n>
+walkability map
+weapon gun
+weapon spray

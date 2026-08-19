@@ -1,0 +1,61 @@
+# Ignore files with no extention.
+*
+!*/
+!*.*
+!LICENSE
+!Dockerfile
+
+# Ignore hidden files, but not the license or github files.
+.*
+!.github/
+!.github/**
+!.gitignore
+!.dockerignore
+
+# Normal ignores.
+nim.cfg
+*.exe
+nimcache
+*.pdb
+*.ilk
+*.out
+out/
+tmp/
+build/
+replay-viewer/dist/
+__pycache__/
+*.pyc
+*.dylib
+*.dylib.abi
+*.log
+.DS_Store
+
+# Project specific ignores.
+client/screenshots/
+players/modulabot/modulabot
+players/modulabot/test/parity
+
+# nanobanana art generation scratch (not shipped). Anchored to the repo root so
+# it catches only /art/gen — the League Replayer's shipped dungeon-wall textures
+# under client/art/walls/ ARE part of the build (staticRead into the server).
+/art/
+# nanobanana rig-art generation scratch (candidate images, not shipped). The
+# SHIPPED rig segments live under data/rig_real/ (readImage at runtime).
+/nanobanana-output/
+# data/rig_real holds the SHIPPED rig segments under red/ and blue/ (+ anchors.json,
+# the generator interface). Loose PNGs at its root are art-exploration scratch — the
+# subdir segments are still tracked because this only matches the top level.
+/data/rig_real/*.png
+
+# Local coworld package build output. CI builds the real package to build/ from
+# the tracked coworld_manifest_paintbot.json; dist/ is a local convenience artifact.
+/dist/
+trench-demo.bitreplay
+pool-preview/
+
+# Arena Component Model build outputs (generated bindings remain tracked).
+/arena/.nimcache/
+/arena/*.wasm
+data/replays/
+barrier-demo.bitreplay
+perks-2v2-demo.bitreplay
