@@ -4,6 +4,10 @@ Emerg-ant is a standalone competitive colony-foraging Coworld. Gameplay rules
 live in `docs/EMERG_ANT.md`; the inherited engine reference is in
 `docs/RULES.md`.
 
+If the task is to create or improve an entrant rather than change the game,
+follow `docs/BUILD_A_POLICY.md`. Keep policy experiments inside `players/` and
+do not change simulation rules to make a policy stronger.
+
 ## Before editing
 
 When an `origin/main` remote exists, fetch and bring the current branch up to
@@ -50,4 +54,5 @@ with sixteen reference players in the ant ruleset.
 - `src/ctf/global.nim` — renderer and observation protocol.
 - `src/ctf/arena.nim` — map geometry and validation.
 - `coworld_manifest.json` — standalone publication manifest.
+- `docs/BUILD_A_POLICY.md` — entrant build, test, upload, and submission guide.
 - `tests/test_emerg_ant.nim` — mode behavior and determinism coverage.

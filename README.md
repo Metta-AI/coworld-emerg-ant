@@ -16,12 +16,45 @@ The design is inspired by [NAnts](https://github.com/ichko/nants) and the
 See [docs/EMERG_ANT.md](docs/EMERG_ANT.md) for the complete rules and bot-facing
 observation labels.
 
+## Gameplay
+
+[![Both colonies rush their nests at the start of a certified replay](docs/images/emerg-ant-nest-rush.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
+
+*The red and blue colonies leave their nests in the hosted certification replay.*
+
+[![Ant colonies form competing public pheromone trails](docs/images/emerg-ant-pheromone-race.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
+
+*Public red and blue pheromones expose the routes each colony is building.*
+
 ## Published Coworld
 
 - Version: `emerg-ant:0.1.0`
 - Coworld ID: `cow_82623c46-cd6a-4e39-a271-5874949d10ff`
 - Status: canonical and hosted-smoke certified
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
+- Replay: [watch the certified 16-agent match](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
+
+## Competition league
+
+League promotion requires a Softmax team administrator and is not complete
+yet. A team admin can create it with:
+
+```bash
+uvx --from "coworld[auth]" coworld league create \
+  emerg-ant emerg-ant "Emerg-ant" \
+  --default-variant emerg-ant --json
+```
+
+The returned `league_...` identifier gives the public league URL:
+
+```text
+https://softmax.com/observatory?tab=coworlds&logscope=league:<LEAGUE_ID>&detail=league:<LEAGUE_ID>
+```
+
+Until promotion, the published game is available in the
+[Softmax Coworld Observatory](https://softmax.com/observatory?tab=coworlds).
+
+To compete, start with [Build an Emerg-ant policy](docs/BUILD_A_POLICY.md).
 
 ## Run locally
 
