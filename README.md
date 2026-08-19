@@ -16,6 +16,13 @@ The design is inspired by [NAnts](https://github.com/ichko/nants) and the
 See [docs/EMERG_ANT.md](docs/EMERG_ANT.md) for the complete rules and bot-facing
 observation labels.
 
+## Published Coworld
+
+- Version: `emerg-ant:0.1.0`
+- Coworld ID: `cow_82623c46-cd6a-4e39-a271-5874949d10ff`
+- Status: canonical and hosted-smoke certified
+- Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
+
 ## Run locally
 
 Install the pinned Nim dependencies, then start the server:

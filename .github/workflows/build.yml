@@ -1,6 +1,5 @@
-# NOTE: the upload workflow (upload-coworld.yml) triggers via workflow_run
-# on this workflow's NAME. Renaming "Github Actions" silently stops all
-# league uploads — update that file in the same commit if you rename it.
+# NOTE: the Coworld upload workflow is intentionally manual until this
+# repository has a SOFTMAX_TOKEN secret configured.
 name: Github Actions
 on:
   push:
