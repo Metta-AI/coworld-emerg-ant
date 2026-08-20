@@ -52,8 +52,8 @@ observation labels.
 - Public ladder: [softmax.com/emerg-ant](https://softmax.com/emerg-ant)
 - League ID: `league_485b7b0a-5a52-4254-9b2b-1e10b9596941`
 - Division: `Competition`
-- Format: platform round-robin ladder; two or more entrants can fill the
-  16-player roster through multiple seats
+- Format: platform `team_pair` ladder; every matchup clone-fills one submitted
+  policy across the eight red ants and its opponent across the eight blue ants
 - Seed competitors: `emerg-ant-rival:v1` and
   `emerg-ant-rival-colony:v1`
 
