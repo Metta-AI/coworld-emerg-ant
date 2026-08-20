@@ -12,8 +12,9 @@ The current source extends the v0.2 ecology and replaces its scripted starter wi
 a stronger NAnts-style controller. One shared 182→48→14 MLP is copied into all
 active worker bodies. Each copy sees only a rotated 5×5 local patch, carried-food and bite
 state, displacement from its own wake point, and a private-phase clock. Learned
-movement distributions become smooth expected steering for food and homing;
-uncued ants use a wake-seeded correlated random walk and local collision escape.
+movement distributions become smooth expected steering; carriers follow their
+own wake displacement and write a food trail, while uncued ants use a wake-seeded
+correlated random walk and local collision escape.
 There is no slot feature, absolute position, predefined nest location, pathfinder,
 global live-resource feed, or cross-container communication.
 
@@ -91,10 +92,9 @@ sees only nearby marks.*
 
 ## Published Coworld
 
-- Current hosted release: `emerg-ant:0.4.0`
-- Coworld ID: `cow_a72bd787-7374-40d7-a19c-4594e80f8aba`
+- Current hosted release: `emerg-ant:0.5.0`
+- Coworld ID: `cow_7dc21b30-074f-47ce-b34d-b392bbde8e40`
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
-- v0.4 replay: [watch the stronger colonies explore distributed fruit](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_a72bd787-7374-40d7-a19c-4594e80f8aba/sha256%3Aeacc5405d50363ad03205044f16f792555da3235631de7d027726abb13567aa4/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F8778cccd-6d2c-43f7-8d70-23dbd36b526e.replay&v=2)
 
 This release passed all ten executable certification checks locally and five
 hosted smoke episodes.

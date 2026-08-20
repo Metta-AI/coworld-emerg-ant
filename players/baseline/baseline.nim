@@ -1654,6 +1654,12 @@ proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
     return
   var moveChoice = decision.move
   let forwardBlocked = input[featureIndex(1, 2, 0)] > 0.0
+  # A carrier has one small innate reflex: displacement from this body's own
+  # wake points home. The world still supplies no nest coordinate, slot, or
+  # global resource position; local wall/stall handling below can override it.
+  # Thus a rare harvest becomes colony food instead of asking a weak learned
+  # head to rediscover homing in every episode.
+  let directCarryHome = carrying and not forwardBlocked and bot.antStuckTicks < 8
   if bot.antStuckTicks >= 8:
     # Geometry can block a side octant even when the 90px-ahead wall sample
     # is clear. A short deterministic escape turn prevents carriers from
@@ -1694,12 +1700,17 @@ proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
   let
     forward = bradsDir(bot.estAim)
     right = vec(-forward.y, forward.x)
-    move = antMoveVector(moveChoice, forward, right)
+    move =
+      if directCarryHome: norm(bot.antWake - me)
+      else: antMoveVector(moveChoice, forward, right)
   result = octantBits(move)
-  case decision.mark
-  of 1: result = result or ButtonB
-  of 2: result = result or ButtonC
-  else: discard
+  if carrying:
+    result = result or ButtonC
+  else:
+    case decision.mark
+    of 1: result = result or ButtonB
+    of 2: result = result or ButtonC
+    else: discard
   if decision.bite and biteReady and not bot.firedLast:
     result = result or ButtonA
   bot.firedLast = (result and ButtonA) != 0

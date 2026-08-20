@@ -15,7 +15,9 @@ movement (9), pheromone (3), and bite (2). The model never receives the seat,
 absolute coordinates, a predefined nest, or data from another container.
 The queen is an explicit caste around that learned worker rule: the crown-marked
 first seat holds its wake/nest position and contact-bites intruders. Dormant
-policy connections run no body until stored food hatches them.
+policy connections run no body until stored food hatches them. A carrier follows
+its own wake-displacement vector and lays the food channel; local wall/stall
+escape can override that reflex, and no global nest coordinate is exposed.
 
 ## Reproduce
 

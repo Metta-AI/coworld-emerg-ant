@@ -9,13 +9,16 @@ same policy image. Colony memory remains in the world, not in a manager.
 The experiment asks a compact question: can useful colony organization emerge
 from local sensing, repeated rules, and marks left in the world?
 
-The bundled starter instantiates that question as one shared trained MLP.
+The bundled starter instantiates that question as one shared trained MLP plus
+a minimal carrier reflex.
 Each ant receives a rotated 5×5×7 neighborhood (walls, allies, enemies, food,
 two friendly trail channels, rival trails), carry/bite state, displacement from
 its own wake point, and a periodic clock. It does not receive a slot, absolute
 coordinates, a hard-coded nest location, or another ant's memory. The network
 produces movement, pheromone, and bite actions from identical weights in every
-body. Expected steering preserves sustained task-directed motion; a wake-seeded
+body. A carrier follows only its own wake displacement and lays the food trail;
+it still relies on local wall sensing and stall escape, and receives no nest
+coordinate or global path. Expected steering preserves sustained task-directed motion; a wake-seeded
 correlated random walk supplies uncued exploration, and local stall escape keeps
 carriers moving around cover. Training and its portable checkpoint live under
 `players/neural/`.
@@ -38,8 +41,8 @@ compact nest and was incompatible with that local contract.
 - A queen reserves her last food ration. Every surplus food spends one unit to
   hatch a dormant policy seat as a new worker. Never-hatched seats are chosen
   before previously killed workers.
-- The queen first becomes hungry after 1,080 ticks (45 seconds), then every 720
-  ticks (30 seconds). Each check consumes one stored food. With no food she
+- The queen first becomes hungry after 1,800 ticks (75 seconds), then every 1,440
+  ticks (60 seconds). Each check consumes one stored food. With no food she
   starves, and if combat kills her the same collapse occurs immediately.
 - Queen loss eliminates every worker in that colony. Emerg-ant does not use the
   inherited per-player lives setting: a worker death is permanent until food

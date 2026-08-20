@@ -18,7 +18,17 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "48"  ## GV48 (Emerg-ant colony rule): THE QUEEN MAKES THE COLONY.
+  GameVersion* = "49"  ## GV49 (Emerg-ant famine rule): FORAGING GETS A FAIR FIRST CHANCE.
+    ## A queen now eats her starting ration at 75 seconds and, without a food
+    ## delivery, starves at 135 seconds — fifteen seconds before the published
+    ## 150-second limit. GV48's 45/30-second clock killed both four-founder
+    ## colonies at 75 seconds while their first locally discovered fruit was
+    ## still returning. Queen timing, win timing, hash, and replay outcomes
+    ## change, so GV48 recordings are obsolete.
+    ## Authored as GV49 after scanning origin on 2026-08-20: main and every
+    ## remote claim at/above main used GV48; no GV49 claim was present.
+    ##
+    ## Previously GV48 (Emerg-ant colony rule): THE QUEEN MAKES THE COLONY.
     ## Each fixed hosted roster now begins as a queen, three workers, and
     ## dormant brood policies. Food delivered to the nest enters a colony
     ## store; surplus above the queen's reserve hatches dormant policy seats
@@ -538,8 +548,8 @@ const
   QueenFoodReserve* = 1      ## hatching never spends the queen's last ration.
   BroodFoodCost* = 1         ## stored food consumed to hatch one reserve seat.
   QueenUpkeepFoodCost* = 1   ## stored food consumed at each hunger check.
-  QueenGraceTicks* = 45 * TargetFps ## first hunger check after kickoff.
-  QueenUpkeepTicks* = 30 * TargetFps ## later hunger-check interval.
+  QueenGraceTicks* = 75 * TargetFps ## first hunger check after kickoff.
+  QueenUpkeepTicks* = 60 * TargetFps ## later hunger-check interval.
   AntBiteRange* = 2 * PlayerHalf + 6 ## center distance: touching ant bodies.
   PheromoneStepTicks* = 24     ## held B/C deposits at most once per second.
   PheromoneLifetimeTicks* = 24 * 30  ## local trail memory lasts 30 seconds.

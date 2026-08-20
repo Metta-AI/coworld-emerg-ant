@@ -174,7 +174,7 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 | Cardboard barriers | via `barrierPickups` (per team) | `BarrierHp`=10, `BarrierRadius`=24, `BarrierHalfThick`=2, `BarrierRespawnTicks`=720, `MaxBarriersPlaced`=16 ([sim_types.nim](../src/ctf/sim_types.nim)) |
 | Pheromone marks | up to 512 in Emerg-ant mode | Explicit B/C channels; `PheromoneStepTicks`=24, `PheromoneLifetimeTicks`=720, `PheromoneEraseRadius`=18, `MaxPheromoneMarks`=512; locally observed inside `antSenseRadius` |
 | Mandible contact | 1 nearest enemy per fresh A press | `AntBiteRange`=18px center distance; damage/cooldown use `biteDamage` / `biteCooldownTicks`; same-tick bites resolve simultaneously |
-| Queen and brood | 1 queen + 3 founders per colony; remaining connected seats dormant | `InitialAntsPerColony`=4, `QueenStartingFood`=1, `QueenFoodReserve`=1, `BroodFoodCost`=1, `QueenUpkeepFoodCost`=1, `QueenGraceTicks`=1080, `QueenUpkeepTicks`=720; queen death collapses the colony |
+| Queen and brood | 1 queen + 3 founders per colony; remaining connected seats dormant | `InitialAntsPerColony`=4, `QueenStartingFood`=1, `QueenFoodReserve`=1, `BroodFoodCost`=1, `QueenUpkeepFoodCost`=1, `QueenGraceTicks`=1800, `QueenUpkeepTicks`=1440; queen death collapses the colony |
 
 To vary item counts today: change `teams` (scales per-team items), change `mapGen`
 pits (trenches), or edit the per-map spawn lists / consts in code.
@@ -210,7 +210,7 @@ patch until `foodRespawnTicks`, then advances it through the eight-site circuit;
 the forage goal wins, and tied simultaneous goal
 finishes or tied clocks draw. Each delivery also enters `colonyFood`; surplus
 above the queen's last ration hatches a dormant connected seat. The queen eats
-one ration first at 1080 ticks and every 720 ticks thereafter. A killed or
+one ration first at 1800 ticks and every 1440 ticks thereafter. A killed or
 starving queen eliminates her colony. Emerg-ant forces player `lives` to zero
 after each living body is created, so ordinary CTF respawns are inert there.
 

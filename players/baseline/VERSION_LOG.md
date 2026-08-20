@@ -1,0 +1,6 @@
+# Emerg-ant neural policy versions
+
+| Version | Policy version ID | Uploaded (UTC) | One change and mechanism | Runtime | Validation | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `emerg-ant-neural:v2` | `0aa820f1-cbf4-4077-bca9-c65c1309d314` | 2026-08-20 05:56:14Z | Correct the policy entrypoint: register `/bin/baseline` as the executable argv instead of a literal JSON-string executable name. | image `sha256:c087a67cd3000c1149268e7ce6f981847a8097b1fd5d7309a107fbe0eac47348`; run `["/bin/baseline"]`; no secrets | `validated` | Hosted request `xreq_d9db1271-36aa-4139-b211-898a1a7d6c42` ran 1,955 ticks cleanly. One worker harvested, but no delivery landed before GV48's two queens starved; that evidence motivated the v3 carrier reflex and GV49 famine clock. |
+| `emerg-ant-neural:v1` | `9a20d954-88ee-4ae7-bb99-96a9dc7263c8` | 2026-08-20 05:52:31Z | Queen-aware v0.5 colony: the shared trained worker controller explores/forages while the queen caste stays near its wake, deposits scout pheromone, and bites enemies in contact. | image `sha256:c087a67cd3000c1149268e7ce6f981847a8097b1fd5d7309a107fbe0eac47348`; run `['["/bin/baseline"]']`; no secrets | `invalid` | Hosted request `xreq_fd6e96bd-8054-4b93-b15e-8c97e9568393` launched the JSON text as an executable name, producing no game/replay. Superseded by v2. |
