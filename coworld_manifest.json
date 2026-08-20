@@ -13,7 +13,7 @@
     "replay_viewer": {
       "bundle": "static-replay-viewer"
     },
-    "description": "Emerg-ant is a 1v1 artificial-life colony duel. Each policy starts as a fixed winged queen and one worker; every ant smells randomly replenishing neutral food, and each delivery to the queen hatches another connected copy of that policy. Public pheromones provide shared environmental memory. There are no guns or items: rivals fight only by physical contact, and killing a queen collapses her colony.",
+    "description": "Emerg-ant is a 1v1 artificial-life colony duel. Each submitted policy controls a colony of connected copies: a fixed winged queen and seven workers start alive by default, with eight more copies waiting as brood. Every ant smells randomly replenishing neutral food, and each delivery to the queen hatches another copy. Public pheromones provide shared environmental memory. There are no guns or items: rivals fight only by physical contact, and killing a queen collapses her colony.",
     "owner": "treeform@softmax.com",
     "runnable": {
       "type": "game",
@@ -130,7 +130,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 32,
-          "default": 16
+          "default": 32
         },
         "lives": {
           "description": "Lives per player. Out of lives = out for the round.",
@@ -238,7 +238,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 32,
-          "default": 16
+          "default": 32
         },
         "fireWindupTicks": {
           "description": "CTF-only ticks from trigger pull to the shot releasing. Ignored in Emerg-ant, which has no ranged attacks.",
@@ -277,7 +277,7 @@
           "default": "classic"
         },
         "gameMode": {
-          "description": "Objective ruleset. ctf is single-capture elimination. emerg-ant is a 1v1 colony duel with globally scented random food, one fixed queen plus one initial worker, one hatched reserve per delivery, queen-death collapse, public erasable pheromones, no items or ranged attacks, and touch-only combat.",
+          "description": "Objective ruleset. ctf is single-capture elimination. emerg-ant is a 1v1 colony duel with globally scented random food, one fixed queen plus a configurable number of starting ants, one hatched reserve per delivery, queen-death collapse, public erasable pheromones, no items or ranged attacks, and touch-only combat.",
           "type": "string",
           "enum": [
             "ctf",
@@ -290,6 +290,13 @@
           "type": "integer",
           "minimum": 1,
           "default": 5
+        },
+        "startingAntsPerColony": {
+          "description": "Emerg-ant policy copies alive per colony when play starts, including the fixed queen. Additional connected copies remain dormant brood and one hatches for each food delivery.",
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 16,
+          "default": 8
         },
         "mapSize": {
           "description": "Generated-map size-class lock: small, standard, large, huge, or giant. Empty draws the size from the map seed.",
@@ -586,7 +593,7 @@
     {
       "id": "emerg-ant",
       "name": "Emerg-ant Foraging",
-      "description": "One policy faces one policy, with eight connected copies available to each colony. A winged queen and one worker begin alive. Every ant smells randomly replenishing food; each delivery hatches one reserve. Rival ants fight only by touching, and queen death collapses the colony. Every round has one winner; tied finishes use food, living ants, health, kills, then replay-seed parity.",
+      "description": "One submitted policy faces one submitted policy. Each gets 16 connected copies: a winged queen and seven workers begin alive by default, while eight copies wait as brood. Every ant smells randomly replenishing food; each delivery hatches one reserve. Rival ants fight only by touching, and queen death collapses the colony. Every round has one winner; tied finishes use food, living ants, health, kills, then replay-seed parity.",
       "game_config": {
         "players": [
           {
@@ -636,12 +643,61 @@
           },
           {
             "name": "Ant16"
+          },
+          {
+            "name": "Ant17"
+          },
+          {
+            "name": "Ant18"
+          },
+          {
+            "name": "Ant19"
+          },
+          {
+            "name": "Ant20"
+          },
+          {
+            "name": "Ant21"
+          },
+          {
+            "name": "Ant22"
+          },
+          {
+            "name": "Ant23"
+          },
+          {
+            "name": "Ant24"
+          },
+          {
+            "name": "Ant25"
+          },
+          {
+            "name": "Ant26"
+          },
+          {
+            "name": "Ant27"
+          },
+          {
+            "name": "Ant28"
+          },
+          {
+            "name": "Ant29"
+          },
+          {
+            "name": "Ant30"
+          },
+          {
+            "name": "Ant31"
+          },
+          {
+            "name": "Ant32"
           }
         ],
-        "num_agents": 16,
-        "minPlayers": 16,
+        "num_agents": 32,
+        "minPlayers": 32,
         "gameMode": "emerg-ant",
         "forageGoal": 5,
+        "startingAntsPerColony": 8,
         "hitPoints": 3,
         "fireCooldownTicks": 18,
         "carrierSpeedPct": 80,
@@ -663,6 +719,54 @@
   ],
   "certification": {
     "players": [
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
+      {
+        "player_id": "baseline"
+      },
       {
         "player_id": "baseline"
       },
@@ -761,12 +865,61 @@
         },
         {
           "name": "Ant16"
+        },
+        {
+          "name": "Ant17"
+        },
+        {
+          "name": "Ant18"
+        },
+        {
+          "name": "Ant19"
+        },
+        {
+          "name": "Ant20"
+        },
+        {
+          "name": "Ant21"
+        },
+        {
+          "name": "Ant22"
+        },
+        {
+          "name": "Ant23"
+        },
+        {
+          "name": "Ant24"
+        },
+        {
+          "name": "Ant25"
+        },
+        {
+          "name": "Ant26"
+        },
+        {
+          "name": "Ant27"
+        },
+        {
+          "name": "Ant28"
+        },
+        {
+          "name": "Ant29"
+        },
+        {
+          "name": "Ant30"
+        },
+        {
+          "name": "Ant31"
+        },
+        {
+          "name": "Ant32"
         }
       ],
-      "num_agents": 16,
-      "minPlayers": 16,
+      "num_agents": 32,
+      "minPlayers": 32,
       "gameMode": "emerg-ant",
       "forageGoal": 1,
+      "startingAntsPerColony": 8,
       "hitPoints": 1,
       "fireCooldownTicks": 18,
       "carrierSpeedPct": 80,

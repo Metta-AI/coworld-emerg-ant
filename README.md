@@ -1,11 +1,11 @@
 # Emerg-ant
 
 Emerg-ant is a competitive multiplayer Coworld built for the ERA @ ALIFE 2026
-Emerg-ant hackathon. It is always a 1v1 policy duel: Softmax runs eight copies
-of each submitted policy as one red or blue colony. Each colony begins with a
-winged queen and one worker; the other copies wait as dormant brood.
+Emerg-ant hackathon. It is always a 1v1 policy duel: Softmax connects 16 copies
+of each submitted policy as one red or blue colony. By default each colony
+begins with a winged queen and seven workers; eight copies wait as dormant brood.
 
-> **Version note:** `main` contains the current GV53 foraging rules on the
+> **Version note:** `main` contains the current GV54 colony-roster rules on the
 > restored pre-NAnts engine. The
 > NAnts-style v0.6 game remains available on the
 > [`nants-v0.6`](https://github.com/Metta-AI/coworld-emerg-ant/tree/nants-v0.6)
@@ -53,7 +53,8 @@ observation labels.
 - League ID: `league_485b7b0a-5a52-4254-9b2b-1e10b9596941`
 - Division: `Competition`
 - Format: platform `team_pair` ladder; every matchup clone-fills one submitted
-  policy across the eight red ants and its opponent across the eight blue ants
+  policy across 16 red seats and its opponent across 16 blue seats. Eight per
+  colony start active and food deliveries hatch the reserves.
 - Seed competitors: `emerg-ant-rival:v1` and
   `emerg-ant-rival-colony:v1`
 
@@ -72,8 +73,8 @@ nimby --global sync nimby.lock
 nim c -d:release -r src/ctf.nim
 ```
 
-The checked-in [config.json](config.json) launches a 1v1 policy match with eight
-available seats per colony on the hand-tuned arena.
+The checked-in [config.json](config.json) launches a 1v1 policy match with 16
+connected seats per colony—eight active and eight brood—on the hand-tuned arena.
 
 Run the tests from the repository root:
 
@@ -88,7 +89,7 @@ reference player image used by hosted certification.
 
 ```bash
 uvx --from "coworld[auth]==0.1.34" coworld build \
-  --version 0.7.0 \
+  --version 0.8.0 \
   --project . \
   --compose compose.yaml \
   --template coworld_manifest.json \
@@ -110,7 +111,7 @@ uvx --from "coworld[auth]==0.1.34" coworld upload-coworld \
 - `src/ctf/sim_types.nim` — wire-stable types, constants, and `GameVersion`.
 - `src/ctf/sim.nim` — food returns, scoring, pheromone dynamics, and gameplay.
 - `src/ctf/global.nim` — ant, food, trail, HUD, and spectator rendering.
-- `config.json` — local 1v1 policy / eight-seat-per-colony configuration.
+- `config.json` — local 1v1 policy / sixteen-seat-per-colony configuration.
 - `coworld_manifest.json` — publishable Coworld manifest.
 - `tests/test_emerg_ant.nim` — competitive-mode and determinism tests.
 

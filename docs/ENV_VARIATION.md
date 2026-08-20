@@ -92,8 +92,9 @@ Per-map descriptor `CtfMap` [sim_types.nim:733](../src/ctf/sim_types.nim#L733) c
 | Field | Type / default | Bounds | Effect |
 |---|---|---|---|
 | `teams` | int / `2` | must be `2` or `4`; Emerg-ant requires `2` | Active team count. CTF supports 2 classic sides or 4 corners/plus FFA; Emerg-ant is always a 1v1 policy duel. |
-| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective/combat/item rules and actor art. Emerg-ant globally scents random neutral food, starts one queen + one worker per colony, hatches a reserve per delivery, enables public pheromones, disables every item/ranged path, and turns A into contact-only mandibles. |
+| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective/combat/item rules and actor art. Emerg-ant globally scents random neutral food, starts a configurable colony, hatches a reserve per delivery, enables public pheromones, disables every item/ranged path, and turns A into contact-only mandibles. |
 | `forageGoal` | int / `5` | `>=1` | Emerg-ant food returns needed for a colony win; inert in CTF mode. |
+| `startingAntsPerColony` | int / `8` | `2..16` | Emerg-ant connected policy copies alive at match start, including the fixed queen. Remaining connected seats are brood; inert in CTF mode. |
 | `minPlayers` | int / `16` | `1..32` | Players required to start; effectively sets roster size on open join. |
 | `closedRoster` | bool / `false` | needs ≥`minPlayers` named+tokened slots | Fixed named roster vs open join. |
 | `slots` | `seq[PlayerSlotConfig]` / `@[]` | ≤32; unique names/tokens; `team < teams` | Per-seat overrides. |
@@ -160,7 +161,7 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 | Item | Count | Key consts (sim_types.nim) |
 |---|---|---|
 | Flags/hearts or food patches | 1 storage slot per active team | CTF: `FlagPickupRange`=34, `CaptureZoneWidth`=40, `PedestalCoverSize`=96. Emerg-ant slots are neutral and use `FoodPickupRange`=16 against `FoodPatchSize`=20; placement uses `FoodSpawnMargin`=28, `FoodSpawnNestClear`=96, `FoodSpawnSeparation`=80, and `FoodSpawnAttempts`=512 before a deterministic scan fallback. A delivered/dropped patch respawns somewhere new. |
-| Active ants / brood | 2 initially per Emerg-ant colony | `InitialAntsPerColony`=2 (one fixed queen + one worker); `BroodFoodCost`=1. Each delivery activates one connected dormant seat while available. Queen death eliminates the whole colony. |
+| Active ants / brood | configurable; published default 8 active + 8 brood per colony | `startingAntsPerColony` defaults to `DefaultStartingAntsPerColony`=8 (one fixed queen + seven workers); `BroodFoodCost`=1. Each delivery activates one connected dormant seat while available. Queen death eliminates the whole colony. |
 | Grenades | exactly 4 corner pickups in CTF; 0 in Emerg-ant | `GrenadeRespawnTicks`=120, `GrenadeChargeTicks`=24, `GrenadeBlastRadius`=52, `GrenadeDamage`=2, `GrenadeTrenchDamage`=6, max throw = `MapWidth/5` |
 | Med kits | 2 (sides) / up to 4 (4-team) in CTF; 0 in Emerg-ant | `MedKitPickupRange`=12, `MedKitRespawnTicks`=720 |
 | Shields | 1 per team endzone in CTF; 0 in Emerg-ant | `ShieldRespawnTicks`=720, `ShieldLayerHp`=3, `ShieldFireSlowdown`=3 |

@@ -16,11 +16,12 @@ proc antGame(goal = DefaultForageGoal): SimServer =
   result.players[1].team = Blue
 
 proc antColonyGame(goal = DefaultForageGoal): SimServer =
-  ## Four connected copies per policy: queen + founder start alive, two wait
-  ## as brood. Alternating assignment mirrors the production 1v1 roster.
+  ## Four connected copies per policy. Two start alive in this compact test,
+  ## and two wait as brood. Alternating assignment mirrors production.
   var config = defaultGameConfig()
   config.gameMode = EmergAntMode
   config.forageGoal = goal
+  config.startingAntsPerColony = 2
   config.slots.setLen(8)
   result = initCtfForTest(config)
   for i in 0 ..< 8:
@@ -43,12 +44,14 @@ suite "Emerg-ant config":
     check not plain.hasKey("gameMode")
     check not plain.hasKey("forageGoal")
     var config = defaultGameConfig()
-    config.update("""{"gameMode":"emerg-ant","forageGoal":7}""")
+    config.update("""{"gameMode":"emerg-ant","forageGoal":7,"startingAntsPerColony":6}""")
     check config.isEmergAnt()
     check config.forageGoal == 7
+    check config.startingAntsPerColony == 6
     let echoed = parseJson(config.configJson())
     check echoed["gameMode"].getStr() == EmergAntMode
     check echoed["forageGoal"].getInt() == 7
+    check echoed["startingAntsPerColony"].getInt() == 6
 
   test "unknown modes and non-positive goals are rejected":
     var config = defaultGameConfig()
@@ -56,6 +59,8 @@ suite "Emerg-ant config":
       config.update("""{"gameMode":"termites"}""")
     expect CtfError:
       config.update("""{"forageGoal":0}""")
+    expect CtfError:
+      config.update("""{"startingAntsPerColony":1}""")
 
   test "Emerg-ant is always a two-policy 1v1 match":
     var config = defaultGameConfig()
@@ -63,14 +68,32 @@ suite "Emerg-ant config":
       config.update("""{"gameMode":"emerg-ant","teams":4}""")
 
 suite "Emerg-ant colonies":
-  test "each policy begins as one queen, one worker, and dormant brood":
+  test "the published roster starts eight ants and keeps eight brood per colony":
+    var config = defaultGameConfig()
+    config.gameMode = EmergAntMode
+    config.forageGoal = 9
+    config.startingAntsPerColony = 8
+    config.slots.setLen(32)
+    var sim = initCtfForTest(config)
+    for i in 0 ..< 32:
+      discard sim.addPlayer("ant-" & $i)
+    sim.startGame()
+    check sim.teamActiveAnts(Red) == 8
+    check sim.teamActiveAnts(Blue) == 8
+    check not sim.players[16].alive
+    sim.returnFood(2, Blue)
+    check sim.teamForageScore(Red) == 1
+    check sim.teamActiveAnts(Red) == 9
+    check sim.players[16].alive
+
+  test "configured founders begin alive and the remainder wait as brood":
     var sim = antColonyGame()
     for team in [Red, Blue]:
       let queen = sim.queenIndex(team)
       check queen >= 0
       check sim.players[queen].alive
       check sim.players[queen].skin == CrownSkin
-      check sim.teamActiveAnts(team) == InitialAntsPerColony
+      check sim.teamActiveAnts(team) == 2
       let nest = sim.gameMap.flagHome(team)
       check sim.players[queen].x + CollisionW div 2 == nest.x
       check sim.players[queen].y + CollisionH div 2 == nest.y

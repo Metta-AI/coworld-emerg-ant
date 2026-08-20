@@ -18,7 +18,17 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "53"  ## GV53 (colony rule): SMELL FOOD; FEED THE QUEEN; GROW.
+  GameVersion* = "54"  ## GV54 (colony roster): EIGHT FORAGE; EIGHT WAIT TO HATCH.
+    ## Emerg-ant's starting colony size is now replay-pinned by
+    ## `startingAntsPerColony` (default 8). The published 32-seat 1v1 gives
+    ## each submitted policy 16 connected copies: its queen plus seven workers
+    ## begin alive, and eight more wait as brood. Every returned food still
+    ## activates exactly one reserve copy. Previously GV53 started only a queen
+    ## and one worker among eight copies, so all Emerg-ant episode behavior and
+    ## fixtures are obsolete. Claimed after scanning origin on 2026-08-20:
+    ## main used GV53 and no remote branch claimed GV54 or above.
+    ##
+    ## Previously GV53 (colony rule): SMELL FOOD; FEED THE QUEEN; GROW.
     ## Emerg-ant is a 1v1 policy duel over neutral food at deterministic-random
     ## walkable field positions. Loose food is globally sensed as scent while
     ## ants and terrain remain local. Each colony begins with one immobile,
@@ -513,7 +523,8 @@ const
                                ## adjacent/touching solid footprints; farther
                                ## ants cannot damage one another.
   ContactAttackDamage* = 1     ## one hp per mandible strike.
-  InitialAntsPerColony* = 2    ## one fixed queen + one founding forager.
+  DefaultStartingAntsPerColony* = 8
+                               ## one fixed queen + seven founding foragers.
   BroodFoodCost* = 1           ## every delivered food hatches one reserve ant.
   PheromoneStepTicks* = 24     ## a moving ant deposits at most once per second.
   PheromoneLifetimeTicks* = 24 * 30  ## public trail memory lasts 30 seconds.
@@ -1252,6 +1263,8 @@ type
                                   ## no placements, no new RNG draws).
     gameMode*: string             ## `ctf` (default) or competitive `emerg-ant`.
     forageGoal*: int              ## emerg-ant food returns needed to win.
+    startingAntsPerColony*: int   ## emerg-ant copies alive at match start,
+                                  ## including the fixed queen.
 
   Player* = object
     x*, y*: int

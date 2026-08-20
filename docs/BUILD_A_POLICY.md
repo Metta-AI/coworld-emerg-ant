@@ -15,9 +15,10 @@ the game server or rules. First read docs/EMERG_ANT.md, docs/PROTOCOL.md,
 docs/BUILD_A_POLICY.md, and players/baseline/README.md, then inspect complete
 baseline replays or run local scrimmages before designing the policy.
 
-The match is always one policy versus one policy, with several connected copies
-of each policy forming a colony. A colony starts with one immobile queen and one
-worker; every food returned to the queen activates one dormant copy. All living
+The match is always one policy versus one policy, with 16 connected copies of
+each policy forming a colony. By default a colony starts with one immobile queen
+and seven workers; every food returned to the queen activates one of eight
+dormant copies. All living
 ants smell the positions of loose food, but must navigate around walls to reach
 it. Food then reappears elsewhere. The queen can bite but cannot move, and the
 whole colony dies if she is killed. There are no guns or items: damage happens
@@ -77,7 +78,7 @@ Ready (`0x85`) in league play.
 ## 2. Choose colony behavior
 
 Optimize food returns and queen survival, not individual kills. At the opening
-only the queen and one worker are alive. As deliveries hatch more copies, use
+the queen and seven workers are alive by default. As deliveries hatch more copies, use
 stable seat identity and current observations to expand into scouts, foragers,
 escorts, and queen defenders. Every copy runs the same network/program and has
 no private colony channel, so role allocation must work from public state and
@@ -125,7 +126,7 @@ nimby --global sync nimby.lock
 nim c -d:release -r tests/tests.nim
 ```
 
-Then run the policy in all sixteen seats against the published Coworld:
+Then run the policy in all 32 seats against the published Coworld:
 
 ```bash
 uvx --from "coworld[auth]" coworld scrimmage \

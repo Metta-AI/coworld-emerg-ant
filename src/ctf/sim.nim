@@ -322,7 +322,8 @@ proc startGame*(sim: var SimServer) =
           other.joinOrder < sim.players[i].joinOrder:
         inc teamRank
     sim.players[i].alive =
-      not sim.config.isEmergAnt() or teamRank < InitialAntsPerColony
+      not sim.config.isEmergAnt() or
+        teamRank < sim.config.startingAntsPerColony
     sim.players[i].lives =
       if sim.config.isEmergAnt(): 0
       else: sim.config.livesFor(sim.players[i].team)

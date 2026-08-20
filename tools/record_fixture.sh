@@ -16,6 +16,12 @@ cfg["gameMode"] = "ctf"
 cfg["lives"] = 3
 cfg["fireCooldownTicks"] = 12
 cfg["carrierSpeedPct"] = 70
+# The checked-in Emerg-ant launch roster can be larger than this tool's
+# documented 16-bot CTF fixture shape. Keep fixture joins, result slots, and
+# bot count aligned instead of inheriting dormant Emerg-ant clone seats.
+for key in ("tokens", "players", "slots"):
+    if key in cfg:
+        cfg[key] = cfg[key][:16]
 cfg["seed"] = int(sys.argv[2])
 cfg["maxTicks"] = int(sys.argv[3])
 cfg["speed"] = 16

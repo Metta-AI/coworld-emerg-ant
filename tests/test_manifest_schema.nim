@@ -83,6 +83,7 @@ const SampleJson = """{
   "seed": {"seed": 42},
   "showPlayerLabels": {"showPlayerLabels": false},
   "slots": {"slots": [{"token": "tok1"}]},
+  "startingAntsPerColony": {"startingAntsPerColony": 6},
   "startWaitTicks": {"startWaitTicks": 60},
   "teams": {"teams": 4, "mapPath": "gen"},
   "tokens": {"tokens": ["tokA"]},
@@ -172,8 +173,9 @@ suite "league manifest config_schema vs GameConfig":
     let gameConfig = manifestVariant("emerg-ant")["game_config"]
     check gameConfig["gameMode"].getStr() == EmergAntMode
     check gameConfig["forageGoal"].getInt() == 5
-    check gameConfig["num_agents"].getInt() == 16
-    check gameConfig["players"].len == 16
+    check gameConfig["startingAntsPerColony"].getInt() == 8
+    check gameConfig["num_agents"].getInt() == 32
+    check gameConfig["players"].len == 32
     check gameConfig["teams"].getInt() == 2
     check gameConfig["barrageMaxPerSec"].getInt() == 0
     var config = defaultGameConfig()
@@ -181,14 +183,15 @@ suite "league manifest config_schema vs GameConfig":
     check config.isEmergAnt()
     check config.maxTicks == 3600
 
-  test "certification exercises the ant ruleset with sixteen seats":
+  test "certification exercises eight founders plus brood with thirty-two seats":
     let manifest = parseFile(GameDir / ManifestName)
     let gameConfig = manifest["certification"]["game_config"]
-    check manifest["certification"]["players"].len == 16
-    check gameConfig["players"].len == 16
-    check gameConfig["minPlayers"].getInt() == 16
+    check manifest["certification"]["players"].len == 32
+    check gameConfig["players"].len == 32
+    check gameConfig["minPlayers"].getInt() == 32
     check gameConfig["gameMode"].getStr() == EmergAntMode
     check gameConfig["forageGoal"].getInt() == 1
+    check gameConfig["startingAntsPerColony"].getInt() == 8
     var config = defaultGameConfig()
     config.update($gameConfig)
     check config.isEmergAnt()

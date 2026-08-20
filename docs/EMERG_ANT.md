@@ -13,9 +13,9 @@ colony's fresh deposit erases opposing trail within 18 pixels.
 
 ## Win condition
 
-- Gameplay is always one submitted policy versus one submitted policy. Softmax
-  starts eight connected copies per colony, but only its queen and one founding
-  worker are active at the beginning; six copies wait as dormant brood.
+- Gameplay is always one submitted policy versus one submitted policy. The
+  published match connects 16 copies per colony. Eight are active at the
+  beginning—a queen and seven workers—and eight wait as dormant brood.
 - Each queen is a large, winged ant fixed at her glowing nest. She is alive,
   visible, and can bite enemies touching her, but cannot move.
 - Two neutral food patches begin at deterministic-random, walkable positions
@@ -83,11 +83,13 @@ pickup rules remain available only when `gameMode` is `ctf`.
 ```json
 {
   "gameMode": "emerg-ant",
-  "forageGoal": 5
+  "forageGoal": 5,
+  "startingAntsPerColony": 8
 }
 ```
 
 `gameMode: "ctf"` preserves the original capture-the-heart rules. The mode and
-goal are replay-pinned. Emerg-ant rejects any `teams` value other than `2`.
+both colony knobs are replay-pinned. `startingAntsPerColony` accepts 2–16 and
+includes the queen. Emerg-ant rejects any `teams` value other than `2`.
 Pheromone pacing, lifetime, erasure radius, brood cost, and starting colony
 size are catalogued in [ENV_VARIATION.md](ENV_VARIATION.md).

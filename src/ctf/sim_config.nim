@@ -51,6 +51,7 @@ proc defaultGameConfig*(): GameConfig =
     barrierPickups: 0,
     gameMode: CtfMode,
     forageGoal: DefaultForageGoal,
+    startingAntsPerColony: DefaultStartingAntsPerColony,
     barrageMaxPerSec: 0,
     barrageStartPerSec: BarrageStartPerSec,
     barrageStartSec: BarrageStartSec,
@@ -530,6 +531,13 @@ proc validate(config: GameConfig) =
     )
   if config.forageGoal < 1:
     raise newException(CtfError, "Config field forageGoal must be at least 1.")
+  if config.startingAntsPerColony < 2 or
+      config.startingAntsPerColony > MaxPlayers div 2:
+    raise newException(
+      CtfError,
+      "Config field startingAntsPerColony must be 2.." & $(MaxPlayers div 2) &
+        "."
+    )
   for i, slot in config.slots:
     if slot.hasTeam and ord(slot.team) >= config.teams:
       raise newException(
@@ -694,6 +702,7 @@ proc update*(config: var GameConfig, jsonText: string) =
   node.readConfigInt("barrierPickups", config.barrierPickups)
   node.readConfigString("gameMode", config.gameMode)
   node.readConfigInt("forageGoal", config.forageGoal)
+  node.readConfigInt("startingAntsPerColony", config.startingAntsPerColony)
   node.readConfigString("mapCenterFeature", config.mapGen.centerFeature)
   node.readConfigString("mapLayout", config.mapGen.layout)
   node.readConfigString("mapEndzone", config.mapGen.endzone)
@@ -814,6 +823,7 @@ proc configJson*(config: GameConfig): string =
   if config.gameMode != CtfMode:
     node["gameMode"] = %config.gameMode
     node["forageGoal"] = %config.forageGoal
+    node["startingAntsPerColony"] = %config.startingAntsPerColony
   if includePlayers:
     node["players"] = players
   # Echo the puddle keys only when the mode departs from the default, so a
