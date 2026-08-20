@@ -6,10 +6,10 @@ import
 
 const
   # A fresh, drama-complete fixture recorded against the CURRENT gameplay rules
-  # (GameVersion 49, seed 1, tools/record_fixture.sh). This capture-ending
+  # (GameVersion 50, seed 1, tools/record_fixture.sh). This capture-ending
   # fixture exceeds every tick target below and hash-verifies clean end to end.
   # (tests/replays/ctf.bitreplay is the event-substrate fixture:
-  # GameVersion 49, seed 908, lives 9, carrier speed 1% — see
+  # GameVersion 50, seed 908, lives 9, carrier speed 1% — see
   # test_extract_events.)
   CtfReplayPath = GameDir / "tests" / "fixtures" / "capture-seed1.bitreplay"
 

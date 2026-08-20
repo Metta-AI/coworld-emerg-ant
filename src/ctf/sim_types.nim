@@ -18,7 +18,17 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "49"  ## GV49 (Emerg-ant famine rule): FORAGING GETS A FAIR FIRST CHANCE.
+  GameVersion* = "50"  ## GV50 (Emerg-ant founder rule): A COLONY STARTS AS A SWARM.
+    ## Each 16-seat colony now wakes a queen and seven founding workers; the
+    ## other eight connected policy seats remain dormant brood. Three workers
+    ## were too sparse for the distributed eight-site fruit circuit: two
+    ## certified hosted GV49 matches produced only one late harvest apiece
+    ## before starvation or queen disconnect. Population, motion, hash, and
+    ## replay outcomes change, so GV49 recordings are obsolete.
+    ## Authored as GV50 after scanning origin on 2026-08-20: main and every
+    ## remote claim at/above main used GV49; no GV50 claim was present.
+    ##
+    ## Previously GV49 (Emerg-ant famine rule): FORAGING GETS A FAIR FIRST CHANCE.
     ## A queen now eats her starting ration at 75 seconds and, without a food
     ## delivery, starves at 135 seconds — fifteen seconds before the published
     ## 150-second limit. GV48's 45/30-second clock killed both four-founder
@@ -543,7 +553,7 @@ const
   DefaultAntSenseRadius* = 180 ## local radius for food/pheromone observations.
   DefaultBiteDamage* = 1       ## hp removed by one contact attack.
   DefaultBiteCooldownTicks* = 18 ## minimum ticks between successful attempts.
-  InitialAntsPerColony* = 4  ## queen + founding workers; remaining seats brood.
+  InitialAntsPerColony* = 8  ## queen + 7 founding workers; 8 seats stay brood.
   QueenStartingFood* = 1     ## reserve carried into the first hunger cycle.
   QueenFoodReserve* = 1      ## hatching never spends the queen's last ration.
   BroodFoodCost* = 1         ## stored food consumed to hatch one reserve seat.

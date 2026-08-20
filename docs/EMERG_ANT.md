@@ -2,7 +2,7 @@
 
 Emerg-ant is a competitive artificial-life Coworld for the ERA @ ALIFE 2026
 Emerg-ant hackathon. Two policies each occupy 16 fixed seats. A match begins
-with one crown-marked queen and three workers per colony; the other connected
+with one crown-marked queen and seven workers per colony; the other connected
 policy seats are dormant brood. Every active worker runs another copy of the
 same policy image. Colony memory remains in the world, not in a manager.
 

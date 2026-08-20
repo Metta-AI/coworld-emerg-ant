@@ -72,11 +72,11 @@ suite "Emerg-ant v0.5 config":
         config.update(bad)
 
 suite "Emerg-ant neutral foraging":
-  test "colonies begin with a queen, three workers, and dormant brood seats":
+  test "colonies begin with a queen, seven workers, and dormant brood seats":
     var config = defaultGameConfig()
     config.gameMode = EmergAntMode
     var sim = initCtfForTest(config)
-    for i in 0 ..< 12:
+    for i in 0 ..< 20:
       discard sim.addPlayer("ant-" & $i)
     sim.startGame()
     for team in [Red, Blue]:
@@ -92,7 +92,7 @@ suite "Emerg-ant neutral foraging":
     config.gameMode = EmergAntMode
     config.forageGoal = 9
     var sim = initCtfForTest(config)
-    for i in 0 ..< 12:
+    for i in 0 ..< 20:
       discard sim.addPlayer("ant-" & $i)
     sim.startGame()
     sim.harvestAndReturn(sim.queenIndex(Red), Red)

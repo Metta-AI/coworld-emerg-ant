@@ -2,7 +2,7 @@
 
 Emerg-ant is a competitive artificial-life Coworld for the
 [ERA @ ALIFE 2026 Emerg-ant hackathon](https://emerging-researchers-alife.github.io/alife26-era-workshop/#hackathon).
-Two policies each occupy 16 fixed colony seats, but only a queen and three
+Two policies each occupy 16 fixed colony seats, but only a queen and seven
 workers begin alive. Workers forage finite neutral food, coordinate through
 locally sensed pheromones, and attack by physical contact. Food returned to the
 nest feeds the queen and hatches dormant policy seats into new ant bodies; if
@@ -25,7 +25,7 @@ Read the [complete v0.5 rules](docs/EMERG_ANT.md) or
 
 **Two Brains, Two Queens, Growing Colonies** is both the demo and the experiment:
 
-1. Start with two crown-marked queens, six founding workers, and 24 dormant
+1. Start with two crown-marked queens, 14 founding workers, and 16 dormant
    policy seats waiting as brood.
 2. Follow the first food discovery as C-marked return trails recruit other
    locally sensing ants.

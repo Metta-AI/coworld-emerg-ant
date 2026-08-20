@@ -13,7 +13,7 @@
     "replay_viewer": {
       "bundle": "static-replay-viewer"
     },
-    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two fixed 16-seat policy colonies begin with a queen and three workers. Local neural ants forage fruit, write erasable pheromone fields, hatch dormant policy seats with surplus food, defend their queen, and fight only through physical contact.",
+    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two fixed 16-seat policy colonies begin with a queen and seven workers. Local neural ants forage fruit, write erasable pheromone fields, hatch dormant policy seats with surplus food, defend their queen, and fight only through physical contact.",
     "owner": "treeform@softmax.com",
     "runnable": {
       "type": "game",
@@ -616,7 +616,7 @@
     {
       "id": "emerg-ant",
       "name": "Emerg-ant Foraging",
-      "description": "Two fixed 16-seat policy colonies begin with a queen and three workers. Food hatches dormant seats into workers and feeds the queen; queen death collapses the colony. Workers sense locally, write pheromones, and bite only on contact.",
+      "description": "Two fixed 16-seat policy colonies begin with a queen and seven workers. Food hatches dormant seats into workers and feeds the queen; queen death collapses the colony. Workers sense locally, write pheromones, and bite only on contact.",
       "game_config": {
         "players": [
           {

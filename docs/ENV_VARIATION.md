@@ -174,7 +174,7 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 | Cardboard barriers | via `barrierPickups` (per team) | `BarrierHp`=10, `BarrierRadius`=24, `BarrierHalfThick`=2, `BarrierRespawnTicks`=720, `MaxBarriersPlaced`=16 ([sim_types.nim](../src/ctf/sim_types.nim)) |
 | Pheromone marks | up to 512 in Emerg-ant mode | Explicit B/C channels; `PheromoneStepTicks`=24, `PheromoneLifetimeTicks`=720, `PheromoneEraseRadius`=18, `MaxPheromoneMarks`=512; locally observed inside `antSenseRadius` |
 | Mandible contact | 1 nearest enemy per fresh A press | `AntBiteRange`=18px center distance; damage/cooldown use `biteDamage` / `biteCooldownTicks`; same-tick bites resolve simultaneously |
-| Queen and brood | 1 queen + 3 founders per colony; remaining connected seats dormant | `InitialAntsPerColony`=4, `QueenStartingFood`=1, `QueenFoodReserve`=1, `BroodFoodCost`=1, `QueenUpkeepFoodCost`=1, `QueenGraceTicks`=1800, `QueenUpkeepTicks`=1440; queen death collapses the colony |
+| Queen and brood | 1 queen + 7 founding workers per colony; 8 connected seats dormant | `InitialAntsPerColony`=8, `QueenStartingFood`=1, `QueenFoodReserve`=1, `BroodFoodCost`=1, `QueenUpkeepFoodCost`=1, `QueenGraceTicks`=1800, `QueenUpkeepTicks`=1440; queen death collapses the colony |
 
 To vary item counts today: change `teams` (scales per-team items), change `mapGen`
 pits (trenches), or edit the per-map spawn lists / consts in code.
