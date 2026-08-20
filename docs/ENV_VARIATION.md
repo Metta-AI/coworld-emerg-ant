@@ -92,8 +92,13 @@ Per-map descriptor `CtfMap` [sim_types.nim:733](../src/ctf/sim_types.nim#L733) c
 | Field | Type / default | Bounds | Effect |
 |---|---|---|---|
 | `teams` | int / `2` | must be `2` or `4` | Active team count: 2 (classic sides) or 4 (corners/plus FFA). |
-| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective rules and actor art. Emerg-ant turns hearts into replenishing food caches and enables public pheromone trails. |
-| `forageGoal` | int / `5` | `>=1` | Emerg-ant food returns needed for a colony win; inert in CTF mode. |
+| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective, input, observation, and actor-art contract. Emerg-ant uses two neutral food patches, explicit local pheromones, and contact-only combat; it requires `teams=2`. |
+| `forageGoal` | int / `5` | `>=1` | Emerg-ant neutral-food deliveries needed for a colony win; inert in CTF mode. |
+| `foodRespawnTicks` | int / `240` | `>=1` | Emerg-ant delay before an emptied neutral food patch regrows. |
+| `pheromoneWashTick` | int / `1800` | `>=0` | One-shot trail-field wash this many playing ticks after kickoff; 0 disables it. |
+| `antSenseRadius` | int / `180` | `>=1` | Local radius in pixels for planted-food and pheromone observations. |
+| `biteDamage` | int / `1` | `>=1` | Damage dealt by one fresh-A contact bite. |
+| `biteCooldownTicks` | int / `18` | `>=1` | Cooldown after a successful contact attack. |
 | `minPlayers` | int / `16` | `1..32` | Players required to start; effectively sets roster size on open join. |
 | `closedRoster` | bool / `false` | needs ≥`minPlayers` named+tokened slots | Fixed named roster vs open join. |
 | `slots` | `seq[PlayerSlotConfig]` / `@[]` | ≤32; unique names/tokens; `team < teams` | Per-seat overrides. |
@@ -159,7 +164,7 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 
 | Item | Count | Key consts (sim_types.nim) |
 |---|---|---|
-| Flags/hearts or food caches | 1 per active team | `FlagPickupRange`=34 (covers either 60px objective), `CaptureZoneWidth`=40, `PedestalCoverSize`=96; Emerg-ant caches replenish after delivery |
+| Flags/hearts or neutral food patches | CTF: 1 per team; Emerg-ant: 2 neutral center patches | `FlagPickupRange`=34, `CaptureZoneWidth`=40, `PedestalCoverSize`=96; ant patches regrow after `foodRespawnTicks` |
 | Grenades | exactly 4 corner pickups | `GrenadeRespawnTicks`=120, `GrenadeChargeTicks`=24, `GrenadeBlastRadius`=52, `GrenadeDamage`=2, `GrenadeTrenchDamage`=6, max throw = `MapWidth/5` |
 | Med kits | 2 (sides) / up to 4 (4-team) | `MedKitPickupRange`=12, `MedKitRespawnTicks`=720 |
 | Shields | 1 per team endzone | `ShieldRespawnTicks`=720, `ShieldLayerHp`=3, `ShieldFireSlowdown`=3 |
@@ -167,7 +172,8 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 | Trenches | via `mapGen.pits`/`pitDensity` | `TrenchSize`=56, `TrenchSpeedDivisor`=5, `TrenchFireSlowdown`=3, `TrenchMissPct`=70 |
 | Paint puddles | via `mapGen.puddles` (`mapPuddles`) | `PuddleSize`=64, `PuddleRollTicks`=24, `DefaultPuddleDamagePct`=20 (config `puddleDamagePct`), `MaxPuddles`=64 |
 | Cardboard barriers | via `barrierPickups` (per team) | `BarrierHp`=10, `BarrierRadius`=24, `BarrierHalfThick`=2, `BarrierRespawnTicks`=720, `MaxBarriersPlaced`=16 ([sim_types.nim](../src/ctf/sim_types.nim)) |
-| Pheromone marks | up to 512 in Emerg-ant mode | `PheromoneStepTicks`=24, `PheromoneLifetimeTicks`=720, `PheromoneEraseRadius`=18, `MaxPheromoneMarks`=512 |
+| Pheromone marks | up to 512 in Emerg-ant mode | Explicit B/C channels; `PheromoneStepTicks`=24, `PheromoneLifetimeTicks`=720, `PheromoneEraseRadius`=18, `MaxPheromoneMarks`=512; locally observed inside `antSenseRadius` |
+| Mandible contact | 1 nearest enemy per fresh A press | `AntBiteRange`=18px center distance; damage/cooldown use `biteDamage` / `biteCooldownTicks`; same-tick bites resolve simultaneously |
 
 To vary item counts today: change `teams` (scales per-team items), change `mapGen`
 pits (trenches), or edit the per-map spawn lists / consts in code.
@@ -179,8 +185,13 @@ pits (trenches), or edit the per-map spawn lists / consts in code.
 | Field | Type / default | JSON key | Bounds | Effect |
 |---|---|---|---|---|
 | `scoring` | string / `"classic"` | `scoring` | `"classic"` or `"pot"` | Reward rule: classic (+1 win / −1 loss) vs pot (ante/pot split). |
-| `gameMode` | string / `"ctf"` | `gameMode` | `"ctf"` or `"emerg-ant"` | CTF capture/elimination or repeated competitive foraging. |
-| `forageGoal` | int / `5` | `forageGoal` | `>=1` | First colony to this many food returns wins; at the clock, a unique score leader wins. |
+| `gameMode` | string / `"ctf"` | `gameMode` | `"ctf"` or `"emerg-ant"` | CTF capture/elimination or two-colony neutral-food ecology. |
+| `forageGoal` | int / `5` | `forageGoal` | `>=1` | First colony to this many neutral-food deliveries wins; at the clock, a unique score leader wins. |
+| `foodRespawnTicks` | int / `240` | `foodRespawnTicks` | `>=1` | Empty-patch regrowth delay. |
+| `pheromoneWashTick` | int / `1800` | `pheromoneWashTick` | `>=0` | One disruption wash relative to kickoff; 0 = off. |
+| `antSenseRadius` | int / `180` | `antSenseRadius` | `>=1` | Local dynamic-ecology observation radius. |
+| `biteDamage` | int / `1` | `biteDamage` | `>=1` | Contact bite damage. |
+| `biteCooldownTicks` | int / `18` | `biteCooldownTicks` | `>=1` | Successful bite cooldown. |
 | `maxTicks` | int / `7200` (5:00) | `maxGameTicks` | `>=0` | Scheduled game end (0 = unlimited); with the barrage on it is not a hard end. |
 | `gameOverTicks` | int / `360` | | `>=0` | End-screen dwell ticks. |
 | `maxGames` | int / `0` | | `>=0` | Games before server stops (0 = unlimited). |
@@ -193,8 +204,9 @@ Reward consts: `WinReward`=+1, `LossReward`=−1, `TimeoutReward`=−1 (draw pen
 GV41 removed the action-floor overtime: the clock never extends, and a game with
 the barrage configured ignores `maxTicks` entirely (it ends only on capture/wipe). Win logic:
 capturing a heart eliminates that team; last team standing wins; 2-team ends on
-the first capture. In Emerg-ant mode a returned food cache immediately replenishes,
-the forage goal wins, and tied simultaneous goal finishes or tied clocks draw.
+the first capture. In Emerg-ant mode a neutral food delivery empties its source
+patch until `foodRespawnTicks`, the forage goal wins, and tied simultaneous goal
+finishes or tied clocks draw.
 
 ---
 
@@ -243,7 +255,11 @@ Integer fixed-point model — `accel` = thrust, `frictionNum/frictionDen` = drag
 | `playerBouncePct` | int / `40` | `0..100` | Restitution of player-player collisions (0 = dead stop, 100 = elastic). |
 
 Non-config: `TrenchSpeedDivisor`=5 (climbing out of a trench caps that axis to 1/5),
-`PlayerHalf`=6, `MovementSlideMaxScan`=3.
+`PlayerHalf`=6, `MovementSlideMaxScan`=3. Emerg-ant wake positions are a fixed
+2×8 lattice around the team anchor: columns 12px apart and rows 18px apart,
+with top-left offsets x=`-12..0`, y=`-63..63`. The lattice fits all 16 bodies
+inside the home capture zone so wake displacement is a valid private home cue;
+CTF retains its 36px fan (`sim_state.nim:spawnPosition`).
 
 ---
 

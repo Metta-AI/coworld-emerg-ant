@@ -7,8 +7,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="$1"; SEED="$2"; MAXTICKS="${3:-5000}"; SPEED="${4:-16}"; PORT="${PORT:-21300}"
+PLAYER_COUNT="${PLAYER_COUNT:-32}"
 CFG=$(mktemp /tmp/ctf-colossal-demo-cfg-$$-XXXXXX)
-python3 - "$CFG" "$SEED" "$MAXTICKS" "$SPEED" <<'PY'
+python3 - "$CFG" "$SEED" "$MAXTICKS" "$SPEED" "$PLAYER_COUNT" <<'PY'
 import json, sys
 cfg = json.load(open("config.json"))
 cfg["gameMode"] = "ctf"
@@ -23,14 +24,16 @@ cfg["teams"] = 4
 cfg["mapPath"] = "gen"
 cfg["mapSeed"] = int(sys.argv[2])
 cfg["mapSize"] = "colossal"
-cfg["minPlayers"] = 32
+player_count = int(sys.argv[5])
+cfg["minPlayers"] = player_count
+cfg["startWaitTicks"] = 0
 cfg.pop("slots", None)
-cfg["tokens"] = [f"0xBADA55_{i}" for i in range(32)]
+cfg["tokens"] = [f"0xBADA55_{i}" for i in range(player_count)]
 # Hosted-style seat names: one policy per team, seated eight times each.
 pols = ["redshift:v1", "bluesteel:v1", "greenhorn:v1", "goldrush:v1"]
 counts = [0, 0, 0, 0]
 players = []
-for slot in range(32):
+for slot in range(player_count):
     team = slot % 4
     counts[team] += 1
     players.append({"name": f"{pols[team]}_({counts[team]})"})
@@ -59,7 +62,7 @@ done
 nc -z 127.0.0.1 "$PORT" || { echo "server never listened" >&2; tail -20 "$LOG" >&2; exit 1; }
 
 BOT_PIDS=()
-for i in $(seq 0 31); do
+for i in $(seq 0 $((PLAYER_COUNT - 1))); do
   CTF_BOT_FAST_READY=1 \
   COWORLD_PLAYER_WS_URL="ws://127.0.0.1:$PORT/player?slot=$i&token=0xBADA55_$i" \
     ./players/baseline/baseline.out >> "$BOTLOG" 2>&1 &

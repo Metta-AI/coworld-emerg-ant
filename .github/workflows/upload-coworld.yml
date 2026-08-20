@@ -1,7 +1,7 @@
 name: Upload Coworld
 
 # Manually builds the game/player images and uploads one Emerg-ant Coworld
-# version. The standalone manifest publishes only the competitive 16-player
+# version. The standalone manifest publishes only the competitive 32-player
 # `emerg-ant` variant.
 #
 # Auth: configure the SOFTMAX_TOKEN repository secret before dispatching.
@@ -28,7 +28,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - uses: docker/setup-buildx-action@v3
       - name: Authenticate to Softmax
-        run: uvx --from "coworld[auth]==0.1.34" softmax set-token "${{ secrets.SOFTMAX_TOKEN }}"
+        run: uvx --from "coworld[auth]==0.1.39" softmax set-token "${{ secrets.SOFTMAX_TOKEN }}"
       - name: Determine version
         id: version
         env:
@@ -45,13 +45,13 @@ jobs:
       - name: Build, certify, and upload
         working-directory: coworld-emerg-ant
         run: |
-          uvx --from "coworld[auth]==0.1.34" coworld build \
+          uvx --from "coworld[auth]==0.1.39" coworld build \
             --version "${{ steps.version.outputs.version }}" \
             --project . \
             --compose compose.yaml \
             --template coworld_manifest.json \
             --output build/coworld-package/coworld_manifest.json
-          uvx --from "coworld[auth]==0.1.34" coworld upload-coworld \
+          uvx --from "coworld[auth]==0.1.39" coworld upload-coworld \
             build/coworld-package/coworld_manifest.json \
             --timeout-seconds 900 \
             --wait-hosted-smoke \
@@ -59,7 +59,7 @@ jobs:
       - name: Verify upload
         run: |
           set -euo pipefail
-          uvx --from "coworld[auth]==0.1.34" coworld list --json --limit 500 > /tmp/coworlds-after.json
+          uvx --from "coworld[auth]==0.1.39" coworld list --json --limit 500 > /tmp/coworlds-after.json
           python3 - "${{ steps.version.outputs.version }}" <<'EOF'
           import json, sys
           expected = sys.argv[1]

@@ -4181,16 +4181,16 @@ proc buildFlagBannerSprite(team: Team): seq[uint8] {.measure.} =
   ## Rasterized from the ~450px painted master at scale× the carried footprint.
   loadHeartSprite(team, FlagBannerW * boardScale)
 
-proc buildFoodSprite(team: Team, logicalW, logicalH: int): seq[uint8] =
-  ## A bright seed/nectar cluster used for both the nest cache and carried
-  ## food in Emerg-ant mode. The team rim says which colony owns the cache;
-  ## the gold center reads as a neutral resource at game scale.
+proc buildFoodSprite(logicalW, logicalH: int): seq[uint8] =
+  ## A neutral seed/nectar cluster used for both the center-field patch and
+  ## carried food in Emerg-ant mode. No team rim: either colony can harvest
+  ## either finite patch.
   let
     w = logicalW * boardScale
     h = logicalH * boardScale
     cx = float(w - 1) / 2.0
     cy = float(h - 1) / 2.0
-    teamInk = antTeamRgba(team)
+    husk = rgba(151, 105, 48, 255)
     dark = rgba(63, 45, 25, 255)
     gold = rgba(245, 188, 54, 255)
     pale = rgba(255, 235, 132, 255)
@@ -4215,7 +4215,7 @@ proc buildFoodSprite(team: Team, logicalW, logicalH: int): seq[uint8] =
       if best <= 1.0:
         let color =
           if best > 0.82: dark
-          elif best > 0.68: teamInk
+          elif best > 0.68: husk
           elif float(x) < cx and float(y) < cy: pale
           else: gold
         result.putRawRgbaPixel(pixel, color.r, color.g, color.b, color.a)
@@ -4312,10 +4312,10 @@ proc addFlagSprites(
       FlagBannerW,
       FlagBannerH,
       if foodMode:
-        buildFoodSprite(team, FlagBannerW, FlagBannerH)
+        buildFoodSprite(FlagBannerW, FlagBannerH)
       else:
         buildFlagBannerSprite(team),
-      if foodMode: "food " & teamText(team) & " carried" else: flagLabel(team),
+      if foodMode: "neutral food carried" else: flagLabel(team),
       native = boardScale
     )
     packet.addBoardSpriteChanged(
@@ -4324,10 +4324,10 @@ proc addFlagSprites(
       PlantedFlagW,
       PlantedFlagCanvasH,
       if foodMode:
-        buildFoodSprite(team, PlantedFlagW, PlantedFlagCanvasH)
+        buildFoodSprite(PlantedFlagW, PlantedFlagCanvasH)
       else:
         buildPlantedFlagSprite(team),
-      if foodMode: "food " & teamText(team) & " cache"
+      if foodMode: "neutral food patch"
       else: labelFlagPlanted(teamText(team)),
       native = boardScale
     )
@@ -4628,7 +4628,7 @@ proc buildSpriteProtocolPlayerInit(
     sim.flagSprite.width,
     sim.flagSprite.height,
     buildSpriteProtocolRawSprite(sim.flagSprite),
-    LabelFireIcon
+    if sim.config.isEmergAnt(): "bite ready" else: LabelFireIcon
   )
   result.addSpriteChanged(
     spriteDefs,
@@ -4636,7 +4636,7 @@ proc buildSpriteProtocolPlayerInit(
     sim.flagSprite.width,
     sim.flagSprite.height,
     buildSpriteProtocolShadowSprite(sim.flagSprite),
-    LabelFireIconCooldown
+    if sim.config.isEmergAnt(): "bite cooldown" else: LabelFireIconCooldown
   )
   sim.addSpriteProtocolInterstitialSprites(spriteDefs, result)
   sim.addPlayerActorSprites(spriteDefs, result, selected = false)
@@ -5244,6 +5244,8 @@ proc addPlasmaArcs(
   viewerIndex = -1
 ) {.measure.} =
   ## Places side-center spray can pickups and carried markers.
+  if sim.config.isEmergAnt():
+    return
   for i in 0 ..< sim.plasmaArcSpawns.len:
     let spawn = sim.plasmaArcSpawns[i]
     if not spawn.present:
@@ -5334,6 +5336,8 @@ proc addPlasmaArcFlashes(
   ## along the attacker's aim, each sized to the local cone width. Every snapshot
   ## of one burst is drawn along that burst's newest pose (plasmaArcRenderPose),
   ## so a burst that turns mid-window stays one coherent plume.
+  if sim.config.isEmergAnt():
+    return
   for i in 0 ..< min(sim.plasmaArcFlashes.len, PlasmaArcMaxFlashes):
     let
       flash = sim.plasmaArcFlashes[i]
@@ -5400,6 +5404,8 @@ proc addMedKits(
   ## Places the two center-field med kit pickups, fog-gated by map position
   ## like the grenade pickups. The map/replay view passes no viewer and shows
   ## both. The sprite is defined lazily on first need per connection.
+  if sim.config.isEmergAnt():
+    return
   for i in 0 ..< sim.medKitSpawns.len:
     let spawn = sim.medKitSpawns[i]
     if not spawn.present:
@@ -5435,6 +5441,8 @@ proc addShields(
   ## carrier while the shield layer holds (it pops when shieldHp hits 0).
   ## The map/replay view passes no viewer and shows all. Sprites are defined
   ## lazily on first need per connection.
+  if sim.config.isEmergAnt():
+    return
   for i in 0 ..< sim.shieldSpawns.len:
     let spawn = sim.shieldSpawns[i]
     if not spawn.present:
@@ -5553,6 +5561,8 @@ proc addGrenades(
   ## like the aim line). The map/replay view passes no viewer and shows all.
   ## Sprites are defined lazily so an all-quiet frame registers nothing. A
   ## landing the viewer could NOT see still leaves a "grenade sound" ring.
+  if sim.config.isEmergAnt():
+    return
   let viewer = viewerIndex
   template mapVisible(mx, my: int): bool =
     viewer < 0 or sim.fovVisibleAt(viewer, mx, my)
@@ -5818,6 +5828,8 @@ proc addBarriers(
   ## standing half-hexes fog-gated by map position, the carried marker gated
   ## by seeing that player — the same contract as addGrenades. All-quiet on
   ## default configs: no spawns, no carriers, no placements, nothing emitted.
+  if sim.config.isEmergAnt():
+    return
   let viewer = viewerIndex
   template mapVisible(mx, my: int): bool =
     viewer < 0 or sim.fovVisibleAt(viewer, mx, my)
@@ -6404,11 +6416,11 @@ proc addPheromones(
   sim: SimServer,
   spriteDefs: var seq[SpriteDefinition],
   currentIds: var seq[int],
-  packet: var seq[uint8]
+  packet: var seq[uint8],
+  viewerIndex = -1
 ) =
-  ## Pheromone is public environmental memory, deliberately visible through
-  ## fog to every policy. Unlike spectator-only paint stains, these objects
-  ## are part of the competitive observation contract.
+  ## Pheromone is environmental memory. The broadcast sees the whole field;
+  ## each living ant receives only marks inside its local sensing radius.
   if not sim.config.isEmergAnt():
     return
   for team in sim.teams():
@@ -6429,6 +6441,8 @@ proc addPheromones(
   for i, mark in sim.pheromones:
     if i >= MaxPheromoneMarks:
       break
+    if not sim.pheromoneVisibleTo(viewerIndex, mark):
+      continue
     let
       size = if mark.food: PheromoneFoodSize else: PheromoneScoutSize
       objectId = PheromoneObjectBase + i
@@ -6671,7 +6685,7 @@ proc buildSpriteProtocolPlayerUpdates*(
             PlantedFlagSpriteBase + ord(team)
           )
 
-    sim.addPheromones(nextState.spriteDefs, currentIds, result)
+    sim.addPheromones(nextState.spriteDefs, currentIds, result, playerIndex)
 
     # Players: yourself (a distinct outlined self marker) is always visible;
     # everyone else — teammates included — only inside your vision; corpses
@@ -7829,11 +7843,11 @@ proc buildSpriteProtocolUpdates*(
         result.addBoardSpriteChanged(
           nextState.spriteDefs, heartSpriteId, FlagBannerW, FlagBannerH,
           if sim.config.isEmergAnt():
-            buildFoodSprite(team, FlagBannerW, FlagBannerH)
+            buildFoodSprite(FlagBannerW, FlagBannerH)
           else:
             buildCarryHeartSprite(team, aimStep),
           if sim.config.isEmergAnt():
-            "food " & teamText(team) & " carried"
+            "neutral food carried"
           else:
             flagLabel(team) & " carried",
           native = boardScale)

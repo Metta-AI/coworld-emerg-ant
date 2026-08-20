@@ -51,6 +51,11 @@ proc defaultGameConfig*(): GameConfig =
     barrierPickups: 0,
     gameMode: CtfMode,
     forageGoal: DefaultForageGoal,
+    foodRespawnTicks: DefaultFoodRespawnTicks,
+    pheromoneWashTick: DefaultPheromoneWashTick,
+    antSenseRadius: DefaultAntSenseRadius,
+    biteDamage: DefaultBiteDamage,
+    biteCooldownTicks: DefaultBiteCooldownTicks,
     barrageMaxPerSec: 0,
     barrageStartPerSec: BarrageStartPerSec,
     barrageStartSec: BarrageStartSec,
@@ -525,6 +530,21 @@ proc validate(config: GameConfig) =
     )
   if config.forageGoal < 1:
     raise newException(CtfError, "Config field forageGoal must be at least 1.")
+  if config.gameMode == EmergAntMode and config.teams != 2:
+    raise newException(CtfError, "Emerg-ant mode requires exactly 2 teams.")
+  if config.foodRespawnTicks < 1:
+    raise newException(
+      CtfError, "Config field foodRespawnTicks must be at least 1.")
+  if config.pheromoneWashTick < 0:
+    raise newException(
+      CtfError, "Config field pheromoneWashTick must not be negative.")
+  if config.antSenseRadius < 1:
+    raise newException(CtfError, "Config field antSenseRadius must be at least 1.")
+  if config.biteDamage < 1:
+    raise newException(CtfError, "Config field biteDamage must be at least 1.")
+  if config.biteCooldownTicks < 1:
+    raise newException(
+      CtfError, "Config field biteCooldownTicks must be at least 1.")
   for i, slot in config.slots:
     if slot.hasTeam and ord(slot.team) >= config.teams:
       raise newException(
@@ -533,7 +553,7 @@ proc validate(config: GameConfig) =
           " but the game seats " & $config.teams & " teams."
       )
   if config.minPlayers > MaxPlayers:
-    raise newException(CtfError, "can't do more than 8 players.")
+    raise newException(CtfError, "can't do more than " & $MaxPlayers & " players.")
   if config.lives < 1:
     raise newException(CtfError, "Config field lives must be at least 1.")
   if config.hitPoints < 1:
@@ -689,6 +709,11 @@ proc update*(config: var GameConfig, jsonText: string) =
   node.readConfigInt("barrierPickups", config.barrierPickups)
   node.readConfigString("gameMode", config.gameMode)
   node.readConfigInt("forageGoal", config.forageGoal)
+  node.readConfigInt("foodRespawnTicks", config.foodRespawnTicks)
+  node.readConfigInt("pheromoneWashTick", config.pheromoneWashTick)
+  node.readConfigInt("antSenseRadius", config.antSenseRadius)
+  node.readConfigInt("biteDamage", config.biteDamage)
+  node.readConfigInt("biteCooldownTicks", config.biteCooldownTicks)
   node.readConfigString("mapCenterFeature", config.mapGen.centerFeature)
   node.readConfigString("mapLayout", config.mapGen.layout)
   node.readConfigString("mapEndzone", config.mapGen.endzone)
@@ -809,6 +834,11 @@ proc configJson*(config: GameConfig): string =
   if config.gameMode != CtfMode:
     node["gameMode"] = %config.gameMode
     node["forageGoal"] = %config.forageGoal
+    node["foodRespawnTicks"] = %config.foodRespawnTicks
+    node["pheromoneWashTick"] = %config.pheromoneWashTick
+    node["antSenseRadius"] = %config.antSenseRadius
+    node["biteDamage"] = %config.biteDamage
+    node["biteCooldownTicks"] = %config.biteCooldownTicks
   if includePlayers:
     node["players"] = players
   # Echo the puddle keys only when the mode departs from the default, so a

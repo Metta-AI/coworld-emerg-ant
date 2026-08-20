@@ -451,8 +451,14 @@ proc removePlayerAt*(sim: var SimServer, playerIndex: int) =
     return
   for team in sim.teams():
     if sim.flags[team].carrier == playerIndex:
-      sim.logGameEvent(teamText(team) & " heart returned home")
-      sim.resetFlag(team)
+      if sim.config.isEmergAnt():
+        sim.flags[team].carrier = -1
+        sim.flags[team].captured = true
+        sim.flags[team].respawnAt = sim.tickCount + sim.config.foodRespawnTicks
+        sim.logGameEvent("disconnected ant lost its food")
+      else:
+        sim.logGameEvent(teamText(team) & " heart returned home")
+        sim.resetFlag(team)
     elif sim.flags[team].carrier > playerIndex:
       dec sim.flags[team].carrier
   sim.players.delete(playerIndex)
@@ -702,4 +708,3 @@ proc playerResultsJson*(sim: SimServer): string =
   # counters remain on the players for replay-side analysis; re-add here
   # only after the platform schema learns the fields.
   $results
-

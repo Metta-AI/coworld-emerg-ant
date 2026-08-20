@@ -18,7 +18,35 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "44"  ## GV44 (Emerg-ant mode): FOLLOW THE TRAIL, RAID THE NEST.
+  GameVersion* = "46"  ## GV46 (Emerg-ant spawn rule): WAKE INSIDE THE NEST.
+    ## The inherited CTF spawn fan spread a 16-ant colony far beyond a
+    ## compact endzone: outer bodies woke roughly 180px above/below the nest,
+    ## so NAnts-style displacement from wake position pointed somewhere that
+    ## could never score a food delivery. Emerg-ant now packs each colony on
+    ## a symmetric 2x8 lattice wholly inside its capture zone. The learned
+    ## shared controller can therefore use its own wake displacement as its
+    ## sole home vector, with no absolute nest coordinate or privileged slot.
+    ## Spawn coordinates and all subsequent motion hashes change, so GV45
+    ## replays are obsolete and fixtures are re-recorded.
+    ## Authored as GV46 after scanning origin on 2026-08-19: main and every
+    ## remote claim at/above main used GV44; this branch had already claimed
+    ## GV45 for the v0.2 ecology and no remote GV45/GV46 claim was present.
+    ##
+    ## Previously GV45 (Emerg-ant ecology): TWO BRAINS, 32 BODIES.
+    ## Emerg-ant is now a colony experiment rather than CTF with ant art.
+    ## Its two team-owned caches become neutral, finite center-field food
+    ## patches that disappear when harvested and regrow on a configurable
+    ## clock. B and C explicitly lay home and food pheromone channels; marks
+    ## are locally sensed, expire/cancel as before, and a configured one-shot
+    ## wash clears the shared field to test recovery. A is now a simultaneous
+    ## contact-only mandible attack, and every ranged weapon/pickup path is
+    ## disabled in ant mode. Movement points the ant's vision cone. These
+    ## objective, input, observation, and hashed-state changes cannot replay
+    ## GV44 recordings; fixtures are re-recorded.
+    ## Authored as GV45 after scanning origin on 2026-08-19: main and every
+    ## remote claim at/above main used GV44; no GV45 claim was present.
+    ##
+    ## Previously GV44 (Emerg-ant mode): FOLLOW THE TRAIL, RAID THE NEST.
     ## Adds the opt-in `emerg-ant` competitive foraging ruleset. Enemy hearts
     ## become replenishing food caches: returning one to the colony scores a
     ## forage point instead of eliminating its owner, and the first colony to
@@ -475,9 +503,15 @@ const
                               ## split the forfeit (see potScoring below).
   CtfMode* = "ctf"
   EmergAntMode* = "emerg-ant"
-  DefaultForageGoal* = 5       ## returned enemy food caches needed to win.
-  PheromoneStepTicks* = 24     ## a moving ant deposits at most once per second.
-  PheromoneLifetimeTicks* = 24 * 30  ## public trail memory lasts 30 seconds.
+  DefaultForageGoal* = 5       ## neutral food deliveries needed to win.
+  DefaultFoodRespawnTicks* = 10 * TargetFps ## empty patch regrowth delay.
+  DefaultPheromoneWashTick* = 75 * TargetFps ## one wash, relative to kickoff.
+  DefaultAntSenseRadius* = 180 ## local radius for food/pheromone observations.
+  DefaultBiteDamage* = 1       ## hp removed by one contact attack.
+  DefaultBiteCooldownTicks* = 18 ## minimum ticks between successful attempts.
+  AntBiteRange* = 2 * PlayerHalf + 6 ## center distance: touching ant bodies.
+  PheromoneStepTicks* = 24     ## held B/C deposits at most once per second.
+  PheromoneLifetimeTicks* = 24 * 30  ## local trail memory lasts 30 seconds.
   PheromoneEraseRadius* = 18   ## opposing deposits this close neutralize.
   MaxPheromoneMarks* = 512     ## deterministic oldest-first trail cap.
   TimeoutReward* = -1         ## EVERY player scores -1 on a time-limit draw
@@ -1213,6 +1247,11 @@ type
                                   ## no placements, no new RNG draws).
     gameMode*: string             ## `ctf` (default) or competitive `emerg-ant`.
     forageGoal*: int              ## emerg-ant food returns needed to win.
+    foodRespawnTicks*: int        ## empty neutral-patch regrowth delay.
+    pheromoneWashTick*: int       ## one-shot trail wash after kickoff; 0 = off.
+    antSenseRadius*: int          ## local food/pheromone sensing radius.
+    biteDamage*: int              ## contact attack damage per fresh A press.
+    biteCooldownTicks*: int       ## cooldown shared through fireCooldown.
 
   Player* = object
     x*, y*: int
@@ -1561,6 +1600,8 @@ type
                                ## team has been completely killed (GV33). A
                                ## retired heart is never drawn and cannot be
                                ## stolen.
+    respawnAt*: int            ## Emerg-ant only: tick an emptied neutral food
+                               ## patch regrows; 0 while present or carried.
 
   SimServer* = object
     config*: GameConfig

@@ -80,7 +80,8 @@ import
   ctf/labels,
   whisky,
   baseline/protocols,
-  baseline/artlog
+  baseline/artlog,
+  baseline/neural_ant
 
 when defined(taunt):
   import baseline/taunts
@@ -419,6 +420,10 @@ type
     helpUntil: int            # tick the help retasking expires
     lastEShout: int           # scout sighting-broadcast rate limit
     lastHShout: int           # help-call rate limit
+    antWake: Vec              # own first spawn, analogous to NAnts' wake point
+    antWakeKnown: bool
+    antHeuristic: bool        # explicit ablation; neural is the default
+    antRng: uint64            # private sampling stream, seeded from wake point
 
 var
   SelfStrategyTeam = Red
@@ -1405,6 +1410,7 @@ proc resetTransient(bot: Bot) =
   bot.jinkUntil = 0
   bot.behindLines = false
   bot.navGoal = -1
+  bot.antWakeKnown = false
 
 proc scanAim(bot: Bot, watch: Vec): int =
   ## The scan-sweep aim while holding a position: rake the vision cone back
@@ -1497,6 +1503,253 @@ proc friendlyBlocked(bot: Bot, me, aim: Vec, enemyDist: float): bool =
       return true
   false
 
+const
+  AntSenseRadius = 180.0
+  AntCellSpacing = AntSenseRadius / float(AntPatchRadius)
+
+proc stampAntFeature(
+  input: var AntInput,
+  me, forward, right, point: Vec,
+  channel: int,
+  value = 1.0'f32
+) =
+  ## Projects one locally visible object into the ant's rotated 5x5 patch.
+  ## Anything outside the sensing disc is discarded even if the inherited
+  ## Sprite stream happens to expose it through the longer vision cone.
+  let rel = point - me
+  if rel.len() > AntSenseRadius:
+    return
+  let
+    sideCell = int(round(dot(rel, right) / AntCellSpacing))
+    forwardCell = int(round(dot(rel, forward) / AntCellSpacing))
+    row = AntPatchRadius - forwardCell
+    col = AntPatchRadius + sideCell
+  if row in 0 ..< AntPatchWidth and col in 0 ..< AntPatchWidth:
+    let at = featureIndex(row, col, channel)
+    input[at] = max(input[at], value)
+
+proc buildAntInput(
+  bot: Bot,
+  client: ProtocolClient,
+  me: Vec,
+  carrying, biteReady: bool
+): AntInput =
+  ## Strict local observation contract. The only nonlocal quantity is
+  ## displacement from this ant's own wake point, matching NAnts; it is
+  ## derived from private history rather than a predefined nest coordinate.
+  let
+    forward = bradsDir(bot.estAim)
+    right = vec(-forward.y, forward.x)
+
+  # Channel 0: walls/outside sampled at each egocentric cell center.
+  for row in 0 ..< AntPatchWidth:
+    for col in 0 ..< AntPatchWidth:
+      let
+        forwardCell = AntPatchRadius - row
+        sideCell = col - AntPatchRadius
+        sample = me + forward * (float(forwardCell) * AntCellSpacing) +
+          right * (float(sideCell) * AntCellSpacing)
+      if not client.walkableAt(int(round(sample.x)), int(round(sample.y))):
+        result[featureIndex(row, col, 0)] = 1.0
+
+  # Channels 1/2: local allies and enemies. Self is implicit at patch center.
+  for actor in client.actorsFor(bot.myColor):
+    result.stampAntFeature(me, forward, right, actor.pos, 1)
+  for color in TeamColorNames:
+    if color != bot.myColor:
+      for actor in client.actorsFor(color):
+        result.stampAntFeature(me, forward, right, actor.pos, 2)
+
+  # Channel 3: stocked food; channels 4/5: our two stigmergic fields;
+  # channel 6: any rival field. Server-side sensing already culls these, and
+  # the explicit disc filter above keeps the controller contract independent
+  # from renderer/fog changes.
+  for o in client.spriteObjectsWithLabel("neutral food patch"):
+    result.stampAntFeature(me, forward, right, client.mapPos(o), 3)
+  for o in client.spriteObjectsWithLabel("pheromone " & bot.myColor & " scout"):
+    result.stampAntFeature(me, forward, right, client.mapPos(o), 4)
+  for o in client.spriteObjectsWithLabel("pheromone " & bot.myColor & " food"):
+    result.stampAntFeature(me, forward, right, client.mapPos(o), 5)
+  for color in TeamColorNames:
+    if color != bot.myColor:
+      for suffix in [" scout", " food"]:
+        for o in client.spriteObjectsWithLabel("pheromone " & color & suffix):
+          result.stampAntFeature(me, forward, right, client.mapPos(o), 6)
+
+  let
+    home = bot.antWake - me
+    homeForward = dot(home, forward)
+    homeRight = dot(home, right)
+    clock = float(bot.tick mod 720) * 2.0 * PI / 720.0
+  result[scalarIndex(0)] = (if carrying: 1.0 else: 0.0)
+  result[scalarIndex(1)] = (if biteReady: 1.0 else: 0.0)
+  result[scalarIndex(2)] = float32(clamp(homeForward / 600.0, -1.0, 1.0))
+  result[scalarIndex(3)] = float32(clamp(homeRight / 600.0, -1.0, 1.0))
+  result[scalarIndex(4)] = float32(clamp(home.len() / 600.0, 0.0, 1.0))
+  result[scalarIndex(5)] = float32(sin(clock))
+  result[scalarIndex(6)] = float32(cos(clock))
+
+proc antMoveVector(move: int, forward, right: Vec): Vec =
+  case move
+  of AntMoveForward: forward
+  of AntMoveForwardRight: norm(forward + right)
+  of AntMoveRight: right
+  of AntMoveBackRight: norm(right - forward)
+  of AntMoveBack: forward * -1.0
+  of AntMoveBackLeft: norm((forward + right) * -1.0)
+  of AntMoveLeft: right * -1.0
+  of AntMoveForwardLeft: norm(forward - right)
+  else: vec(0, 0)
+
+proc antRandom(bot: Bot): float32 =
+  ## xorshift64*: deterministic in replays and independent per wake position.
+  var x = bot.antRng
+  x = x xor (x shr 12)
+  x = x xor (x shl 25)
+  x = x xor (x shr 27)
+  bot.antRng = x
+  let bits = (x * 2685821657736338717'u64) shr 40
+  float32(bits) / float32(1'u64 shl 24)
+
+proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
+  ## The default Emerg-ant policy: one learned, shared, memoryless turn rule.
+  var carrying = false
+  for o in client.spriteObjectsWithLabel("neutral food carried"):
+    if dist(client.mapPos(o), me) <= 28.0:
+      carrying = true
+      break
+  let
+    biteReady = client.spriteObjectsWithLabel("bite ready").len > 0
+    input = bot.buildAntInput(client, me, carrying, biteReady)
+    decision = sampleAntAction(input,
+      [bot.antRandom(), bot.antRandom(), bot.antRandom()])
+    forward = bradsDir(bot.estAim)
+    right = vec(-forward.y, forward.x)
+    move = antMoveVector(decision.move, forward, right)
+  result = octantBits(move)
+  case decision.mark
+  of 1: result = result or ButtonB
+  of 2: result = result or ButtonC
+  else: discard
+  if decision.bite and biteReady and not bot.firedLast:
+    result = result or ButtonA
+  bot.firedLast = (result and ButtonA) != 0
+  bot.rotSign = 0
+  bot.lastPos = me
+  artFrame(FrameSnap(
+    tick: bot.tick, alive: true, x: int(me.x), y: int(me.y), hp: bot.hp,
+    aim: bot.estAim, objective: "neural_colony", action: AntCheckpointName,
+    targetX: int(me.x + move.x * AntCellSpacing),
+    targetY: int(me.y + move.y * AntCellSpacing), iCarry: carrying,
+    mask: result, fired: (result and ButtonA) != 0))
+
+proc decideAntHeuristic(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
+  ## Handwritten v0.2 ablation. Every one of the 16 team seats
+  ## runs this exact code with only its slot-derived exploration lane. It uses
+  ## local neutral-food and pheromone objects, lays B while searching and C
+  ## while returning food, and presses A only at physical contact range.
+  let
+    myColor = bot.myColor
+    enemyColor = if myColor == "red": "blue" else: "red"
+    home = flagHome(bot.team)
+  var
+    carrying = false
+    nearestFood = -1
+    foodDist = 1e18
+    foodObjects = client.spriteObjectsWithLabel("neutral food patch")
+  for o in client.spriteObjectsWithLabel("neutral food carried"):
+    if dist(client.mapPos(o), me) <= 28.0:
+      carrying = true
+      break
+  for i, o in foodObjects:
+    let d = dist(client.mapPos(o), me)
+    if d < foodDist:
+      foodDist = d
+      nearestFood = i
+
+  var
+    nearestEnemy: Vec
+    enemyDist = 1e18
+  for actor in client.actorsFor(enemyColor):
+    let d = dist(actor.pos, me)
+    if d < enemyDist:
+      enemyDist = d
+      nearestEnemy = actor.pos
+
+  var
+    target: Vec
+    objective: string
+    pheromone = ButtonB
+  if carrying:
+    target = home
+    objective = "food_return"
+    pheromone = ButtonC
+  elif nearestFood >= 0:
+    target = client.mapPos(foodObjects[nearestFood])
+    objective = "food_patch"
+  else:
+    # Food-channel marks are laid by returning carriers. Follow the locally
+    # sensed mark farthest from home: that walks the trail outward toward its
+    # source rather than collapsing the crowd back into the nest.
+    var
+      trailFound = false
+      farthestHome = -1.0
+    for o in client.spriteObjectsWithLabel("pheromone " & myColor & " food"):
+      let p = client.mapPos(o)
+      let d = dist(p, home)
+      if d > farthestHome:
+        farthestHome = d
+        target = p
+        trailFound = true
+    if trailFound:
+      objective = "food_trail"
+    else:
+      # Deterministic lane fan: 16 replicas spread vertically while crossing
+      # toward center, then orbit through four center-field search quadrants.
+      let
+        colonySeat = bot.slot div 2
+        lane = 36.0 + float(colonySeat) *
+          (float(MapH) - 72.0) / 15.0
+        phase = (bot.tick div 240 + colonySeat) mod 4
+        ring = [
+          vec(float(CenterX) - 150.0, lane),
+          vec(float(CenterX), lane),
+          vec(float(CenterX) + 150.0, lane),
+          vec(float(CenterX), float(CenterY) +
+            (if colonySeat mod 2 == 0: -150.0 else: 150.0))
+        ]
+      target = ring[phase]
+      objective = "explore"
+
+  # Nearby enemies may be contested at the patch, but food carriers do not
+  # abandon their return. Closing the last few pixels makes contact attacks
+  # appear in baseline replays without turning foraging into ranged combat.
+  if not carrying and enemyDist <= 54.0:
+    target = nearestEnemy
+    objective = "contest"
+
+  var steer =
+    if bot.navBuilt: norm(bot.navSteer(client, me, target))
+    else: norm(target - me)
+  for mate in client.actorsFor(myColor):
+    let d = dist(mate.pos, me)
+    if d > 0.5 and d < MateSpacing:
+      steer = steer + norm(me - mate.pos) * ((MateSpacing - d) / MateSpacing)
+  var mask = octantBits(steer) or pheromone
+  if enemyDist <= 19.0 and not bot.firedLast:
+    mask = mask or ButtonA
+  bot.firedLast = (mask and ButtonA) != 0
+  bot.rotSign = 0
+  bot.lastPos = me
+  artFrame(FrameSnap(
+    tick: bot.tick, alive: true, x: int(me.x), y: int(me.y), hp: bot.hp,
+    aim: bot.estAim, objective: objective, action: "ant",
+    targetX: int(target.x), targetY: int(target.y), iCarry: carrying,
+    enemiesVisible: (if enemyDist < 1e18: 1 else: 0),
+    engageDist: (if enemyDist < 1e18: int(enemyDist) else: -1),
+    mask: mask, fired: (mask and ButtonA) != 0))
+  mask
+
 proc decide(bot: Bot, client: ProtocolClient): uint8 {.measure.} =
   ## Core CTF policy for one frame.
   when defined(statue):
@@ -1549,6 +1802,17 @@ proc decide(bot: Bot, client: ProtocolClient): uint8 {.measure.} =
   let statedAim = client.ownAimBrads()
   if statedAim >= 0:
     bot.estAim = statedAim
+  if client.hasSpriteLabel("neutral food patch"):
+    if not bot.antWakeKnown:
+      bot.antWake = me
+      bot.antWakeKnown = true
+      bot.antRng = (uint64(max(0, int(me.x))) + 1'u64) * 0x9e3779b97f4a7c15'u64 xor
+        (uint64(max(0, int(me.y))) + 1'u64) * 0xbf58476d1ce4e5b9'u64
+      if bot.antRng == 0:
+        bot.antRng = 1
+    if bot.antHeuristic:
+      return bot.decideAntHeuristic(client, me)
+    return bot.decideAntNeural(client, me)
   # Plasma arcs and shields share the endzone back columns (inset 50)
   # but are vertically SEPARATED: spray cans in the top half (quarter height),
   # shields in the bottom half (three-quarter height). Seed the spots up
@@ -3108,7 +3372,8 @@ proc initBaselineComponent*(slot: int): BaselineComponent =
     slot: slot,
     team: team,
     role: role,
-    myColor: (if team == Red: "red" else: "blue")
+    myColor: (if team == Red: "red" else: "blue"),
+    antHeuristic: getEnv("EMERG_ANT_POLICY").toLowerAscii() == "heuristic"
   )
   result.bot.resetTransient()
   result.client = initProtocolClient()

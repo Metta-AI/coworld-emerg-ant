@@ -13,7 +13,7 @@
     "replay_viewer": {
       "bundle": "static-replay-viewer"
     },
-    "description": "Emerg-ant is a competitive 8v8 colony-foraging Coworld. Ants raid a replenishing enemy food cache, return food to their nest, and coordinate through public pheromone trails that rival colonies can cancel or erase. First to five returns wins; a unique score leader wins when the clock expires.",
+    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two shared neural policies each inhabit 16 identical ant bodies. With only a local egocentric patch and their own wake displacement, colonies forage finite food, write erasable pheromone fields, recover after a trail wash, and fight through physical contact.",
     "owner": "treeform@softmax.com",
     "runnable": {
       "type": "game",
@@ -130,7 +130,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 32,
-          "default": 16
+          "default": 32
         },
         "lives": {
           "description": "Lives per player. Out of lives = out for the round.",
@@ -139,7 +139,7 @@
           "default": 3
         },
         "hitPoints": {
-          "description": "Hit points per life. Each shot removes one; at zero you die.",
+          "description": "Hit points per life. Damage from the active mode's attacks reduces this; at zero you die.",
           "type": "integer",
           "minimum": 1,
           "default": 3
@@ -157,20 +157,20 @@
           "default": 1300
         },
         "fireCooldownTicks": {
-          "description": "Minimum ticks between shots (~0.5s at 24 ticks/s).",
+          "description": "Minimum ticks between CTF shots. Emerg-ant uses biteCooldownTicks instead.",
           "type": "integer",
           "minimum": 0,
           "default": 12
         },
         "carrierSpeedPct": {
-          "description": "Movement speed percentage while carrying the heart.",
+          "description": "Movement speed percentage while carrying a heart or neutral food.",
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
           "default": 70
         },
         "aimTurnRate": {
-          "description": "Aim rotation speed in brads (256ths of a turn) per tick while a rotate button is held. B rotates counter-clockwise, Select clockwise; movement never changes the aim.",
+          "description": "CTF aim rotation speed in brads per tick. In Emerg-ant, movement points vision and B/C deposit pheromones.",
           "type": "integer",
           "minimum": 1,
           "default": 5
@@ -238,7 +238,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 32,
-          "default": 16
+          "default": 32
         },
         "fireWindupTicks": {
           "description": "Ticks from trigger pull to the shot releasing (~0.2s at 24 ticks/s). Aim locks at the pull; a peeking target can duck back behind cover before the bullet leaves.",
@@ -277,7 +277,7 @@
           "default": "classic"
         },
         "gameMode": {
-          "description": "Objective ruleset. ctf is single-capture elimination; emerg-ant is a repeated food-return race with public, erasable pheromone trails.",
+          "description": "Objective ruleset. ctf is single-capture elimination; emerg-ant is a local-sensing neutral-food race with explicit, erasable pheromone trails and contact combat.",
           "type": "string",
           "enum": [
             "ctf",
@@ -286,10 +286,40 @@
           "default": "ctf"
         },
         "forageGoal": {
-          "description": "Emerg-ant food returns needed for a colony win. A unique score leader wins when the clock expires.",
+          "description": "Emerg-ant neutral-food deliveries needed for a colony win. A unique score leader wins when the clock expires.",
           "type": "integer",
           "minimum": 1,
           "default": 5
+        },
+        "foodRespawnTicks": {
+          "description": "Ticks before an emptied neutral food patch regrows.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 240
+        },
+        "pheromoneWashTick": {
+          "description": "Playing ticks after kickoff when rain clears every pheromone mark once; 0 disables the disruption.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 1800
+        },
+        "antSenseRadius": {
+          "description": "Local radius in pixels within which an ant observes neutral food patches and pheromone marks.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 180
+        },
+        "biteDamage": {
+          "description": "Hit points removed by one fresh A-press mandible attack in physical contact.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "biteCooldownTicks": {
+          "description": "Minimum ticks between successful mandible attacks.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 18
         },
         "mapSize": {
           "description": "Generated-map size-class lock: small, standard, large, huge, or giant. Empty draws the size from the map seed.",
@@ -522,7 +552,7 @@
           }
         },
         "captures": {
-          "description": "One heart-capture count per player slot.",
+          "description": "One objective-delivery count per player slot: heart captures in CTF or neutral-food deliveries in Emerg-ant.",
           "type": "array",
           "minItems": 1,
           "maxItems": 32,
@@ -565,7 +595,7 @@
       "id": "baseline",
       "name": "baseline",
       "type": "player",
-      "description": "Reference bot image used for Coworld smoke certification.",
+      "description": "Trainable shared neural-ant policy: local 5x5 observation, learned movement/pheromone/bite heads, replicated across every colony body.",
       "image": "{{PLAYER_IMAGE}}",
       "run": [
         "/bin/baseline"
@@ -586,7 +616,7 @@
     {
       "id": "emerg-ant",
       "name": "Emerg-ant Foraging",
-      "description": "Sixteen ants in two rival colonies raid replenishing food caches and coordinate through public pheromone trails. First colony to five returns wins; a unique score leader wins at the clock.",
+      "description": "Two policies each control 16 identical ant replicas. Colonies race finite neutral food patches using local pheromone sensing, survive a trail wash, and may bite enemy ants only on physical contact.",
       "game_config": {
         "players": [
           {
@@ -636,12 +666,33 @@
           },
           {
             "name": "Ant16"
-          }
+          },
+          {"name": "Ant17"},
+          {"name": "Ant18"},
+          {"name": "Ant19"},
+          {"name": "Ant20"},
+          {"name": "Ant21"},
+          {"name": "Ant22"},
+          {"name": "Ant23"},
+          {"name": "Ant24"},
+          {"name": "Ant25"},
+          {"name": "Ant26"},
+          {"name": "Ant27"},
+          {"name": "Ant28"},
+          {"name": "Ant29"},
+          {"name": "Ant30"},
+          {"name": "Ant31"},
+          {"name": "Ant32"}
         ],
-        "num_agents": 16,
-        "minPlayers": 16,
+        "num_agents": 32,
+        "minPlayers": 32,
         "gameMode": "emerg-ant",
-        "forageGoal": 5,
+        "forageGoal": 10,
+        "foodRespawnTicks": 240,
+        "pheromoneWashTick": 1800,
+        "antSenseRadius": 180,
+        "biteDamage": 1,
+        "biteCooldownTicks": 18,
         "lives": 5,
         "hitPoints": 3,
         "respawnTicks": 72,
@@ -714,7 +765,23 @@
       },
       {
         "player_id": "baseline"
-      }
+      },
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"},
+      {"player_id": "baseline"}
     ],
     "game_config": {
       "players": [
@@ -763,14 +830,35 @@
         {
           "name": "Ant15"
         },
-        {
-          "name": "Ant16"
-        }
-      ],
-      "num_agents": 16,
-      "minPlayers": 16,
+          {
+            "name": "Ant16"
+          },
+          {"name": "Ant17"},
+          {"name": "Ant18"},
+          {"name": "Ant19"},
+          {"name": "Ant20"},
+          {"name": "Ant21"},
+          {"name": "Ant22"},
+          {"name": "Ant23"},
+          {"name": "Ant24"},
+          {"name": "Ant25"},
+          {"name": "Ant26"},
+          {"name": "Ant27"},
+          {"name": "Ant28"},
+          {"name": "Ant29"},
+          {"name": "Ant30"},
+          {"name": "Ant31"},
+          {"name": "Ant32"}
+        ],
+      "num_agents": 32,
+      "minPlayers": 32,
       "gameMode": "emerg-ant",
       "forageGoal": 1,
+      "foodRespawnTicks": 48,
+      "pheromoneWashTick": 144,
+      "antSenseRadius": 180,
+      "biteDamage": 1,
+      "biteCooldownTicks": 18,
       "lives": 1,
       "hitPoints": 1,
       "respawnTicks": 72,

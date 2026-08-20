@@ -1,7 +1,13 @@
 {
   "maxGames": 1,
   "gameMode": "emerg-ant",
-  "forageGoal": 5,
+  "forageGoal": 10,
+  "foodRespawnTicks": 240,
+  "pheromoneWashTick": 1800,
+  "antSenseRadius": 180,
+  "biteDamage": 1,
+  "biteCooldownTicks": 18,
+  "minPlayers": 32,
   "lives": 5,
   "hitPoints": 3,
   "respawnTicks": 72,
@@ -29,7 +35,23 @@
     "0xBADA55_12",
     "0xBADA55_13",
     "0xBADA55_14",
-    "0xBADA55_15"
+    "0xBADA55_15",
+    "0xBADA55_16",
+    "0xBADA55_17",
+    "0xBADA55_18",
+    "0xBADA55_19",
+    "0xBADA55_20",
+    "0xBADA55_21",
+    "0xBADA55_22",
+    "0xBADA55_23",
+    "0xBADA55_24",
+    "0xBADA55_25",
+    "0xBADA55_26",
+    "0xBADA55_27",
+    "0xBADA55_28",
+    "0xBADA55_29",
+    "0xBADA55_30",
+    "0xBADA55_31"
   ],
   "players": [
     {
@@ -79,7 +101,23 @@
     },
     {
       "name": "player16"
-    }
+    },
+    {"name": "player17"},
+    {"name": "player18"},
+    {"name": "player19"},
+    {"name": "player20"},
+    {"name": "player21"},
+    {"name": "player22"},
+    {"name": "player23"},
+    {"name": "player24"},
+    {"name": "player25"},
+    {"name": "player26"},
+    {"name": "player27"},
+    {"name": "player28"},
+    {"name": "player29"},
+    {"name": "player30"},
+    {"name": "player31"},
+    {"name": "player32"}
   ],
   "slots": [
     {
@@ -145,7 +183,23 @@
     {
       "team": "blue",
       "color": "blue"
-    }
+    },
+    {"team": "red", "color": "red"},
+    {"team": "blue", "color": "blue"},
+    {"team": "red", "color": "red"},
+    {"team": "blue", "color": "blue"},
+    {"team": "red", "color": "red"},
+    {"team": "blue", "color": "blue"},
+    {"team": "red", "color": "red"},
+    {"team": "blue", "color": "blue"},
+    {"team": "red", "color": "red"},
+    {"team": "blue", "color": "blue"},
+    {"team": "red", "color": "red"},
+    {"team": "blue", "color": "blue"},
+    {"team": "red", "color": "red"},
+    {"team": "blue", "color": "blue"},
+    {"team": "red", "color": "red"},
+    {"team": "blue", "color": "blue"}
   ],
   "fireWindupTicks": 5,
   "barrageMaxPerSec": 0,

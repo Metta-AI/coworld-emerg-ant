@@ -174,6 +174,8 @@ proc gameHash*(sim: SimServer): uint64 =
     result.mixHashInt(sim.flags[team].y)
     result.mixHashInt(sim.flags[team].carrier)
     result.mixHashBool(sim.flags[team].captured)
+    if sim.config.isEmergAnt():
+      result.mixHashInt(sim.flags[team].respawnAt)
   if sim.config.isEmergAnt():
     result.mixHashInt(sim.pheromones.len)
     for mark in sim.pheromones:
@@ -293,6 +295,20 @@ proc spawnPosition*(sim: SimServer, team: Team, order: int): tuple[x, y: int] =
   ## arms).
   let
     anchor = sim.gameMap.teamAnchor(team)
+  if sim.config.isEmergAnt():
+    # A wake point is the controller's only home coordinate, like NAnts, so
+    # every body must genuinely wake inside the nest. A 2x8 lattice fits all
+    # 16 bodies inside both the classic 40px-wide capture column and the
+    # smallest compact endzone (radius 90). It is symmetric between colonies
+    # and keeps the solid 12px bodies from overlapping.
+    let
+      lattice = order mod 16
+      col = lattice mod 2
+      row = lattice div 2
+      x = anchor.x + col * 12 - 12
+      y = anchor.y + row * 18 - 63
+    return sim.nearestWalkable(x, y)
+  let
     strip = order div 2          ## stagger players down the edge.
     spread = 36
     stepMajor = (strip - 1) * spread
@@ -491,7 +507,8 @@ proc emitPickup*(
   )
 
 proc resetFlag*(sim: var SimServer, team: Team) =
-  ## Returns one team's flag to its home pedestal.
+  ## Returns one team's flag to its home pedestal, or regrows one of the two
+  ## neutral Emerg-ant food patches at the map's center-field resource sites.
   # A flag leaving an enemy's back mid-game (death, disconnect — any reason
   # other than capture) is a FlagReturn analysis event; the pedestal resets
   # at game boundaries are not (phase guard).
@@ -502,8 +519,13 @@ proc resetFlag*(sim: var SimServer, team: Team) =
       x = float(sim.flags[team].x),
       y = float(sim.flags[team].y)
     )
-  let home = sim.gameMap.flagHome(team)
-  sim.flags[team] = FlagState(x: home.x, y: home.y, carrier: -1)
+  let home =
+    if sim.config.isEmergAnt() and ord(team) < sim.gameMap.medKitSpawns.len:
+      sim.gameMap.medKitSpawns[ord(team)]
+    else:
+      sim.gameMap.flagHome(team)
+  sim.flags[team] = FlagState(
+    x: home.x, y: home.y, carrier: -1, captured: false, respawnAt: 0)
 
 proc resetFlags*(sim: var SimServer) =
   ## Returns every active team's flag to its home pedestal. Inactive slots

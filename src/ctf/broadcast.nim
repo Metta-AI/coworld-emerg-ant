@@ -477,15 +477,19 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
       if not sim.flagVisibleTo(playerIndex, team):
         continue
       let f = sim.flags[team]
-      addEnt("heart", teamText(team), float(f.x), float(f.y), -1, false)
+      addEnt(
+        if sim.config.isEmergAnt(): "food" else: "heart",
+        if sim.config.isEmergAnt(): "neutral" else: teamText(team),
+        float(f.x), float(f.y), -1, false)
 
     # Battlefield pickups the seat can see: corner grenades, center med kits,
     # endzone shields, spray cans. Each renders as a labelled item billboard.
-    for sp in sim.grenadeSpawns: addPickup("grenade", sp)
-    for sp in sim.medKitSpawns: addPickup("medkit", sp)
-    for sp in sim.shieldSpawns: addPickup("shield", sp)
-    for sp in sim.plasmaArcSpawns: addPickup("spray", sp)
-    for sp in sim.barrierSpawns: addPickup("barrier", sp)
+    if not sim.config.isEmergAnt():
+      for sp in sim.grenadeSpawns: addPickup("grenade", sp)
+      for sp in sim.medKitSpawns: addPickup("medkit", sp)
+      for sp in sim.shieldSpawns: addPickup("shield", sp)
+      for sp in sim.plasmaArcSpawns: addPickup("spray", sp)
+      for sp in sim.barrierSpawns: addPickup("barrier", sp)
 
     # --- paintball beams in flight (sim.recentShots; cosmetic, never hashed) ---
     # A hitscan shot has no travelling body, so the board draws it as a COMET: a

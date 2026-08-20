@@ -1,8 +1,11 @@
 # Coworld CTF — Game Rules
 
 > The supplied `config.json` runs the competitive **Emerg-ant** foraging mode.
-> Its objective and pheromone rules are in [EMERG_ANT.md](EMERG_ANT.md); all
-> unchanged movement, combat, fog, and item rules are defined below.
+> Its 32-seat neutral-food ecology, explicit pheromones, local sensing, and
+> contact-only combat are in [EMERG_ANT.md](EMERG_ANT.md). The ranged weapons,
+> pickups, hearts, and aim controls below apply only to `gameMode: "ctf"`;
+> Emerg-ant disables them while retaining movement, fog, lives, and replay
+> infrastructure.
 
 Coworld CTF is a two-team capture-the-heart shooter for the Coworld platform. Two
 teams start on opposite edges of a symmetric arena, each with its own heart on a

@@ -1,73 +1,104 @@
 # Build an Emerg-ant policy
 
-This is the agent-facing path from a repository checkout to a league-ready
-policy image. A policy is a Docker image that connects one bot process to one
-seat. Softmax starts the image for every seat assigned to the policy.
+One submitted policy image is replicated across a colony's 16 seats. Each
+container receives only its own Sprite v1 observation and sends one input
+mask. There is no shared process, shared memory, or colony-wide observation.
+Coordination must survive that boundary.
 
-## 1. Read the contract
+## 1. Start from the reference policy
 
-Before changing code, read:
+Read the [v0.2 rules](EMERG_ANT.md), [Sprite protocol](PROTOCOL.md), and the
+shared network in
+[`neural_ant.nim`](../players/baseline/baseline/neural_ant.nim). The observation
+adapter and explicit handwritten ablation are in
+[`baseline.nim`](../players/baseline/baseline.nim). The rest
+of the baseline contains reusable websocket, delta-frame, walkability, and
+pathfinding code inherited from CTF; its gun and flag strategy is inactive in
+Emerg-ant mode.
 
-- [Emerg-ant rules](EMERG_ANT.md) for the food race and pheromone mechanics;
-- [wire protocol](PROTOCOL.md) for Sprite v1 frames and input masks;
-- [baseline policy notes](../players/baseline/README.md) for navigation, fog,
-  aiming, and role assignment;
-- [`decide`](../players/baseline/baseline.nim), the baseline's decision loop.
-
-The baseline predates Emerg-ant and is intentionally only a starting point. Its
-movement, pathfinding, fog memory, combat, and protocol handling are useful,
-but strategy text that refers to hearts or single-capture CTF must be adapted
-to repeated food returns.
-
-The policy-visible labels specific to this mode are:
+The mode-specific object labels are:
 
 ```text
-food red cache
-food blue cache
-food red carried
-food blue carried
+neutral food patch
+neutral food carried
 pheromone red scout
-pheromone blue scout
 pheromone red food
+pheromone blue scout
 pheromone blue food
+bite ready
+bite cooldown
 ```
 
-Also consume the shared `self ...`, `player ...`, `own aim ...`, walkability,
-weapon, and pickup labels documented by the protocol. Sprite frames are deltas:
-retain objects until the stream deletes or clears them. Do not send Player
-Ready (`0x85`) in league play.
+Food and pheromone objects disappear when outside the ant's 180 px sensing
+radius. Other ants disappear outside normal fog/vision. Sprite frames are
+deltas: retain an object until the server deletes or clears it.
 
-## 2. Choose colony behavior
+The input mask is:
 
-Optimize food returns, not individual kills. A useful first policy assigns the
-eight same-team seats deterministic roles:
+| Bit | Input | v0.2 action |
+| ---: | --- | --- |
+| 0 | Up | move north |
+| 1 | Down | move south |
+| 2 | Left | move west |
+| 3 | Right | move east |
+| 5 | A | fresh press: contact bite |
+| 6 | B | hold: home/scout pheromone |
+| 7 | C | hold: food pheromone |
 
-1. Two scouts discover short routes and lay ordinary trail.
-2. Three foragers follow promising food trail, raid the enemy cache, and choose
-   a covered return route.
-3. One escort follows a food carrier and screens nearby enemies.
-4. Two defenders patrol the nest and erase or exploit enemy trail.
+Select is reserved. Movement also points the ant's vision cone. A bite is
+edge-triggered, so release A before trying again.
 
-Treat a bright `pheromone <team> food` trail as evidence of a recent carrier,
-not a guaranteed current route. Enemy deposits can cancel it. Keep navigation
-fallbacks for stale, erased, blocked, or deliberately deceptive trails.
+## 2. Design a local rule
 
-Combat is instrumental: shoot a carrier, clear a route, or defend the nest.
-Standing still for kills while the opponent returns food is a losing policy.
+A useful first controller needs four states, whether they are hand-authored,
+learned, or recurrent:
 
-## 3. Implement
+1. **Explore:** disperse when no local food evidence exists; lay B so a loaded
+   ant can orient toward home without a global nest beacon.
+2. **Recruit:** follow locally sensed friendly food marks outward. Do not assume
+   the oldest or strongest trail still reaches stocked food.
+3. **Return:** while carrying, navigate home and lay C. Nearby replicas can
+   reinforce the route without reading the carrier's private state.
+4. **Contest:** bite only at contact where removing an enemy protects food or a
+   return path. Chasing kills away from the ecology usually loses the race.
 
-Fork this repository and edit `players/baseline/baseline.nim`. Keep the socket,
-frame-draining, aim correction, and walkability code intact until a replacement
-has tests. Put new policy modules under `players/baseline/baseline/`, or copy
-the complete baseline directory to a new directory and update its Dockerfile
-paths.
+The mid-match wash deliberately destroys mature trails. Keep an exploration
+probability, recurrent uncertainty, or another recovery mechanism that can
+rebuild information after tick 1800.
 
-Policy code should be deterministic for a given observation history and seat.
-Use the assigned seat for role selection; do not depend on process start order,
-wall-clock timing, or access to another policy container.
+All 16 containers run identical code. The reference network deliberately has
+no slot feature. Its private random stream is seeded from its own wake point,
+which breaks clone symmetry without assigning roles or a commander.
 
-Build the Linux policy image from the repository root:
+## 3. Train a turn rule
+
+The bundled checkpoint is reproducible:
+
+```bash
+python3 players/neural/train.py
+```
+
+This rewrites `players/neural/checkpoint.json` and the generated Nim checkpoint
+compiled into the image. Use `--smoke` while editing the training loop. The
+three output heads choose movement (stay + eight egocentric directions), mark
+(none/scout/food), and bite (no/yes).
+
+The default seed uses local curriculum initialization followed by REINFORCE in
+a competitive transfer world. Improve the objective, observation channels, or
+optimizer, but keep training inputs aligned with the deployed local contract.
+Do not smuggle absolute coordinates, the seat number, or another container's
+state into training-only features.
+
+## 4. Implement and build
+
+Fork the repository. Either replace the checkpoint/trainer, edit the ant
+observation adapter, add modules under
+`players/baseline/baseline/`, or copy the complete baseline player directory
+and point its Dockerfile at your new entrypoint.
+
+Keep policy behavior deterministic for a given observation history and seat.
+Do not depend on process start order, wall-clock timing, another container's
+filesystem, or an external coordinator.
 
 ```bash
 docker build --platform linux/amd64 \
@@ -75,75 +106,62 @@ docker build --platform linux/amd64 \
   -t emerg-ant-policy:dev .
 ```
 
-The image must start its player from `CMD` or `ENTRYPOINT`. The supplied image
-runs `/bin/baseline`.
+The image must start the player from `CMD` or `ENTRYPOINT`; the supplied image
+runs `/bin/baseline` and reads `COWORLD_PLAYER_WS_URL`.
 
-## 4. Test and audit full episodes
+For the v0.2 handwritten comparison, set `EMERG_ANT_POLICY=heuristic`. It is an
+ablation only; the default container runs the learned checkpoint.
 
-First verify the game and protocol tests:
+## 5. Test complete colonies
+
+Run engine/protocol tests first:
 
 ```bash
 nimby --global sync nimby.lock
 nim c -d:release -r tests/tests.nim
 ```
 
-Then run the policy in all sixteen seats against the published Coworld:
+Then scrimmage the image in the published Coworld and verify its replay:
 
 ```bash
 uvx --from "coworld[auth]" coworld scrimmage \
-  cow_82623c46-cd6a-4e39-a271-5874949d10ff \
+  cow_0cc30e03-77d3-4960-8426-372927038b89 \
   emerg-ant-policy:dev \
   --variant emerg-ant \
   --output-dir build/scrimmage \
   --verify-replay
 ```
 
-Review complete replays, not only final scores. For several episodes, record:
+For several seeds, measure:
 
-- colony food returns and time of each return;
-- which roles reached the enemy cache;
-- carrier deaths and whether an escort was present;
-- pheromone paths created, followed, cancelled, and abandoned;
-- time spent stuck, idle, fighting without objective value, or following stale
-  trail.
+- food discovery time, deliveries, and stock lost to duplicate arrivals;
+- path length before and after recruitment;
+- useful B/C deposits, cancellations, and time to recover after the wash;
+- carrier survival and contact attacks near food/return routes;
+- crowding, deadlocks, idle time, and dependence on a single replica.
 
-Make one behavioral change at a time and rerun the same evaluation set before
-promoting it. A policy is ready to upload only when it completes full matches,
-produces valid replays, and improves food-return results without new timeouts or
-disconnects.
+Compare behavior, not only final score. The ALife contribution is the local
+rule and the colony-level pattern it produces.
 
-## 5. Upload and submit
-
-Authenticate once, then upload the tested image under a unique policy name:
+## 6. Upload and submit
 
 ```bash
 uvx --from "coworld[auth]" softmax login
 uvx --from "coworld[auth]" coworld upload-policy \
   emerg-ant-policy:dev --name YOUR_POLICY_NAME
-```
 
-The upload prints a version such as `YOUR_POLICY_NAME:v1`. Once a Softmax team
-administrator has promoted the Coworld to a league, submit that exact version:
-
-```bash
 uvx --from "coworld[auth]" coworld submit \
   YOUR_POLICY_NAME:v1 \
   --league LEAGUE_ID \
   --no-open-browser
 ```
 
-Do not submit an unversioned local tag, and do not rebuild an image after the
-scrimmage without testing the rebuilt digest.
+Submit the immutable uploaded version that produced your reviewed replay. The
+league URL format is:
 
-## Coding-agent completion checklist
+```text
+https://softmax.com/observatory?tab=coworlds&logscope=league:<LEAGUE_ID>&detail=league:<LEAGUE_ID>
+```
 
-An agent implementing a policy should leave behind:
-
-- the policy source and Docker build path;
-- a concise mechanics/role contract;
-- commands and results for tests and scrimmages;
-- replay-backed examples of the first observed failure and the behavior that
-  corrected it;
-- the uploaded policy name and immutable version, if upload was requested;
-- the league submission result, if a league ID and submission authority were
-  available.
+League creation still requires a Softmax team administrator; the repository
+README carries the admin command and current publication status.
