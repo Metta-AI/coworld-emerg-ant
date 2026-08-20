@@ -81,38 +81,46 @@ checkpoint contract and experiment commands.
 
 ## Gameplay images
 
-[![Both colonies rush their nests in the v0.1 certification replay](docs/images/emerg-ant-nest-rush.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
+[![Two neural ant colonies forage, hatch brood, and lay pheromone trails](docs/images/emerg-ant-v06-queen-brood.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_3accdb96-5fb2-4147-b40a-ed1c43f6a356/sha256%3Ade5c8fb30f5040e393759201be1020d8c369b9eb40961797517223eb66e04b31/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Feeada916-af92-4855-b3c5-352f6864553d.replay&v=2)
 
-*The original v0.1 8-vs-8 replay. v0.2 keeps the ant arena presentation but
-replaces enemy caches and ranged CTF combat with neutral ecology.*
+*The v0.6 broadcast exposes the colony-level experiment: delivered food,
+queen reserve, winged queen, active population, random fruit, and the two
+locally written pheromone fields.*
 
-[![Ant colonies form competing pheromone trails](docs/images/emerg-ant-pheromone-race.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
+[![A selected worker's antenna and food-odor sensor view](docs/images/emerg-ant-v06-ant-senses.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_3accdb96-5fb2-4147-b40a-ed1c43f6a356/sha256%3Ade5c8fb30f5040e393759201be1020d8c369b9eb40961797517223eb66e04b31/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Feeada916-af92-4855-b3c5-352f6864553d.replay&v=2)
 
-*The v0.1 public trail field. In v0.2 B/C choose the channel and each policy
-sees only nearby marks.*
+*The ant-sense lens distinguishes global food odor from local touch, walls,
+nearby ants, and pheromone. It deliberately does not pretend the ant has the
+broadcast camera's omniscience.*
 
 ## Published Coworld
 
-- Current hosted release: `emerg-ant:0.5.2`
-- Coworld ID: `cow_dd548037-fd81-4f5e-a4b9-64603f842ca8`
+- Current hosted release: `emerg-ant:0.6.0`
+- [Open the Coworld in Softmax](https://softmax.com/observatory/v2/coworlds/cow_3accdb96-5fb2-4147-b40a-ed1c43f6a356)
+- Coworld ID: `cow_3accdb96-5fb2-4147-b40a-ed1c43f6a356`
+- Manifest: `sha256:de5c8fb30f5040e393759201be1020d8c369b9eb40961797517223eb66e04b31`
+- Neural starter: `emerg-ant-neural:v4` (`d9d84535-289f-4410-a712-66ae3561d190`)
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
 
-This release passed all ten executable certification checks locally and five
-hosted smoke episodes.
+This release passed the complete local suite, five hosted smoke episodes, and
+all ten hosted certification steps, including replay loadability and player
+execution.
 
 ### Watch a complete colony lifecycle
 
-[Watch the 3,564-tick v0.5.2 replay in the Softmax Observatory](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_dd548037-fd81-4f5e-a4b9-64603f842ca8/sha256%3A1ea7c75eced41aa62315178fce4fd4d681fd7a72bb478afdc89311ec958fce6f/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F7c9f6240-bc96-4c54-b82a-93e23fe593df.replay&v=2).
+[Watch the extended nine-food v0.6 replay in the Softmax Observatory](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_3accdb96-5fb2-4147-b40a-ed1c43f6a356/sha256%3Ade5c8fb30f5040e393759201be1020d8c369b9eb40961797517223eb66e04b31/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Feeada916-af92-4855-b3c5-352f6864553d.replay&v=2).
 
-Red harvests and returns food at tick 1,147, causing its queen to hatch a
-ninth active policy. Fruit regrows and both colonies mount another foraging
-cycle before their queens starve and the colonies collapse at tick 3,563.
+This 4,515-tick showcase raises only the victory target from the league default
+of five deliveries to nine. Red returns nine pieces, Blue returns two, and
+Red's queen hatches three additional policy bodies. The match crosses the
+midgame pheromone wash and ends with a decisive Red win; native replay
+extraction re-simulates it hash-clean against GameVersion 51.
 
 ## Competition league
 
-League promotion requires a Softmax team administrator. The current publisher
-can upload Coworlds but does not have that permission. A team admin can create
-the league with:
+League promotion is the one remaining platform-admin step. The Coworld owner
+credential can publish and run hosted matches but currently receives `403`
+from league creation. A Softmax team admin can create it with:
 
 ```bash
 uvx --from "coworld[auth]" coworld league create \
@@ -147,7 +155,7 @@ nim c -d:release -r tests/tests.nim
 
 ```bash
 uvx --from "coworld[auth]" coworld build \
-  --version 0.5.2 \
+  --version 0.6.0 \
   --project . \
   --compose compose.yaml \
   --template coworld_manifest.json \
@@ -161,7 +169,9 @@ uvx --from "coworld[auth]" coworld upload-coworld \
   build/coworld-package/coworld_manifest.json \
   --timeout-seconds 900 \
   --wait-hosted-smoke \
-  --hosted-smoke-timeout-seconds 1800
+  --hosted-smoke-timeout-seconds 1800 \
+  --wait-certification \
+  --certification-timeout-seconds 1800
 ```
 
 ## Architecture
