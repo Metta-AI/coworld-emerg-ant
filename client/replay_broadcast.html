@@ -3596,7 +3596,8 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
   }
   function onCapture(e, s) {
     var byTeam = captureTeam(s, e);
-    banner(String(byTeam).toUpperCase() + ' CAPTURES', 'wipe accent ' + byTeam);
+    banner(String(byTeam).toUpperCase() + (e.food ? ' FEEDS THE QUEEN' : ' CAPTURES'),
+      'wipe accent ' + byTeam);
   }
 
   // (teamOf / esc live in the shared chrome — chrome_common.js. The shared esc
@@ -3718,6 +3719,9 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
   }
 
   function capturedHeartHtml(heartTeam) {
+    if (heartTeam === 'food') {
+      return '<span class="ec-heart-glyph" title="Food delivered to the queen">◆</span>';
+    }
     // One captured heart, drawn as the captured team's own heart art (its
     // baked pixel art); a team without baked art gets a tinted glyph.
     if (heartTeam === 'red' || heartTeam === 'blue' ||
@@ -3872,7 +3876,15 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
 
     if (o.timeLimit) {
       // Time-limit resolution — name the key and the values (F3).
-      if (winL !== bestLoser) {
+      if (s.ant) {
+        var winnerFood = ((o.teams || {})[winner] || {}).food || 0;
+        var loserFood = 0;
+        losers.forEach(function (t) {
+          loserFood = Math.max(loserFood, (((o.teams || {})[t] || {}).food || 0));
+        });
+        how.textContent = 'Time expired — ' + winName + ' wins the colony tiebreak (' +
+          winnerFood + ' food vs ' + loserFood + ').';
+      } else if (winL !== bestLoser) {
         how.textContent = 'Time expired — ' + winName + ' held more lives (' + winL + ' vs ' + bestLoser + ').';
       } else {
         how.textContent = 'Time expired — lives tied; ' + winName + ' won on heart progress.';
@@ -3884,6 +3896,8 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
             teamName(s, losers[0], String(losers[0]).toUpperCase())
           : winName + ' WIPES THE FIELD';
         how.textContent = winName + ' eliminated every opposing life.';
+      } else if (s.ant) {
+        how.textContent = winName + ' fed its queen and grew the stronger colony.';
       } else {
         how.textContent = winName + ' captured the enemy heart.';
       }

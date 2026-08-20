@@ -2,7 +2,7 @@ import
   helpers,
   std/[json, unittest],
   bitworld/spriteprotocol,
-  ctf/[global, sim]
+  ctf/[broadcast, global, sim]
 
 proc antGame(goal = DefaultForageGoal): SimServer =
   var config = defaultGameConfig()
@@ -134,6 +134,19 @@ suite "Emerg-ant foraging":
     check not sim.isDraw
     check sim.winner == Red
     check sim.teamForageScore(Red) == 2
+
+  test "a food delivery produces a replay-safe food beat":
+    var
+      sim = antGame(goal = 9)
+      tracker = initBroadcastTracker()
+      events = newJArray()
+    tracker.resync(sim)
+    sim.returnFood(0, Blue)
+    sim.stepEvents(tracker, events)
+    check events.len == 1
+    check events[0]["k"].getStr() == "capture"
+    check events[0]["flag"].getStr() == "food"
+    check events[0]["food"].getBool()
 
   test "simultaneous tied goal still produces one deterministic winner":
     var sim = antGame(goal = 1)

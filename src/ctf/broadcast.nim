@@ -185,17 +185,26 @@ proc stepEvents*(
   # state; crash honestly rather than ship a nameless banner.
   for i, p in sim.players:
     if i < tracker.captures.len and p.captures > tracker.captures[i]:
-      var captured = ""
-      for team in sim.teams():
-        if sim.flags[team].captured and not tracker.captured[team] and
-            tracker.carriers[team] == i:
-          captured = teamText(team)
-      doAssert captured.len > 0, "capture event with no captured flag"
+      var
+        captured = ""
+        foodDelivery = sim.config.isEmergAnt()
+      if foodDelivery:
+        # Emerg-ant deliberately reuses the stable capture counter/result field
+        # for delivered food, but immediately respawns the neutral patch. There
+        # is therefore no permanently captured flag to discover in this diff.
+        captured = "food"
+      else:
+        for team in sim.teams():
+          if sim.flags[team].captured and not tracker.captured[team] and
+              tracker.carriers[team] == i:
+            captured = teamText(team)
+        doAssert captured.len > 0, "capture event with no captured flag"
       events.add(%*{
         "t": tick,
         "k": "capture",
         "by": sim.slotOf(i),
-        "flag": captured
+        "flag": captured,
+        "food": foodDelivery
       })
 
   tracker.snapshot(sim)
@@ -722,6 +731,7 @@ proc buildStateJson*(
     # MaxSupersampledMapPixels), while every normal board renders at RenderScale.
     "bs": boardRenderScaleFor(sim.gameMap.width, sim.gameMap.height),
     "pov": povSlot,
+    "ant": sim.config.isEmergAnt(),
     "teams": teams,
     "roster": sim.rosterJson(),
     "events": (if events.isNil: newJArray() else: events)
@@ -811,7 +821,8 @@ proc buildStateJson*(
     for team in sim.teams():
       overTeams[teamText(team)] = %*{
         "lives": sim.teamLivesRemaining(team),
-        "prog": sim.teamFlagProgress(team)
+        "prog": sim.teamFlagProgress(team),
+        "food": sim.colonyFood[team]
       }
     state["over"] = %*{
       "winner": teamText(sim.winner),
