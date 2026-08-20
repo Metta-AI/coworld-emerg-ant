@@ -9,16 +9,17 @@ nest feeds the queen and hatches dormant policy seats into new ant bodies; if
 the queen starves or is killed, her colony collapses.
 
 The current source extends the v0.2 ecology and replaces its scripted starter with
-a stronger NAnts-style controller. One shared 182→48→14 MLP is copied into all
-active worker bodies. Each copy sees only a rotated 5×5 local patch, carried-food and bite
-state, displacement from its own wake point, and a private-phase clock. Learned
-movement distributions become smooth expected steering; carriers follow their
-own wake displacement and write a food trail, while uncued ants use a wake-seeded
-correlated random walk and local collision escape.
+a stronger NAnts-style controller. One shared 185→48→14 MLP is copied into all
+active worker bodies. Each copy sees a rotated 5×5 local patch, carried-food and bite
+state, displacement from its own wake point, a private-phase clock, and the bearing
+and distance-compressed odor of available fruit. Learned movement distributions
+become smooth expected steering; carriers follow their own wake displacement and
+write a food trail, while antenna probes trigger persistent wall-following instead
+of letting a worker push indefinitely into cover.
 There is no slot feature, absolute position, predefined nest location, pathfinder,
-global live-resource feed, or cross-container communication.
+or cross-container communication.
 
-Read the [complete v0.5 rules](docs/EMERG_ANT.md) or
+Read the [complete v0.6 rules](docs/EMERG_ANT.md) or
 [build a colony policy](docs/BUILD_A_POLICY.md).
 
 ## What to present at the hackathon
@@ -29,8 +30,8 @@ Read the [complete v0.5 rules](docs/EMERG_ANT.md) or
    policy seats waiting as brood.
 2. Follow the first food discovery as C-marked return trails recruit other
    locally sensing ants.
-3. Watch returned food become population: each surplus cluster hatches another
-   connected policy seat at the nest.
+3. Watch returned food become population: every two delivered pieces hatch
+   another connected policy seat at the nest.
 4. Show a queen assassination or an empty food store collapse a whole colony,
    making defense and resource allocation inseparable from foraging.
 5. At 1:15, rain removes every pheromone. Compare each colony's recovery time
@@ -49,7 +50,7 @@ This is now substantively NAnts-like, while not claiming to be a fork:
 | NAnts | Emerg-ant |
 | --- | --- |
 | shared neural rule across ants | the same checked-in MLP across 16 containers |
-| local patch + wake displacement + clock | rotated 5×5×7 patch + the same private scalars |
+| local patch + wake displacement + clock | rotated 5×5×7 patch + private scalars and a fruit-odor bearing |
 | sampled left/straight/right turn | learned eight-way steering, pheromone, and bite heads |
 | learned writes and turns | learned scout/food deposits, movement, and contact attack |
 | one colony on a wrapping cellular field | two adversarial colonies in a physical arena |
@@ -73,8 +74,8 @@ Training begins with a varied local-sensor curriculum, then uses REINFORCE in
 a two-colony transfer world containing distributed fruit, carrying, trail decay,
 a wash, mirrored obstacles, and contact attacks. Evaluation selects the best
 self-play checkpoint instead of blindly keeping the final update. The checked-in
-seed-260819 run delivered fruit in all 32 deterministic evaluation episodes,
-averaging 5.125 deliveries. Four pinned full-engine 16-vs-16 seeds all harvested
+seed-260819 run delivered fruit in 31 of 32 deterministic evaluation episodes,
+averaging 40.875 deliveries. Four pinned full-engine 16-vs-16 seeds all harvested
 and returned fruit. See [players/neural](players/neural/README.md) for the
 checkpoint contract and experiment commands.
 

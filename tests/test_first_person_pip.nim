@@ -105,6 +105,33 @@ suite "first-person picture-in-picture":
       else:
         check c.getInt() >= -1
 
+  test "Emerg-ant POV carries global food odor and a local antenna field":
+    var config = defaultGameConfig()
+    config.gameMode = EmergAntMode
+    var game = initCtfForTest(config)
+    for i in 0 ..< 4:
+      discard game.addPlayer("ant" & $i)
+    game.startGame()
+    let red = game.queenIndex(Red)
+    game.players[red].placeAtCenter(20, 20)
+    let fp = game.fpFrame(game.players[red].joinOrder)
+    check fp.kind == JObject
+    check fp.hasKey("sense")
+    check fp["self"]["queen"].getBool
+    let sense = fp["sense"]
+    check sense["queen"].getBool
+    check sense["radius"].getInt == game.config.antSenseRadius
+    check sense["walls"].len == 25
+    check sense["food"].len == 2
+    for food in sense["food"]:
+      check food["distance"].getInt > game.config.antSenseRadius
+      check not food["local"].getBool
+
+    let html = readFile(GameDir / "client" / "replay_broadcast.html")
+    check html.contains("ANTENNAE · SCENT FIELD")
+    check html.contains("GLOBAL FOOD ODOR")
+    check html.contains("drawAntSenseGlyph")
+
   test "walls near the player yield shorter distances than an open lane":
     # A player pressed against the left border wall, aiming into the wall (west),
     # must read closer walls than the same player aiming down an open lane.

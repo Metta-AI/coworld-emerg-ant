@@ -592,6 +592,7 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
     "lives": self.lives,
     "alive": selfAlive,
     "team": teamText(self.team),
+    "queen": sim.config.isEmergAnt() and sim.isQueen(playerIndex),
     "carry": self.carryingFlag,
     "items": carriedItems,
     # Tick of the seat's latest PAINT hit — every weapon in the game throws
@@ -652,6 +653,94 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
     "items": mapItems
   }
 
+  # Emerg-ant POV is an antenna/scent field, not the inherited soldier's
+  # gun-camera. This is the exact observation story rendered for a human:
+  # global bearings to AVAILABLE food, and a local egocentric disc for terrain,
+  # ants, and pheromones. It never exposes carried or respawning fruit.
+  var antSense = newJNull()
+  if sim.config.isEmergAnt():
+    let
+      forward = (x: cos(aim * radPerBrad), y: -sin(aim * radPerBrad))
+      right = (x: -forward.y, y: forward.x)
+      radius = sim.config.antSenseRadius
+      cellSpacing = float(radius) / 2.0
+    proc sensePoint(wx, wy: int): tuple[forward, side: int, distance: int] =
+      let
+        dx = float(wx) - px
+        dy = float(wy) - py
+      (
+        forward: int(round(dx * forward.x + dy * forward.y)),
+        side: int(round(dx * right.x + dy * right.y)),
+        distance: int(round(hypot(dx, dy)))
+      )
+
+    var walls = newJArray()
+    for row in 0 ..< 5:
+      for col in 0 ..< 5:
+        let
+          forwardCell = 2 - row
+          sideCell = col - 2
+          sx = int(round(px + forward.x * float(forwardCell) * cellSpacing +
+            right.x * float(sideCell) * cellSpacing))
+          sy = int(round(py + forward.y * float(forwardCell) * cellSpacing +
+            right.y * float(sideCell) * cellSpacing))
+        walls.add(%(sx < 0 or sy < 0 or sx >= MapWidth or sy >= MapHeight or
+          sim.isWall(sx, sy)))
+
+    var food = newJArray()
+    for patch in sim.teams():
+      let fruit = sim.flags[patch]
+      if fruit.captured or fruit.carrier >= 0:
+        continue
+      let sensed = sensePoint(fruit.x, fruit.y)
+      food.add(%*{
+        "forward": sensed.forward,
+        "side": sensed.side,
+        "distance": sensed.distance,
+        "local": sensed.distance <= radius
+      })
+
+    var trails = newJArray()
+    for mark in sim.pheromones:
+      if not sim.pheromoneVisibleTo(playerIndex, mark):
+        continue
+      let sensed = sensePoint(mark.x, mark.y)
+      trails.add(%*{
+        "forward": sensed.forward,
+        "side": sensed.side,
+        "team": teamText(mark.team),
+        "food": mark.food,
+        "age": sim.tickCount - mark.tick
+      })
+
+    var nearbyAnts = newJArray()
+    for j, other in sim.players:
+      if j == playerIndex or not other.alive or
+          not sim.playerVisibleTo(playerIndex, j):
+        continue
+      let sensed = sensePoint(
+        other.x + CollisionW div 2, other.y + CollisionH div 2)
+      if sensed.distance > radius:
+        continue
+      nearbyAnts.add(%*{
+        "forward": sensed.forward,
+        "side": sensed.side,
+        "team": teamText(other.team),
+        "queen": sim.isQueen(j),
+        "carry": other.carryingFlag
+      })
+
+    antSense = %*{
+      "radius": radius,
+      "cell": int(round(cellSpacing)),
+      "walls": walls,
+      "food": food,
+      "trails": trails,
+      "ants": nearbyAnts,
+      "queen": sim.isQueen(playerIndex),
+      "carrying": self.carryingFlag
+    }
+
   result = %*{
     "mr": int(maxRange),
     "hfov": halfFov,            ## cone half-angle in brads — the strip's angular half-width.
@@ -661,6 +750,8 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
     "self": selfJson,
     "map": mapJson
   }
+  if antSense.kind != JNull:
+    result["sense"] = antSense
 
 proc buildStateJson*(
   sim: SimServer,

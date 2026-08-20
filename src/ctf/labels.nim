@@ -148,6 +148,11 @@ const
     ## docs/PROTOCOL.md, "Your own aim"). NOT named `self aim`: consumers
     ## prefix-match `self ` for the avatar, and a marker sharing that prefix
     ## would false-positive every such scan.
+  LabelCarryingFood* = "carrying food"
+    ## Emerg-ant proprioception marker: an invisible 1x1 object appears only
+    ## in the carrier's own player stream while this ant holds neutral food.
+    ## Policies should scan PRESENT objects with this exact label; sprite
+    ## definitions are cached and therefore do not encode the current state.
   LabelPrefixEndzone* = "endzone "
     ## The per-team endzone marker,
     ## `endzone <color> <shape> <x0>,<y0> <x1>,<y1>`: an invisible 1x1 object
@@ -522,6 +527,7 @@ const PolicyScannedLabels* = [
   LabelGrenadeCarried,
   LabelBarrier,
   LabelBarrierCarried,
+  LabelCarryingFood,
   LabelThrowTarget,
   labelFlag("red"),
   labelFlag("blue"),

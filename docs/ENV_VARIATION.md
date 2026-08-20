@@ -92,11 +92,11 @@ Per-map descriptor `CtfMap` [sim_types.nim:733](../src/ctf/sim_types.nim#L733) c
 | Field | Type / default | Bounds | Effect |
 |---|---|---|---|
 | `teams` | int / `2` | must be `2` or `4` | Active team count: 2 (classic sides) or 4 (corners/plus FFA). |
-| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective, input, observation, and actor-art contract. Emerg-ant adds queen survival, food-funded brood, two neutral fruit patches rotating through eight sites, explicit local pheromones, and contact-only combat; it requires `teams=2`. |
+| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective, input, observation, and actor-art contract. Emerg-ant adds queen survival, two-food brood, randomly regrowing neutral fruit, global food odor, explicit local pheromones, and contact-only combat; it requires `teams=2`. |
 | `forageGoal` | int / `5` | `>=1` | Emerg-ant neutral-food deliveries needed for a colony win; inert in CTF mode. |
 | `foodRespawnTicks` | int / `240` | `>=1` | Emerg-ant delay before an emptied neutral food patch regrows. |
 | `pheromoneWashTick` | int / `1800` | `>=0` | One-shot trail-field wash this many playing ticks after kickoff; 0 disables it. |
-| `antSenseRadius` | int / `180` | `>=1` | Local radius in pixels for planted-food and pheromone observations. |
+| `antSenseRadius` | int / `180` | `>=1` | Local radius in pixels for exact food/contact and pheromone detail; available food also emits a global bearing. |
 | `biteDamage` | int / `1` | `>=1` | Damage dealt by one fresh-A contact bite. |
 | `biteCooldownTicks` | int / `18` | `>=1` | Cooldown after a successful contact attack. |
 | `minPlayers` | int / `16` | `1..32` | Players required to start; effectively sets roster size on open join. |
@@ -164,7 +164,7 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 
 | Item | Count | Key consts (sim_types.nim) |
 |---|---|---|
-| Flags/hearts or neutral fruit patches | CTF: 1 per team; Emerg-ant: 2 neutral patches rotating through `FoodSiteCount`=8 interior sites | `FlagPickupRange`=34, `CaptureZoneWidth`=40, `PedestalCoverSize`=96; ant patches regrow after `foodRespawnTicks`, advance one site, and begin `FoodSitePairOffset`=4 sites apart |
+| Flags/hearts or neutral fruit patches | CTF: 1 per team; Emerg-ant: 2 neutral patches randomly placed among `FoodSiteCount`=8 interior sites | `FlagPickupRange`=34, `CaptureZoneWidth`=40, `PedestalCoverSize`=96; ant patches regrow after `foodRespawnTicks` at a different unoccupied site and begin `FoodSitePairOffset`=4 sites apart |
 | Grenades | exactly 4 corner pickups | `GrenadeRespawnTicks`=120, `GrenadeChargeTicks`=24, `GrenadeBlastRadius`=52, `GrenadeDamage`=2, `GrenadeTrenchDamage`=6, max throw = `MapWidth/5` |
 | Med kits | 2 (sides) / up to 4 (4-team) | `MedKitPickupRange`=12, `MedKitRespawnTicks`=720 |
 | Shields | 1 per team endzone | `ShieldRespawnTicks`=720, `ShieldLayerHp`=3, `ShieldFireSlowdown`=3 |
@@ -174,7 +174,7 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 | Cardboard barriers | via `barrierPickups` (per team) | `BarrierHp`=10, `BarrierRadius`=24, `BarrierHalfThick`=2, `BarrierRespawnTicks`=720, `MaxBarriersPlaced`=16 ([sim_types.nim](../src/ctf/sim_types.nim)) |
 | Pheromone marks | up to 512 in Emerg-ant mode | Explicit B/C channels; `PheromoneStepTicks`=24, `PheromoneLifetimeTicks`=720, `PheromoneEraseRadius`=18, `MaxPheromoneMarks`=512; locally observed inside `antSenseRadius` |
 | Mandible contact | 1 nearest enemy per fresh A press | `AntBiteRange`=18px center distance; damage/cooldown use `biteDamage` / `biteCooldownTicks`; same-tick bites resolve simultaneously |
-| Queen and brood | 1 queen + 7 founding workers per colony; 8 connected seats dormant | `InitialAntsPerColony`=8, `QueenStartingFood`=1, `QueenFoodReserve`=1, `BroodFoodCost`=1, `QueenUpkeepFoodCost`=1, `QueenGraceTicks`=1800, `QueenUpkeepTicks`=1440; queen death collapses the colony |
+| Queen and brood | 1 queen + 7 founding workers per colony; 8 connected seats dormant | `InitialAntsPerColony`=8, `QueenStartingFood`=1, `QueenFoodReserve`=1, `BroodFoodCost`=2, `QueenUpkeepFoodCost`=1, `QueenGraceTicks`=1800, `QueenUpkeepTicks`=1440; queen death collapses the colony |
 
 To vary item counts today: change `teams` (scales per-team items), change `mapGen`
 pits (trenches), or edit the per-map spawn lists / consts in code.
@@ -190,7 +190,7 @@ pits (trenches), or edit the per-map spawn lists / consts in code.
 | `forageGoal` | int / `5` | `forageGoal` | `>=1` | First colony to this many neutral-food deliveries wins; at the clock, a unique score leader wins. |
 | `foodRespawnTicks` | int / `240` | `foodRespawnTicks` | `>=1` | Empty-patch regrowth delay. |
 | `pheromoneWashTick` | int / `1800` | `pheromoneWashTick` | `>=0` | One disruption wash relative to kickoff; 0 = off. |
-| `antSenseRadius` | int / `180` | `antSenseRadius` | `>=1` | Local dynamic-ecology observation radius. |
+| `antSenseRadius` | int / `180` | `antSenseRadius` | `>=1` | Local dynamic-ecology detail radius; available fruit also emits global odor. |
 | `biteDamage` | int / `1` | `biteDamage` | `>=1` | Contact bite damage. |
 | `biteCooldownTicks` | int / `18` | `biteCooldownTicks` | `>=1` | Successful bite cooldown. |
 | `maxTicks` | int / `7200` (5:00) | `maxGameTicks` | `>=0` | Scheduled game end (0 = unlimited); with the barrage on it is not a hard end. |
@@ -206,10 +206,10 @@ GV41 removed the action-floor overtime: the clock never extends, and a game with
 the barrage configured ignores `maxTicks` entirely (it ends only on capture/wipe). Win logic:
 capturing a heart eliminates that team; last team standing wins; 2-team ends on
 the first capture. In Emerg-ant mode a neutral fruit delivery empties its source
-patch until `foodRespawnTicks`, then advances it through the eight-site circuit;
+patch until `foodRespawnTicks`, then selects a random different, unoccupied site;
 the forage goal wins, and tied simultaneous goal
-finishes or tied clocks draw. Each delivery also enters `colonyFood`; surplus
-above the queen's last ration hatches a dormant connected seat. The queen eats
+finishes or tied clocks draw. Each delivery also enters `colonyFood`; every two
+surplus pieces above the queen's last ration hatch a dormant connected seat. The queen eats
 one ration first at 1800 ticks and every 1440 ticks thereafter. A killed or
 starving queen eliminates her colony. Emerg-ant forces player `lives` to zero
 after each living body is created, so ordinary CTF respawns are inert there.

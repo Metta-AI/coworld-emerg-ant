@@ -535,8 +535,8 @@ proc emitPickup*(
   )
 
 proc resetFlag*(sim: var SimServer, team: Team) =
-  ## Returns one team's flag to its home pedestal, or advances one of the two
-  ## neutral Emerg-ant fruit patches through the distributed forage sites.
+  ## Returns one team's flag to its home pedestal, or pops one of the two
+  ## neutral Emerg-ant fruit patches onto a replay-deterministic random site.
   # A flag leaving an enemy's back mid-game (death, disconnect — any reason
   # other than capture) is a FlagReturn analysis event; the pedestal resets
   # at game boundaries are not (phase guard).
@@ -551,11 +551,21 @@ proc resetFlag*(sim: var SimServer, team: Team) =
   let home =
     if sim.config.isEmergAnt():
       let sites = sim.foodSpawnSites()
-      foodSite =
-        if sim.flags[team].respawnAt > 0 and sim.flags[team].foodSite >= 0:
-          (sim.flags[team].foodSite + 1) mod sites.len
-        else:
-          (ord(team) * FoodSitePairOffset) mod sites.len
+      let oldSite = sim.flags[team].foodSite
+      if oldSite < 0 and team == Blue and sim.flags[Red].foodSite >= 0:
+        # The opening draw is a rot180 pair: random, but exactly fair.
+        foodSite = (sim.flags[Red].foodSite + FoodSitePairOffset) mod sites.len
+      else:
+        var choices: seq[int]
+        var occupied = -1
+        for other in sim.teams():
+          if other != team and not sim.flags[other].captured:
+            occupied = sim.flags[other].foodSite
+        for candidate in 0 ..< sites.len:
+          if candidate != oldSite and candidate != occupied:
+            choices.add(candidate)
+        doAssert choices.len > 0
+        foodSite = choices[sim.rng.rand(choices.high)]
       sites[foodSite]
     else:
       let flagHome = sim.gameMap.flagHome(team)

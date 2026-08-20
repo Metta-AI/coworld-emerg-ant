@@ -629,6 +629,8 @@ const
   SpritePlayerWeaponObjectId = 5021
   SpritePlayerOwnAimSpriteId = 5022  ## invisible own-aim readback marker
   SpritePlayerOwnAimObjectId = 5023  ## ("own aim <brads>", player stream only).
+  SpritePlayerFoodCarrySpriteId = 5024 ## invisible own carrying-state marker
+  SpritePlayerFoodCarryObjectId = 5025 ## (Emerg-ant player stream only).
   SpritePlayerSelfSpriteBase = 5100  ## white-outlined self soldiers, keyed by
                                      ## skin×rotation: default 5100..5115,
                                      ## crown 5116..5131.
@@ -761,7 +763,7 @@ const
     ("map bands", MapBandObjectBase, 960),
     ("players (POV view)", PlayerObjectBase, MaxPlayers),
     ("replay UI", ReplayTickObjectId, 5),
-    ("player HUD", SpritePlayerInterstitialObjectId, 16),
+    ("player HUD", SpritePlayerInterstitialObjectId, 20),
     ("flags", FlagObjectBase, 4),
     ("player names", PlayerNameObjectBase, MaxPlayers),
     ("protocol text", ProtocolTextObjectBase, 100),
@@ -896,7 +898,7 @@ const
     ("endzone fades", EndzoneFadeSpriteBase,
       4 * GlowFadeStages * MaxEndzoneFadeBands),
     ("identity badges", IdentityBadgeSpriteBase, 4 * 32),
-    ("player HUD", SpritePlayerFireSpriteId, 23),
+    ("player HUD", SpritePlayerFireSpriteId, 26),
     ("self soldiers", SpritePlayerSelfSpriteBase, 2 * SoldierRotations),
     ("selected soldiers", int(SelectedPlayerSpriteBase),
       2 * 4 * SoldierRotations),
@@ -4479,6 +4481,8 @@ proc antRotPixels(team: Team, skin: Skin, rot, renderScale: int): seq[uint8] =
         thorax = (along / 5.0) ^ 2 + (side / 4.5) ^ 2 <= 1.0
         head = ((along - 8.0) / 5.0) ^ 2 + (side / 4.8) ^ 2 <= 1.0
         solid = abdomen or thorax or head
+        wing = skin == CrownSkin and
+          ((along + 1.0) / 8.0) ^ 2 + ((abs(side) - 7.0) / 4.5) ^ 2 <= 1.0
         edge = solid and (
           (if skin == CrownSkin:
             ((along + 7.0) / 8.2) ^ 2 + (side / 6.2) ^ 2 > 1.0 and abdomen
@@ -4487,6 +4491,11 @@ proc antRotPixels(team: Team, skin: Skin, rot, renderScale: int): seq[uint8] =
           (along / 4.3) ^ 2 + (side / 3.8) ^ 2 > 1.0 and thorax or
           ((along - 8.0) / 4.3) ^ 2 + (side / 4.1) ^ 2 > 1.0 and head)
         pixel = y * canvas + x
+      if wing:
+        # Queens read as biological queens at board scale: a broad reproductive
+        # abdomen plus two pale wings. Wings are visual caste markers outside
+        # the solid contact body, so the bite radius remains truthful.
+        result.putRawRgbaPixel(pixel, 244, 224, 170, 118)
       if leg or edge:
         result.putRawRgbaPixel(pixel, ink.r, ink.g, ink.b, ink.a)
       elif solid:
@@ -4494,7 +4503,9 @@ proc antRotPixels(team: Team, skin: Skin, rot, renderScale: int): seq[uint8] =
       if solid and side < -1.0 and along > 4.0 and
           ((along - 8.0) / 2.5) ^ 2 + ((side + 2.0) / 1.4) ^ 2 <= 1.0:
         result.putRawRgbaPixel(pixel, shine.r, shine.g, shine.b, 210)
-      if skin == CrownSkin and solid and along > 10.0 and abs(side) < 2.0:
+      if skin == CrownSkin and solid and
+          ((abs(along + 4.0) < 1.2 and abs(side) < 5.5) or
+           (along > 10.0 and abs(side) < 2.0)):
         result.putRawRgbaPixel(pixel, 255, 219, 74, 255)
 
 proc addPlayerActorSprites(
@@ -6961,6 +6972,29 @@ proc buildSpriteProtocolPlayerUpdates*(
       HudTopRightLayerId,
       SpritePlayerOwnAimSpriteId
     )
+
+    # Carrying food is proprioception, like own aim: expose it explicitly on
+    # the carrier's private stream. Inferring the state from a small carried
+    # fruit sprite is brittle (aim offsets and delta timing can make a bot miss
+    # it), and a carrier that misses the edge never knows to return home.
+    if sim.config.isEmergAnt() and player.carryingFlag:
+      currentIds.add(SpritePlayerFoodCarryObjectId)
+      result.addSpriteChanged(
+        nextState.spriteDefs,
+        SpritePlayerFoodCarrySpriteId,
+        1,
+        1,
+        newRgbaPixels(1, 1),
+        LabelCarryingFood
+      )
+      result.addBoardObject(
+        SpritePlayerFoodCarryObjectId,
+        0,
+        0,
+        0,
+        HudTopRightLayerId,
+        SpritePlayerFoodCarrySpriteId
+      )
 
   sim.addTeamScoreboard(nextState.spriteDefs, currentIds, result)
 

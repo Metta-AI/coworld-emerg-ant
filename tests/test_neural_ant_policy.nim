@@ -10,7 +10,7 @@ const NeuralSource = staticRead(
 static:
   doAssert not NeuralSource.contains(".slot")
   doAssert not NeuralSource.contains("MapW")
-  doAssert AntInputSize == 5 * 5 * 7 + 7
+  doAssert AntInputSize == 5 * 5 * 7 + 10
 
 block generated_checkpoint_matches_json:
   let path = currentSourcePath().parentDir().parentDir() /
@@ -68,5 +68,6 @@ block expected_steering_preserves_task_direction:
   doAssert steerAntAction(homing).move == AntMoveForward
 
   var foodRight: AntInput
-  foodRight[featureIndex(2, 3, 3)] = 1.0
+  foodRight[scalarIndex(8)] = 1.0
+  foodRight[scalarIndex(9)] = 0.5
   doAssert steerAntAction(foodRight).move == AntMoveRight

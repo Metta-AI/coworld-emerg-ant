@@ -386,6 +386,22 @@ suite "sprite label contract":
     var emitted = game.collectLabels()
     for label in emitted4:
       emitted.incl(label)
+    # The private carried-food proprioception marker exists only in Emerg-ant
+    # mode and only in the carrier's own stream. Pose one real pickup and merge
+    # just that family so the classic vocabulary fixture stays stable.
+    var antConfig = defaultGameConfig()
+    antConfig.gameMode = EmergAntMode
+    var antGame = initCtfForTest(antConfig)
+    discard antGame.addPlayer("p0")
+    discard antGame.addPlayer("p1")
+    antGame.startGame()
+    antGame.players[0].placeAtCenter(antGame.flags[Red].x, antGame.flags[Red].y)
+    antGame.tryPickupFlags(0)
+    doAssert antGame.players[0].carryingFlag
+    var antState: PlayerViewerState
+    for message in antGame.buildPlayerMessages(0, antState):
+      if message.kind == spkSprite and message.sprite.label == LabelCarryingFood:
+        emitted.incl(LabelCarryingFood)
     # Trenches never appear in EITHER fixture above: the hand-authored
     # default arena ships none (see test_trenches.nim, "the default arena
     # digs no trenches") and 4-team maps never dig any either — so the
@@ -493,7 +509,19 @@ neither failure surfaces until a league round comes back wrong.
     # exact match against a label the engine stopped emitting is the quietest
     # bug in the codebase, so assert the producer still emits each one.
     var game = fullFeatureGame()
-    let emitted = game.collectLabels()
+    var emitted = game.collectLabels()
+    var antConfig = defaultGameConfig()
+    antConfig.gameMode = EmergAntMode
+    var antGame = initCtfForTest(antConfig)
+    discard antGame.addPlayer("p0")
+    discard antGame.addPlayer("p1")
+    antGame.startGame()
+    antGame.players[0].placeAtCenter(antGame.flags[Red].x, antGame.flags[Red].y)
+    antGame.tryPickupFlags(0)
+    var antState: PlayerViewerState
+    for message in antGame.buildPlayerMessages(0, antState):
+      if message.kind == spkSprite:
+        emitted.incl(message.sprite.label.normalizeLabel())
     for wanted in PolicyScannedLabels:
       let pattern = wanted.normalizeLabel()
       if pattern notin emitted:

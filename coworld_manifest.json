@@ -13,7 +13,7 @@
     "replay_viewer": {
       "bundle": "static-replay-viewer"
     },
-    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two fixed 16-seat policy colonies begin with a queen and seven workers. Local neural ants forage fruit, write erasable pheromone fields, hatch dormant policy seats with surplus food, defend their queen, and fight only through physical contact.",
+    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two fixed 16-seat policy colonies begin with a queen and seven workers. Neural ants smell randomly regrowing fruit, escape obstacles with antenna-like probes, write erasable pheromone fields, hatch a worker per two delivered pieces, defend their queen, and fight only through physical contact.",
     "owner": "treeform@softmax.com",
     "runnable": {
       "type": "game",
@@ -304,7 +304,7 @@
           "default": 1800
         },
         "antSenseRadius": {
-          "description": "Local radius in pixels within which an ant observes neutral food patches and pheromone marks.",
+          "description": "Local detail radius for food contact and pheromone marks. Every available fruit patch also emits a global odor bearing.",
           "type": "integer",
           "minimum": 1,
           "default": 180
@@ -595,7 +595,7 @@
       "id": "baseline",
       "name": "baseline",
       "type": "player",
-      "description": "Shared neural-ant policy: local 5x5 observation, learned steering/pheromone/bite heads, queen defense, wake-seeded exploration, and collision escape replicated across active worker bodies.",
+      "description": "Shared neural-ant policy: local 5x5 observation plus global fruit-odor bearing, learned steering/pheromone/bite heads, queen defense, ally separation, and persistent local wall-following replicated across active worker bodies.",
       "image": "{{PLAYER_IMAGE}}",
       "run": [
         "/bin/baseline"
@@ -616,7 +616,7 @@
     {
       "id": "emerg-ant",
       "name": "Emerg-ant Foraging",
-      "description": "Two fixed 16-seat policy colonies begin with a queen and seven workers. Food hatches dormant seats into workers and feeds the queen; queen death collapses the colony. Workers sense locally, write pheromones, and bite only on contact.",
+      "description": "Two fixed 16-seat policy colonies begin with a winged queen and seven workers. Two delivered food pieces hatch a dormant seat; food also feeds the queen, whose death collapses the colony. Workers smell available fruit globally, sense pheromones locally, and bite only on contact.",
       "game_config": {
         "players": [
           {
@@ -705,7 +705,7 @@
         "visionBubble": 90,
         "startWaitTicks": 120,
         "gameOverTicks": 360,
-        "maxTicks": 3600,
+        "maxTicks": 7200,
         "maxGames": 1,
         "mapPath": "arena",
         "showPlayerLabels": true,

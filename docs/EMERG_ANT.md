@@ -1,4 +1,4 @@
-# Emerg-ant v0.5 — Two Queens, Growing Colonies
+# Emerg-ant v0.6 — Two Queens, Growing Colonies
 
 Emerg-ant is a competitive artificial-life Coworld for the ERA @ ALIFE 2026
 Emerg-ant hackathon. Two policies each occupy 16 fixed seats. A match begins
@@ -13,14 +13,15 @@ The bundled starter instantiates that question as one shared trained MLP plus
 a minimal carrier reflex.
 Each ant receives a rotated 5×5×7 neighborhood (walls, allies, enemies, food,
 two friendly trail channels, rival trails), carry/bite state, displacement from
-its own wake point, and a periodic clock. It does not receive a slot, absolute
-coordinates, a hard-coded nest location, or another ant's memory. The network
+its own wake point, a periodic clock, and the bearing/intensity of globally
+diffusing fruit odor. It does not receive a slot, absolute coordinates, a
+hard-coded nest location, or another ant's memory. The network
 produces movement, pheromone, and bite actions from identical weights in every
 body. A carrier follows only its own wake displacement and lays the food trail;
 it still relies on local wall sensing and stall escape, and receives no nest
 coordinate or global path. Expected steering preserves sustained task-directed motion; a wake-seeded
-correlated random walk supplies uncued exploration, and local stall escape keeps
-carriers moving around cover. Training and its portable checkpoint live under
+correlated random walk supplies uncued exploration, and body-width antenna probes
+start a persistent wall-following response when progress stalls. Training and its portable checkpoint live under
 `players/neural/`.
 
 Every seat has a distinct wake point on a symmetric 2×8 lattice inside its
@@ -31,14 +32,13 @@ compact nest and was incompatible with that local contract.
 
 ## Win condition and ecology
 
-- Two neutral fruit patches begin at opposite sites in an eight-site interior
-  circuit. Either colony may harvest either patch by touching it.
+- Two neutral fruit patches begin at a random rot180-paired pair of eight
+  distributed interior sites. Either colony may harvest either patch by touching it.
 - An ant carries one item. Returning it to that ant's own endzone scores one
   delivery, adds one food to the colony store, empties the source patch, and
-  starts its regrowth timer. When
-  it regrows, that patch advances to the next walkable site, so colonies must
-  continue exploring upper, lower, left, right, and center-field regions.
-- A queen reserves her last food ration. Every surplus food spends one unit to
+  starts its regrowth timer. When it regrows, replay-deterministic randomness
+  selects another unoccupied site, so food keeps popping up across the arena.
+- A queen reserves her last food ration. Every two surplus deliveries spend two units to
   hatch a dormant policy seat as a new worker. Never-hatched seats are chosen
   before previously killed workers.
 - The queen first becomes hungry after 1,800 ticks (75 seconds), then every 1,440
@@ -73,10 +73,12 @@ That wash is the resilience test. A colony that merely memorizes one mature
 trail should collapse; a colony whose local rule keeps exploring and repairing
 routes can recover.
 
-Food patches and pheromones are visible only within `antSenseRadius` (180 px
-in the published variant). Other ants use the ordinary vision cone, bubble,
-walls, and fog. Static terrain stays map-absolute and known for Sprite v1
-compatibility, but there is no global live resource or pheromone feed.
+Every living ant smells the location of every currently available food patch.
+The bundled controller reduces this to an egocentric bearing and a
+distance-compressed intensity. Exact local patch contact, pheromones, and other
+ants remain bounded by `antSenseRadius` (180 px in the published variant),
+ordinary vision, walls, and fog. The replay's ANT SENSE inset visualizes that
+same split: distant food on the antenna rim, with exact local detail inside.
 
 Policy-visible labels are:
 

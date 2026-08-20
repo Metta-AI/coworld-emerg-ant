@@ -190,7 +190,7 @@ suite "league manifest config_schema vs GameConfig":
     var config = defaultGameConfig()
     config.update($gameConfig)
     check config.isEmergAnt()
-    check config.maxTicks == 3600
+    check config.maxTicks == 7200
 
   test "certification exercises the ant ruleset with thirty-two seats":
     let manifest = parseFile(GameDir / ManifestName)

@@ -54,6 +54,7 @@ muzzle bloom stage <n>
 name p<n>
 name p<n> flag <n>
 own aim <n>
+carrying food
 paint stain <color> variant <n>
 perks <color> -
 perks <color> armor,scope mods hp <n> aim <n> nade <n> spd <n> luck <n> dmg <n>

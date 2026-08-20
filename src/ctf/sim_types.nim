@@ -18,7 +18,20 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "50"  ## GV50 (Emerg-ant founder rule): A COLONY STARTS AS A SWARM.
+  GameVersion* = "51"  ## GV51 (Emerg-ant scent rule): ANTENNAE FIND FOOD; WALLS DO NOT HOLD ANTS.
+    ## Every living ant now smells the bearing and distance of every available
+    ## fruit patch, while exact nearby food, ants, walls, and pheromones remain
+    ## local. Regrowing fruit chooses a replay-deterministic random site instead
+    ## of walking a fixed circuit, and a queen consumes two delivered pieces per
+    ## brood hatch. A private carrying-food marker makes self-state explicit.
+    ## The bundled shared controller gains the matching odor inputs and
+    ## persistent wall-following escape. Food placement, observations,
+    ## population timing, inputs, hashes, and replay outcomes change, so GV50
+    ## recordings are obsolete.
+    ## Authored as GV51 after scanning origin on 2026-08-20: main and every
+    ## remote claim at/above main used GV50; no GV51 claim was present.
+    ##
+    ## Previously GV50 (Emerg-ant founder rule): A COLONY STARTS AS A SWARM.
     ## Each 16-seat colony now wakes a queen and seven founding workers; the
     ## other eight connected policy seats remain dormant brood. Three workers
     ## were too sparse for the distributed eight-site fruit circuit: two
@@ -556,7 +569,7 @@ const
   InitialAntsPerColony* = 8  ## queen + 7 founding workers; 8 seats stay brood.
   QueenStartingFood* = 1     ## reserve carried into the first hunger cycle.
   QueenFoodReserve* = 1      ## hatching never spends the queen's last ration.
-  BroodFoodCost* = 1         ## stored food consumed to hatch one reserve seat.
+  BroodFoodCost* = 2         ## delivered food consumed to hatch one reserve seat.
   QueenUpkeepFoodCost* = 1   ## stored food consumed at each hunger check.
   QueenGraceTicks* = 75 * TargetFps ## first hunger check after kickoff.
   QueenUpkeepTicks* = 60 * TargetFps ## later hunger-check interval.

@@ -19,7 +19,7 @@ import numpy as np
 PATCH = 5
 CHANNELS = 7
 PATCH_FEATURES = PATCH * PATCH * CHANNELS
-INPUTS = PATCH_FEATURES + 7
+INPUTS = PATCH_FEATURES + 10
 HIDDEN = 48
 OUTPUTS = 14
 DEPLOY_TEMPERATURE = 0.35
@@ -115,7 +115,20 @@ def curriculum(rng: np.random.Generator, count: int) -> tuple[np.ndarray, np.nda
         x[n, PATCH_FEATURES + 2 : PATCH_FEATURES + 4] = [home_forward, home_side]
         x[n, PATCH_FEATURES + 4] = min(1.0, math.hypot(home_forward, home_side))
         phase = rng.uniform(0, 2 * math.pi)
-        x[n, PATCH_FEATURES + 5 :] = [math.sin(phase), math.cos(phase)]
+        x[n, PATCH_FEATURES + 5 : PATCH_FEATURES + 7] = [math.sin(phase), math.cos(phase)]
+
+        # Available fruit emits a global odor bearing. Distance is deliberately
+        # compressed to a weak intensity: antennae say which way and roughly
+        # how strong, while walls/ants/patch contact remain in the local grid.
+        odor_side = odor_forward = odor_strength = 0.0
+        if not carrying and rng.random() < 0.94:
+            odor_angle = rng.uniform(-math.pi, math.pi)
+            odor_forward = math.cos(odor_angle)
+            odor_side = math.sin(odor_angle)
+            odor_strength = rng.uniform(0.08, 0.75)
+            x[n, PATCH_FEATURES + 7 : PATCH_FEATURES + 10] = [
+                odor_forward, odor_side, odor_strength,
+            ]
 
         # Sparse walls and nearby ants make the imitation curriculum teach
         # obstacle avoidance and contact without exposing world coordinates.
@@ -146,6 +159,9 @@ def curriculum(rng: np.random.Generator, count: int) -> tuple[np.ndarray, np.nda
             cells = food_cells or trail_cells
             r, c = min(cells, key=lambda rc: (rc[0] - 2) ** 2 + (rc[1] - 2) ** 2)
             labels[n] = [relative_move(c - 2, 2 - r), 1, int(enemy_contact and bite_ready)]
+        elif odor_strength > 0:
+            labels[n] = [relative_move(odor_side, odor_forward), 1,
+                         int(enemy_contact and bite_ready)]
         else:
             # Uncued locomotion is a correlated-random-walk motor primitive in
             # deployment. The shared net learns the task-directed reactions.
@@ -267,9 +283,25 @@ class ColonyWorld:
                 hf = float(home_delta @ f) / self.size
                 hs = float(home_delta @ right) / self.size
                 phase = ((tick + int(self.phase_offset[e, a])) % 240) * 2 * math.pi / 240
+                odor_forward = odor_side = odor_strength = 0.0
+                if not self.carrying[e, a]:
+                    food_yx = np.argwhere(self.food[e] > 0)
+                    if len(food_yx):
+                        nearest_yx = min(
+                            food_yx,
+                            key=lambda yx: np.linalg.norm(p - yx[::-1]),
+                        )
+                        odor = (nearest_yx[::-1] - p).astype(np.float32)
+                        odor_dist = float(np.linalg.norm(odor))
+                        if odor_dist > 0:
+                            odor /= odor_dist
+                            odor_forward = float(odor @ f)
+                            odor_side = float(odor @ right)
+                            odor_strength = 2.0 / (2.0 + odor_dist)
                 obs[e, a, PATCH_FEATURES:] = [
                     self.carrying[e, a], 1, np.clip(hf, -1, 1), np.clip(hs, -1, 1),
                     min(1, np.linalg.norm(home_delta) / self.size), math.sin(phase), math.cos(phase),
+                    odor_forward, odor_side, odor_strength,
                 ]
         return obs
 
@@ -513,7 +545,7 @@ def main() -> None:
         "selected_reinforce_update": best_update,
         "selection_evaluation": selection_eval,
         "evaluation": evaluation,
-        "observation": "5x5x7 egocentric patch + carry/bite/wake displacement/clock",
+        "observation": "5x5x7 egocentric patch + carry/bite/wake displacement/clock + global food-odor bearing/intensity",
         "slot_feature": False,
         "deployment_temperature": DEPLOY_TEMPERATURE,
     }

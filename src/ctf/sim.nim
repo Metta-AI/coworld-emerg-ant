@@ -2662,23 +2662,17 @@ proc playerVisibleTo*(sim: SimServer, viewerIndex, targetIndex: int): bool =
   )
 
 proc flagVisibleTo*(sim: SimServer, viewerIndex: int, team: Team): bool =
-  ## CTF hearts are permanent public landmarks. Emerg-ant food is dynamic
-  ## ecology: a planted patch is sensed only nearby, while carried food is
-  ## visible exactly when its carrier is visible.
+  ## CTF hearts are permanent public landmarks. Every living ant smells every
+  ## available planted food patch regardless of distance; policies use its
+  ## global bearing as odor while exact contact and pheromone detail stay local.
+  ## Carried food remains visible exactly when its carrier is visible.
   let carrier = sim.flags[team].carrier
   if carrier < 0:
     if sim.config.isEmergAnt():
       if sim.flags[team].captured or viewerIndex < 0 or
           viewerIndex >= sim.players.len or not sim.players[viewerIndex].alive:
         return false
-      let
-        viewer = sim.players[viewerIndex]
-        radiusSq = sim.config.antSenseRadius * sim.config.antSenseRadius
-      return distSq(
-        viewer.x + CollisionW div 2,
-        viewer.y + CollisionH div 2,
-        sim.flags[team].x,
-        sim.flags[team].y) <= radiusSq
+      return true
     return true
   sim.playerVisibleTo(viewerIndex, carrier)
 

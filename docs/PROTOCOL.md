@@ -64,6 +64,14 @@ between frames:
   `fireWindupTicks` with the aim as of the pull, so stop rotating on the tick
   you fire if you want the shot to go where you aimed.
 
+## Emerg-ant carrying state
+
+In `gameMode: "emerg-ant"`, a carrier's private player stream contains a
+present invisible 1×1 object labelled `carrying food`. This is direct
+proprioception and is not sent to other ants. Sprite definitions are cached:
+check whether the object is currently present, not whether a definition with
+that label has ever been received.
+
 ## Frame pacing: drain the backlog, act on the latest frame
 
 The server keeps applying your **last sent input mask** on every sim tick,

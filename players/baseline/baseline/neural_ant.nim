@@ -13,7 +13,7 @@ const
   AntPatchWidth* = AntPatchRadius * 2 + 1
   AntChannels* = 7
   AntPatchFeatures* = AntPatchWidth * AntPatchWidth * AntChannels
-  AntScalarFeatures* = 7
+  AntScalarFeatures* = 10
   AntInputSize* = AntPatchFeatures + AntScalarFeatures
   AntHiddenSize* = CheckpointHiddenSize
   AntOutputSize* = 14

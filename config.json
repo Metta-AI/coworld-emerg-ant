@@ -17,7 +17,7 @@
   "aimTurnRate": 5,
   "visionConeDeg": 60,
   "visionBubble": 90,
-  "maxTicks": 3600,
+  "maxTicks": 7200,
   "mapPath": "arena",
   "tokens": [
     "0xBADA55_0",

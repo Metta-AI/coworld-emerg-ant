@@ -1,8 +1,8 @@
 import
   helpers,
-  std/[json, sequtils, strutils, unittest],
+  std/[json, sequtils, sets, strutils, unittest],
   bitworld/spriteprotocol,
-  ctf/[broadcast, global, sim]
+  ctf/[broadcast, global, labels, sim]
 
 proc antGame(goal = DefaultForageGoal): SimServer =
   var config = defaultGameConfig()
@@ -25,7 +25,7 @@ proc harvestAndReturn(sim: var SimServer, playerIndex: int, patch: Team) =
   sim.players[playerIndex].placeAtCenter(home.x, home.y)
   sim.checkWinCondition()
 
-suite "Emerg-ant v0.5 config":
+suite "Emerg-ant v0.6 config":
   test "mode is opt-in and replay-pins every ecology rule":
     let plain = parseJson(defaultGameConfig().configJson())
     check not plain.hasKey("gameMode")
@@ -87,7 +87,7 @@ suite "Emerg-ant neutral foraging":
       check sim.teamActiveAnts(team) == InitialAntsPerColony
       check sim.colonyFood[team] == QueenStartingFood
 
-  test "surplus food hatches a dormant connected policy seat":
+  test "two delivered pieces hatch a dormant connected policy seat":
     var config = defaultGameConfig()
     config.gameMode = EmergAntMode
     config.forageGoal = 9
@@ -95,8 +95,16 @@ suite "Emerg-ant neutral foraging":
     for i in 0 ..< 20:
       discard sim.addPlayer("ant-" & $i)
     sim.startGame()
-    sim.harvestAndReturn(sim.queenIndex(Red), Red)
+    let queen = sim.queenIndex(Red)
+    sim.harvestAndReturn(queen, Red)
     check sim.teamForageScore(Red) == 1
+    check sim.teamActiveAnts(Red) == InitialAntsPerColony
+    sim.updateFoodPatches()
+    # Make the second currently available patch the next delivery; the source
+    # identity is irrelevant because food is neutral.
+    let secondPatch = if not sim.flags[Blue].captured: Blue else: Red
+    sim.harvestAndReturn(queen, secondPatch)
+    check sim.teamForageScore(Red) == 2
     check sim.teamActiveAnts(Red) == InitialAntsPerColony + 1
     check sim.colonyFood[Red] == QueenFoodReserve
 
@@ -152,18 +160,19 @@ suite "Emerg-ant neutral foraging":
       outer = sim.spawnPosition(Red, 15)
     check abs(outer.y - inner.y) > 100
 
-  test "fruit sites cover the arena and begin as a symmetric pair":
+  test "fruit sites cover the arena and begin as a random symmetric pair":
     var sim = antGame()
     let sites = sim.foodSpawnSites()
     check sites.len == FoodSiteCount
     for i, site in sites:
       check sim.canOccupy(site.x, site.y)
       check site notin sites[0 ..< i]
-    check sim.flags[Red].foodSite == 0
-    check sim.flags[Blue].foodSite == FoodSitePairOffset
-    check (sim.flags[Red].x, sim.flags[Red].y) == sites[0]
+    check sim.flags[Red].foodSite in 0 ..< FoodSiteCount
+    check sim.flags[Blue].foodSite ==
+      (sim.flags[Red].foodSite + FoodSitePairOffset) mod FoodSiteCount
+    check (sim.flags[Red].x, sim.flags[Red].y) == sites[sim.flags[Red].foodSite]
     check (sim.flags[Blue].x, sim.flags[Blue].y) ==
-      sites[FoodSitePairOffset]
+      sites[sim.flags[Blue].foodSite]
 
     let patch = sim.flags[Red]
     sim.players[1].placeAtCenter(patch.x, patch.y)
@@ -171,9 +180,26 @@ suite "Emerg-ant neutral foraging":
     check sim.flags[Red].carrier == 1
     check sim.players[1].carryingFlag
 
+    var
+      carrierState: PlayerViewerState
+      carrierLabels: HashSet[string]
+    for message in sim.buildPlayerMessages(1, carrierState):
+      if message.kind == spkSprite:
+        carrierLabels.incl(message.sprite.label)
+    check LabelCarryingFood in carrierLabels
+
+    var
+      otherState: PlayerViewerState
+      otherLabels: HashSet[string]
+    for message in sim.buildPlayerMessages(0, otherState):
+      if message.kind == spkSprite:
+        otherLabels.incl(message.sprite.label)
+    check LabelCarryingFood notin otherLabels
+
   test "a delivery scores, empties the patch, and regrows on its timer":
     var sim = antGame(goal = 2)
     sim.config.foodRespawnTicks = 5
+    let oldSite = sim.flags[Red].foodSite
     sim.harvestAndReturn(0, Red)
     check sim.phase == Playing
     check sim.teamForageScore(Red) == 1
@@ -189,8 +215,22 @@ suite "Emerg-ant neutral foraging":
     sim.updateFoodPatches()
     check not sim.flags[Red].captured
     check sim.flags[Red].respawnAt == 0
-    check sim.flags[Red].foodSite == 1
-    check (sim.flags[Red].x, sim.flags[Red].y) == sim.foodSpawnSites()[1]
+    check sim.flags[Red].foodSite != oldSite
+    check sim.flags[Red].foodSite != sim.flags[Blue].foodSite
+    check (sim.flags[Red].x, sim.flags[Red].y) ==
+      sim.foodSpawnSites()[sim.flags[Red].foodSite]
+
+  test "every living ant senses every available food patch":
+    var sim = antGame()
+    let red = sim.queenIndex(Red)
+    # Put the ant much farther away than the local pheromone/detail radius.
+    sim.players[red].placeAtCenter(20, 20)
+    for patch in [Red, Blue]:
+      check distSq(20, 20, sim.flags[patch].x, sim.flags[patch].y) >
+        sim.config.antSenseRadius * sim.config.antSenseRadius
+      check sim.flagVisibleTo(red, patch)
+    sim.players[red].alive = false
+    check not sim.flagVisibleTo(red, Red)
 
   test "simultaneous tied goal deliveries draw without processing advantage":
     var sim = antGame(goal = 1)
@@ -317,14 +357,14 @@ suite "Emerg-ant explicit local stigmergy":
     sim.updatePheromones(inputs)
     check sim.pheromones.len == 1
 
-  test "food and pheromone observations are local":
+  test "food odor is global while pheromone observations stay local":
     var sim = antGame()
     let patch = sim.flags[Red]
     sim.players[0].placeAtCenter(patch.x, patch.y)
     check sim.flagVisibleTo(0, Red)
     let redHome = sim.gameMap.flagHome(Red)
     sim.players[0].placeAtCenter(redHome.x, redHome.y)
-    check not sim.flagVisibleTo(0, Red)
+    check sim.flagVisibleTo(0, Red)
 
     let nearMark = PheromoneMark(
       x: sim.players[0].x, y: sim.players[0].y, team: Red, tick: sim.tickCount)

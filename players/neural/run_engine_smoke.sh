@@ -9,6 +9,7 @@ BLUE_POLICY="${3:-neural}"
 PORT="${PORT:-21819}"
 MAX_TICKS="${MAX_TICKS:-1200}"
 WASH_TICK="${WASH_TICK:-500}"
+FORAGE_GOAL="${FORAGE_GOAL:-1}"
 SEED="${SEED:-}"
 
 case "$RED_POLICY:$BLUE_POLICY" in
@@ -30,11 +31,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-python3 - "$CFG" "$MAX_TICKS" "$WASH_TICK" "$SEED" <<'PY'
+python3 - "$CFG" "$MAX_TICKS" "$WASH_TICK" "$SEED" "$FORAGE_GOAL" <<'PY'
 import json, sys
 config = json.load(open("config.json"))
 config.update({
-    "forageGoal": 1,
+    "forageGoal": int(sys.argv[5]),
     "maxTicks": int(sys.argv[2]),
     "pheromoneWashTick": int(sys.argv[3]),
     "speed": 16,
@@ -79,5 +80,5 @@ done
 wait "$SERVER_PID"
 SERVER_PID=""
 test -s "$OUT"
-grep -E "harvested neutral food|delivered neutral food|rain washed|red win|blue win|draw" "$LOG" || true
+grep -E "harvested neutral food|delivered neutral food|queen hatched|rain washed|red win|blue win|draw" "$LOG" || true
 ls -lh "$OUT" "$LOG"

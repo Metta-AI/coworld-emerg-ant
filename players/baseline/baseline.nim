@@ -427,6 +427,9 @@ type
     antClockOffset: int       # wake-derived private phase; no slot/global cue
     antExploreNext: int       # next correlated-random-walk turn tick
     antStuckTicks: int        # consecutive frames without physical progress
+    antEscapeUntil: int       # persistent local wall-following, not one-tick jitter
+    antEscapeStarted: int     # minimum commitment prevents corner oscillation
+    antEscapeVec: Vec         # fixed world direction while clearing an obstacle
     antQueen: bool            # this fixed seat is the colony's queen caste
 
 var
@@ -1546,6 +1549,10 @@ proc buildAntInput(
     forward = bradsDir(bot.estAim)
     right = vec(-forward.y, forward.x)
 
+  var
+    nearestFood = vec(0, 0)
+    nearestFoodDist = 1e18
+
   # Channel 0: walls/outside sampled at each egocentric cell center.
   for row in 0 ..< AntPatchWidth:
     for col in 0 ..< AntPatchWidth:
@@ -1570,7 +1577,13 @@ proc buildAntInput(
   # the explicit disc filter above keeps the controller contract independent
   # from renderer/fog changes.
   for o in client.spriteObjectsWithLabel("neutral food patch"):
-    result.stampAntFeature(me, forward, right, client.mapPos(o), 3)
+    let
+      food = client.mapPos(o)
+      foodDist = dist(me, food)
+    result.stampAntFeature(me, forward, right, food, 3)
+    if foodDist < nearestFoodDist:
+      nearestFoodDist = foodDist
+      nearestFood = food - me
   for o in client.spriteObjectsWithLabel("pheromone " & bot.myColor & " scout"):
     result.stampAntFeature(me, forward, right, client.mapPos(o), 4)
   for o in client.spriteObjectsWithLabel("pheromone " & bot.myColor & " food"):
@@ -1593,6 +1606,16 @@ proc buildAntInput(
   result[scalarIndex(4)] = float32(clamp(home.len() / 600.0, 0.0, 1.0))
   result[scalarIndex(5)] = float32(sin(clock))
   result[scalarIndex(6)] = float32(cos(clock))
+  # Scalars 7..9 are antennae: every available patch contributes odor to the
+  # player stream, and the controller keeps only the nearest bearing. Exact
+  # patch cells, ants, walls, and pheromones above remain confined to the local
+  # disc. A carrier ignores food odor and follows its private wake displacement.
+  if not carrying and nearestFoodDist < 1e17 and nearestFoodDist > 0.5:
+    let odor = nearestFood * (1.0 / nearestFoodDist)
+    result[scalarIndex(7)] = float32(dot(odor, forward))
+    result[scalarIndex(8)] = float32(dot(odor, right))
+    result[scalarIndex(9)] = float32(
+      AntSenseRadius / (AntSenseRadius + nearestFoodDist))
 
 proc antMoveVector(move: int, forward, right: Vec): Vec =
   case move
@@ -1605,6 +1628,75 @@ proc antMoveVector(move: int, forward, right: Vec): Vec =
   of AntMoveLeft: right * -1.0
   of AntMoveForwardLeft: norm(forward - right)
   else: vec(0, 0)
+
+proc antDirectionClearance(client: ProtocolClient, me, direction: Vec): int =
+  ## Counts clear body-width probes in a direction. This is an antenna-like
+  ## local collision sense, not global pathfinding: it looks at most 84px ahead
+  ## and checks the two sides of the ant's physical footprint.
+  if direction.len() < 0.1:
+    return 0
+  let
+    heading = norm(direction)
+    side = vec(-heading.y, heading.x)
+  for ahead in countup(12, 84, 12):
+    for offset in [-float(PlayerHalf), 0.0, float(PlayerHalf)]:
+      let probe = me + heading * float(ahead) + side * offset
+      if not client.walkableAt(int(round(probe.x)), int(round(probe.y))):
+        return result
+    inc result
+
+proc beginAntEscape(bot: Bot, client: ProtocolClient, me, desired: Vec) =
+  ## Begin a persistent local boundary-following episode. Eight antenna
+  ## headings are scored by clearance, progress toward the current goal, and
+  ## continuity with the previous step. This keeps an ant sliding around a
+  ## corner instead of alternating left/right against the same surface.
+  let goal = if desired.len() >= 0.1: norm(desired) else: bradsDir(bot.estAim)
+  var
+    best = goal
+    bestScore = -1e18
+  for i in 0 ..< 8:
+    let candidate = vec(cos(float(i) * PI / 4.0), sin(float(i) * PI / 4.0))
+    let clearance = client.antDirectionClearance(me, candidate)
+    if clearance < 2:
+      continue
+    let continuity =
+      if bot.antEscapeVec.len() >= 0.1: dot(candidate, bot.antEscapeVec)
+      else: 0.0
+    let score = dot(candidate, goal) * 2.0 + float(clearance) * 0.18 +
+      continuity * 0.55
+    if score > bestScore:
+      bestScore = score
+      best = candidate
+  bot.antEscapeVec = best
+  bot.antEscapeStarted = bot.tick
+  bot.antEscapeUntil = bot.tick + 180
+  bot.antStuckTicks = 0
+
+proc continueAntEscape(
+  bot: Bot, client: ProtocolClient, me, desired: Vec
+): Vec =
+  ## Re-evaluate the local boundary without switching sides impulsively. Once
+  ## the antennae see a long clear ray toward the goal, leave the surface.
+  let goal = if desired.len() >= 0.1: norm(desired) else: bot.antEscapeVec
+  if bot.tick - bot.antEscapeStarted >= 10 and
+      client.antDirectionClearance(me, goal) >= 5:
+    bot.antEscapeUntil = bot.tick
+    return goal
+  var
+    best = bot.antEscapeVec
+    bestScore = -1e18
+  for i in 0 ..< 8:
+    let candidate = vec(cos(float(i) * PI / 4.0), sin(float(i) * PI / 4.0))
+    let clearance = client.antDirectionClearance(me, candidate)
+    if clearance < 2:
+      continue
+    let score = dot(candidate, goal) * 2.0 + float(clearance) * 0.18 +
+      dot(candidate, bot.antEscapeVec) * 0.7
+    if score > bestScore:
+      bestScore = score
+      best = candidate
+  bot.antEscapeVec = best
+  best
 
 proc nextAntRandom(bot: Bot): uint64 =
   ## xorshift64*: replay-deterministic and independent per wake position.
@@ -1623,20 +1715,17 @@ proc hasAntChannel(input: AntInput, channel: int): bool =
 
 proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
   ## The default Emerg-ant policy: one learned, shared, memoryless turn rule.
-  if dist(me, bot.lastPos) < 0.5:
+  if dist(me, bot.lastPos) < 0.8:
     inc bot.antStuckTicks
   else:
-    bot.antStuckTicks = 0
-  var carrying = false
-  for o in client.spriteObjectsWithLabel("neutral food carried"):
-    if dist(client.mapPos(o), me) <= 28.0:
-      carrying = true
-      break
+    bot.antStuckTicks = max(0, bot.antStuckTicks - 2)
+  let carrying = client.spriteObjectsWithLabel(LabelCarryingFood).len > 0
   let
     biteReady = client.spriteObjectsWithLabel("bite ready").len > 0
     input = bot.buildAntInput(client, me, carrying, biteReady)
     decision = steerAntAction(input)
-    guided = carrying or input.hasAntChannel(3) or input.hasAntChannel(5)
+    guided = carrying or input[scalarIndex(9)] > 0.0 or
+      input.hasAntChannel(3) or input.hasAntChannel(5)
   if bot.antQueen:
     # A queen is a reproductive caste, not a scout. Stay at the nest anchor,
     # return if collision displaced us, and bite only on physical contact.
@@ -1653,39 +1742,13 @@ proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
     bot.lastPos = me
     return
   var moveChoice = decision.move
-  let forwardBlocked = input[featureIndex(1, 2, 0)] > 0.0
   # A carrier has one small innate reflex: displacement from this body's own
   # wake points home. The world still supplies no nest coordinate, slot, or
   # global resource position; local wall/stall handling below can override it.
   # Thus a rare harvest becomes colony food instead of asking a weak learned
   # head to rediscover homing in every episode.
-  let directCarryHome = carrying and not forwardBlocked and bot.antStuckTicks < 8
-  if bot.antStuckTicks >= 8:
-    # Geometry can block a side octant even when the 90px-ahead wall sample
-    # is clear. A short deterministic escape turn prevents carriers from
-    # pushing one corner forever.
-    case bot.nextAntRandom() mod 4'u64
-    of 0: moveChoice = AntMoveLeft
-    of 1: moveChoice = AntMoveRight
-    of 2: moveChoice = AntMoveBackLeft
-    else: moveChoice = AntMoveBackRight
-    bot.antStuckTicks = 0
-    bot.antExploreNext = bot.tick + 72 + int(bot.nextAntRandom() mod 97'u64)
-  elif forwardBlocked:
-    # Collision escape applies to carriers too: a locally learned home vector
-    # cannot make progress while its preferred octant points into cover.
-    let
-      leftBlocked = input[featureIndex(1, 1, 0)] > 0.0
-      rightBlocked = input[featureIndex(1, 3, 0)] > 0.0
-    moveChoice =
-      if leftBlocked != rightBlocked:
-        if leftBlocked: AntMoveForwardRight else: AntMoveForwardLeft
-      elif (bot.nextAntRandom() and 1'u64) == 0:
-        AntMoveForwardLeft
-      else:
-        AntMoveForwardRight
-    bot.antExploreNext = bot.tick + 72 + int(bot.nextAntRandom() mod 97'u64)
-  elif not guided:
+  let directCarryHome = carrying
+  if not guided:
     # Correlated random walk: learned food/homing steering still owns every
     # task-directed movement, while this ant-like motor primitive prevents a
     # fresh categorical reroll from cancelling displacement every frame.
@@ -1700,9 +1763,30 @@ proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
   let
     forward = bradsDir(bot.estAim)
     right = vec(-forward.y, forward.x)
-    move =
+  var move =
       if directCarryHome: norm(bot.antWake - me)
       else: antMoveVector(moveChoice, forward, right)
+
+  # Ants do not know the map, but antenna probes and short-term persistence let
+  # them follow a surface until the desired bearing clears. Trigger both on
+  # failed physical progress and before committing the body into a close wall.
+  if bot.tick < bot.antEscapeUntil:
+    move = bot.continueAntEscape(client, me, move)
+  elif bot.antStuckTicks >= 6 or client.antDirectionClearance(me, move) < 2:
+    bot.beginAntEscape(client, me, move)
+    move = bot.antEscapeVec
+
+  # Soft body separation prevents identical replicas from piling onto the
+  # queen or one another while preserving a shared, slot-free controller.
+  if not carrying:
+    var separation = vec(0, 0)
+    for mate in client.actorsFor(bot.myColor):
+      let away = me - mate.pos
+      let d = away.len()
+      if d > 0.5 and d < 34.0:
+        separation = separation + norm(away) * ((34.0 - d) / 34.0)
+    if separation.len() > 0.05:
+      move = norm(move + separation * 0.9)
   result = octantBits(move)
   if carrying:
     result = result or ButtonC
@@ -1733,14 +1817,10 @@ proc decideAntHeuristic(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
     enemyColor = if myColor == "red": "blue" else: "red"
     home = flagHome(bot.team)
   var
-    carrying = false
+    carrying = client.spriteObjectsWithLabel(LabelCarryingFood).len > 0
     nearestFood = -1
     foodDist = 1e18
     foodObjects = client.spriteObjectsWithLabel("neutral food patch")
-  for o in client.spriteObjectsWithLabel("neutral food carried"):
-    if dist(client.mapPos(o), me) <= 28.0:
-      carrying = true
-      break
   for i, o in foodObjects:
     let d = dist(client.mapPos(o), me)
     if d < foodDist:

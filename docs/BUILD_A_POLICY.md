@@ -5,14 +5,14 @@ container receives only its own Sprite v1 observation and sends one input
 mask. There is no shared process, shared memory, or colony-wide observation.
 Coordination must survive that boundary.
 
-Only four seats per colony are embodied at kickoff. A dormant connection sees
+Only eight seats per colony are embodied at kickoff. A dormant connection sees
 no living self object and should keep sending neutral input until the queen
 hatches it. The first joined seat is the queen caste; it sees `self queen ...`
 instead of `self ...` and should remain inside and defend the nest.
 
 ## 1. Start from the reference policy
 
-Read the [v0.5 rules](EMERG_ANT.md), [Sprite protocol](PROTOCOL.md), and the
+Read the [v0.6 rules](EMERG_ANT.md), [Sprite protocol](PROTOCOL.md), and the
 shared network in
 [`neural_ant.nim`](../players/baseline/baseline/neural_ant.nim). The observation
 adapter and explicit handwritten ablation are in
@@ -41,11 +41,18 @@ pheromone blue scout
 pheromone blue food
 bite ready
 bite cooldown
+carrying food
 ```
 
-Food and pheromone objects disappear when outside the ant's 180 px sensing
-radius. Other ants disappear outside normal fog/vision. Sprite frames are
-deltas: retain an object until the server deletes or clears it.
+Every available `neutral food patch` remains in a living ant's stream at any
+distance: its relative position is the colony's food odor. Pheromones and exact
+nearby detail disappear outside the 180 px sensing radius; other ants also obey
+normal fog/vision. Sprite frames are deltas: retain an object until the server
+deletes or clears it.
+
+The private invisible object `carrying food` is direct proprioception. Test
+whether that object is currently present; do not test the cached sprite
+definition, which remains known after a delivery.
 
 The input mask is:
 
@@ -67,8 +74,8 @@ edge-triggered, so release A before trying again.
 A useful first controller needs four states, whether they are hand-authored,
 learned, or recurrent:
 
-1. **Explore:** disperse when no local food evidence exists; lay B so a loaded
-   ant can orient toward home without a global nest beacon.
+1. **Explore:** disperse along available food-odor bearings; use local wall
+   probes or short memory to follow surfaces rather than pushing into them.
 2. **Recruit:** follow locally sensed friendly food marks outward. Do not assume
    the oldest or strongest trail still reaches stocked food.
 3. **Return:** while carrying, navigate home and lay C. Nearby replicas can
@@ -77,7 +84,7 @@ learned, or recurrent:
    contact to protect their queen, food, and return paths. An observed enemy
    queen is a legitimate colony-ending target.
 
-The fruit patches advance through eight distributed sites as they regrow, and
+The fruit patches pop onto random unoccupied distributed sites as they regrow, and
 the mid-match wash deliberately destroys mature trails. Keep an exploration
 probability, recurrent uncertainty, or another recovery mechanism that can
 find newly stocked regions and rebuild information after tick 1800.

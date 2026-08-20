@@ -6,11 +6,11 @@ import
 
 const
   # The event-substrate fixture: a full 16-bot match recorded against the
-  # CURRENT gameplay rules (GameVersion 50, seed 908, lives 9:
+  # CURRENT gameplay rules (GameVersion 51, seed 908, lives 9:
   #   record_fixture.sh tests/replays/ctf.bitreplay 908 10000 \
   #     '{"lives":9,"carrierSpeedPct":1}')
-  # The GV50 take kept all three weapons (gun 74 / grenade 1 / spray 16,
-  # twelve steals and fifteen heals). GV50 also pins carrierSpeedPct=1:
+  # The GV51 take kept all three weapons (gun 67 / grenade 1 / spray 40,
+  # fourteen steals and fourteen heals). GV51 also pins carrierSpeedPct=1:
   # without it the current baseline captured after ~15 kills, before spray
   # and grenade coverage could develop. Seed 907 survived through GV45, but
   # five GV46 recordings of the corrected no-capture recipe had no grenade
