@@ -88,13 +88,13 @@ sees only nearby marks.*
 
 ## Published Coworld
 
-- Current hosted release: `emerg-ant:0.3.0`
-- Coworld ID: `cow_8da8a524-da76-42ec-92d5-d1141add7427`
+- Current hosted release: `emerg-ant:0.4.0`
+- Coworld ID: `cow_a72bd787-7374-40d7-a19c-4594e80f8aba`
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
-- v0.3 replay: [watch the certified learned-colony match](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_8da8a524-da76-42ec-92d5-d1141add7427/sha256%3A8d94af4f50c34a04d538c2dd5648540a37168fa4134e9fd868fc8e5c70fea378/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F8b842013-3750-422b-a9aa-a216ded202f3.replay&v=2)
+- v0.4 replay: [watch the stronger colonies explore distributed fruit](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_a72bd787-7374-40d7-a19c-4594e80f8aba/sha256%3Aeacc5405d50363ad03205044f16f792555da3235631de7d027726abb13567aa4/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F8778cccd-6d2c-43f7-8d70-23dbd36b526e.replay&v=2)
 
-This release passed every hosted certification step and five hosted smoke
-episodes.
+This release passed all ten executable certification checks locally and five
+hosted smoke episodes.
 
 ## Competition league
 
@@ -135,7 +135,7 @@ nim c -d:release -r tests/tests.nim
 
 ```bash
 uvx --from "coworld[auth]" coworld build \
-  --version 0.3.0 \
+  --version 0.4.0 \
   --project . \
   --compose compose.yaml \
   --template coworld_manifest.json \
