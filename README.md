@@ -92,12 +92,20 @@ sees only nearby marks.*
 
 ## Published Coworld
 
-- Current hosted release: `emerg-ant:0.5.0`
-- Coworld ID: `cow_7dc21b30-074f-47ce-b34d-b392bbde8e40`
+- Current hosted release: `emerg-ant:0.5.2`
+- Coworld ID: `cow_dd548037-fd81-4f5e-a4b9-64603f842ca8`
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
 
 This release passed all ten executable certification checks locally and five
 hosted smoke episodes.
+
+### Watch a complete colony lifecycle
+
+[Watch the 3,564-tick v0.5.2 replay in the Softmax Observatory](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_dd548037-fd81-4f5e-a4b9-64603f842ca8/sha256%3A1ea7c75eced41aa62315178fce4fd4d681fd7a72bb478afdc89311ec958fce6f/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F7c9f6240-bc96-4c54-b82a-93e23fe593df.replay&v=2).
+
+Red harvests and returns food at tick 1,147, causing its queen to hatch a
+ninth active policy. Fruit regrows and both colonies mount another foraging
+cycle before their queens starve and the colonies collapse at tick 3,563.
 
 ## Competition league
 
@@ -138,7 +146,7 @@ nim c -d:release -r tests/tests.nim
 
 ```bash
 uvx --from "coworld[auth]" coworld build \
-  --version 0.5.0 \
+  --version 0.5.2 \
   --project . \
   --compose compose.yaml \
   --template coworld_manifest.json \
