@@ -18,7 +18,7 @@ colony's fresh deposit erases opposing trail within 18 pixels.
   beginning—a queen and seven workers—and eight wait as dormant brood.
 - Each queen is a large, winged ant fixed at her glowing nest. She is alive,
   visible, and can bite enemies touching her, but cannot move.
-- Two neutral food patches begin at deterministic-random, walkable positions
+- Four neutral food patches begin at deterministic-random, walkable positions
   outside every nest. They are not owned by either colony.
 - Every living ant smells every loose patch: its observation includes the
   patch's map position even outside visual range. Scent does not solve the path;

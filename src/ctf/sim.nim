@@ -882,14 +882,14 @@ proc killPlayer*(
   sim.players[targetIndex].throwCharge = 0
   sim.players[targetIndex].hasBarrier = false  # carried cardboard is lost too.
   sim.players[targetIndex].puddleTicks = 0
-  for team in sim.teams():
-    if sim.flags[team].carrier == targetIndex:
+  for slot in sim.objectiveSlots():
+    if sim.flags[slot].carrier == targetIndex:
       sim.players[targetIndex].carryingFlag = false
       sim.logGameEvent(
         if sim.config.isEmergAnt(): "dropped food scattered into the field"
-        else: teamText(team) & " heart returned home"
+        else: teamText(slot) & " heart returned home"
       )
-      sim.resetFlag(team)
+      sim.resetFlag(slot)
   # Leave a cosmetic splatter at the death spot (never enters gameHash).
   sim.splatters.add SplatterFx(
     x: sim.players[targetIndex].x,
@@ -2240,7 +2240,7 @@ proc tryPickupFlags*(sim: var SimServer, playerIndex: int) =
     pickupRange =
       if sim.config.isEmergAnt(): FoodPickupRange else: FlagPickupRange
     rangeSq = pickupRange * pickupRange
-  for flagTeam in sim.teams():
+  for flagTeam in sim.objectiveSlots():
     if not sim.config.isEmergAnt() and
         flagTeam == sim.players[playerIndex].team:
       continue
@@ -2266,20 +2266,20 @@ proc updateFlags(sim: var SimServer) =
   ## Keeps each carried flag glued to its carrier; a carrier that stops
   ## carrying for any reason other than capture sends the flag straight back
   ## to its own pedestal.
-  for team in sim.teams():
-    let carrier = sim.flags[team].carrier
+  for slot in sim.objectiveSlots():
+    let carrier = sim.flags[slot].carrier
     if carrier < 0:
       continue
     if carrier < sim.players.len and sim.players[carrier].alive:
-      sim.flags[team].x = sim.players[carrier].x + CollisionW div 2
-      sim.flags[team].y = sim.players[carrier].y + CollisionH div 2
+      sim.flags[slot].x = sim.players[carrier].x + CollisionW div 2
+      sim.flags[slot].y = sim.players[carrier].y + CollisionH div 2
     else:
       # Carrier vanished; CTF returns home, food scatters to a new field spot.
       sim.logGameEvent(
         if sim.config.isEmergAnt(): "dropped food scattered into the field"
-        else: teamText(team) & " heart returned home"
+        else: teamText(slot) & " heart returned home"
       )
-      sim.resetFlag(team)
+      sim.resetFlag(slot)
 
 proc teamForageScore*(sim: SimServer, team: Team): int =
   ## Returns food delivered by one colony in Emerg-ant mode. Captures remain
@@ -3142,7 +3142,7 @@ proc checkEmergAntWinCondition(sim: var SimServer) =
   ## then immediately respawns elsewhere. All deliveries on this tick resolve
   ## before the goal check, so simultaneous finishes draw rather than inheriting
   ## enum/player processing order.
-  for foodSlot in sim.teams():
+  for foodSlot in sim.objectiveSlots():
     let carrierIndex = sim.flags[foodSlot].carrier
     if carrierIndex < 0 or carrierIndex >= sim.players.len or
         not sim.players[carrierIndex].alive:

@@ -449,12 +449,15 @@ proc removePlayerAt*(sim: var SimServer, playerIndex: int) =
   ## Removes one live player and keeps index-keyed state aligned.
   if playerIndex < 0 or playerIndex >= sim.players.len:
     return
-  for team in sim.teams():
-    if sim.flags[team].carrier == playerIndex:
-      sim.logGameEvent(teamText(team) & " heart returned home")
-      sim.resetFlag(team)
-    elif sim.flags[team].carrier > playerIndex:
-      dec sim.flags[team].carrier
+  for slot in sim.objectiveSlots():
+    if sim.flags[slot].carrier == playerIndex:
+      sim.logGameEvent(
+        if sim.config.isEmergAnt(): "dropped food scattered into the field"
+        else: teamText(slot) & " heart returned home"
+      )
+      sim.resetFlag(slot)
+    elif sim.flags[slot].carrier > playerIndex:
+      dec sim.flags[slot].carrier
   sim.players.delete(playerIndex)
   if playerIndex < sim.fovCaches.len:
     sim.fovCaches.delete(playerIndex)

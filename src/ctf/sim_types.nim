@@ -18,7 +18,17 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "55"  ## GV55 (colony viability): NO WORKERS MEANS NO COLONY.
+  GameVersion* = "56"  ## GV56 (abundant forage): FOUR SCENTS, FEWER FIGHTS.
+    ## Emerg-ant now keeps four neutral food patches loose on the field instead
+    ## of tying food abundance to the two competing teams. This gives every
+    ## worker several globally scented forage choices, reduces forced contests
+    ## over a single route, and makes food-funded brood visible much earlier in
+    ## a round. Previously GV55 exposed only two food patches, so all Emerg-ant
+    ## episode behavior and fixtures are obsolete. Claimed after scanning
+    ## origin on 2026-08-20: main used GV55 and no remote branch claimed GV56
+    ## or above.
+    ##
+    ## Previously GV55 (colony viability): NO WORKERS MEANS NO COLONY.
     ## Emerg-ant founders and newly hatched brood now land clear of every living
     ## body, so a worker cannot disappear under the stationary queen at the
     ## nest. After stored food gets its chance to hatch a reserve, a colony
@@ -1781,6 +1791,17 @@ proc teams*(gameMap: CtfMap): Slice[Team] =
 proc teams*(sim: SimServer): Slice[Team] =
   ## Returns the active teams in one game.
   sim.gameMap.teams()
+
+iterator objectiveSlots*(sim: SimServer): Team =
+  ## Enumerates live objective storage slots. CTF owns one flag per active
+  ## team; Emerg-ant repurposes all four enum-backed slots as neutral food so
+  ## a 1v1 colony duel has four simultaneous forage choices.
+  if sim.config.gameMode == EmergAntMode:
+    for slot in Team:
+      yield slot
+  else:
+    for team in sim.teams():
+      yield team
 
 
 proc teamText*(team: Team): string =

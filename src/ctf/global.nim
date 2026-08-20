@@ -4307,7 +4307,7 @@ proc addFlagSprites(
   ## Adds every active team's banner sprites (carried + big planted) plus
   ## carrier halos. The builders raster at the emission scale, so pass
   ## native = boardScale.
-  for team in sim.teams():
+  for team in sim.objectiveSlots():
     let foodMode = sim.config.isEmergAnt()
     packet.addBoardSpriteChanged(
       spriteDefs,
@@ -4822,9 +4822,9 @@ proc carriedFlagTeam(sim: SimServer, playerIndex: int): int =
   ## Returns the ordinal of the team flag this player is carrying, or -1 if the
   ## player carries no flag. (A carrier runs the ENEMY team's flag, so the glyph
   ## is colored for the flag it holds — not the carrier's own team.)
-  for team in sim.teams():
-    if sim.flags[team].carrier == playerIndex:
-      return ord(team)
+  for slot in sim.objectiveSlots():
+    if sim.flags[slot].carrier == playerIndex:
+      return ord(slot)
   -1
 
 const
@@ -6649,7 +6649,7 @@ proc buildSpriteProtocolPlayerUpdates*(
     # pedestal means the own flag is stolen); a carried flag rides its
     # carrier and is exactly as visible as that carrier. A retired heart
     # (GV32 capture or GV33 dead team) is out of play and never drawn.
-    for team in sim.teams():
+    for team in sim.objectiveSlots():
       let flag = sim.flags[team]
       if flag.captured:
         continue
@@ -7832,7 +7832,7 @@ proc buildSpriteProtocolUpdates*(
   # carrier, with a floor-glow halo under any carrier so the flag-runner reads
   # as the brightest figure on the board. A retired heart (GV32 capture or
   # GV33 dead team) is out of play and never drawn.
-  for team in sim.teams():
+  for team in sim.objectiveSlots():
     let
       flag = sim.flags[team]
       objectId = FlagObjectBase + ord(team)

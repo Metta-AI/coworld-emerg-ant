@@ -169,11 +169,11 @@ proc gameHash*(sim: SimServer): uint64 =
   result.mixHashBool(sim.isDraw)
   result.mixHashBool(sim.needsReregister)
   result.mixHashInt(sim.nextJoinOrder)
-  for team in sim.teams():
-    result.mixHashInt(sim.flags[team].x)
-    result.mixHashInt(sim.flags[team].y)
-    result.mixHashInt(sim.flags[team].carrier)
-    result.mixHashBool(sim.flags[team].captured)
+  for slot in sim.objectiveSlots():
+    result.mixHashInt(sim.flags[slot].x)
+    result.mixHashInt(sim.flags[slot].y)
+    result.mixHashInt(sim.flags[slot].carrier)
+    result.mixHashBool(sim.flags[slot].captured)
   if sim.config.isEmergAnt():
     for team in sim.teams():
       result.mixHashInt(sim.colonyFood[team])
@@ -536,10 +536,10 @@ proc foragePositionClear(sim: SimServer, x, y: int, slot: Team): bool =
     if zone.inCaptureZone(x, y) or
         distSq(x, y, nest.x, nest.y) < FoodSpawnNestClear * FoodSpawnNestClear:
       return false
-  for team in sim.teams():
-    if team == slot:
+  for otherSlot in sim.objectiveSlots():
+    if otherSlot == slot:
       continue
-    let other = sim.flags[team]
+    let other = sim.flags[otherSlot]
     if other.carrier < 0 and not other.captured and
         distSq(x, y, other.x, other.y) <
           FoodSpawnSeparation * FoodSpawnSeparation:
@@ -603,11 +603,12 @@ proc resetFlag*(sim: var SimServer, team: Team) =
     sim.flags[team] = FlagState(x: home.x, y: home.y, carrier: -1)
 
 proc resetFlags*(sim: var SimServer) =
-  ## Resets every active objective. Inactive slots
-  ## hold an explicit no-carrier state so nothing can misread the array's
-  ## zero value (carrier 0 would mean "player 0 carries it").
+  ## Resets every active objective. CTF uses one slot per active team;
+  ## Emerg-ant uses all four slots as neutral food. Inactive CTF slots hold an
+  ## explicit no-carrier state so nothing can misread the array's zero value
+  ## (carrier 0 would mean "player 0 carries it").
   for team in Team:
-    if team in sim.teams():
+    if sim.config.isEmergAnt() or team in sim.teams():
       sim.resetFlag(team)
     else:
       sim.flags[team] = FlagState(x: 0, y: 0, carrier: -1)

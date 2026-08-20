@@ -243,13 +243,16 @@ suite "Emerg-ant foraging":
   test "food starts reproducibly on open field away from every nest":
     var first = antGame()
     var second = antGame()
-    for foodSlot in first.teams():
+    var looseFood = 0
+    for foodSlot in first.objectiveSlots():
+      inc looseFood
       check first.flags[foodSlot].x == second.flags[foodSlot].x
       check first.flags[foodSlot].y == second.flags[foodSlot].y
       check first.canOccupy(first.flags[foodSlot].x, first.flags[foodSlot].y)
       for nest in first.teams():
         check not first.captureZone(nest).inCaptureZone(
           first.flags[foodSlot].x, first.flags[foodSlot].y)
+    check looseFood == 4
 
   test "every living ant smells loose food outside its field of view":
     var sim = antGame()

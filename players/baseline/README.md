@@ -12,7 +12,11 @@ thief hunting without any global tracking, and a turret controller that
 traverses the DECOUPLED aim angle onto targets and fires only when the bullet
 corridor covers them.
 
-All decision logic lives in `decide` in `baseline.nim`.
+All decision logic lives in `decide` in `baseline.nim`. In Emerg-ant mode,
+workers follow the globally visible food scent and switch to an unconditional
+return-to-queen route as soon as they are carrying. Carriers ignore nearby
+enemies and nest-traffic repulsion until delivery, because each returned food
+scores and hatches one dormant copy of the colony policy.
 
 ## View model (fog-of-war, full-map, map coordinates)
 

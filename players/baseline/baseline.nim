@@ -1509,6 +1509,9 @@ proc decideEmergAnt(
     if dist(client.mapPos(o), me) <= CarrySelfRadius:
       carrying = true
       break
+  let queen =
+    client.spriteObjectsWithLabel(labelQueenSelf(myColor, "left")).len > 0 or
+    client.spriteObjectsWithLabel(labelQueenSelf(myColor, "right")).len > 0
 
   var target: Vec
   if carrying:
@@ -1539,24 +1542,33 @@ proc decideEmergAnt(
         55.0 + float(row) * (float(MapH) - 110.0) / 3.0
       )
 
+  # Workers are dedicated foragers. Symmetric touch fights commonly trade both
+  # ants, while one food return scores and wakes a dormant colony copy. Only
+  # the immobile queen bites, and only when an enemy is already touching her.
+  # A carrier never abandons its delivery route for combat.
   var bite = false
-  var nearestEnemy = 1e18
-  for color in TeamColorNames:
-    if color == myColor:
-      continue
-    for enemy in client.actorsFor(color):
-      let d = dist(enemy.pos, me)
-      if d < nearestEnemy:
-        nearestEnemy = d
-        if d <= 18.0:
-          target = enemy.pos
-          bite = true
+  if queen and not carrying:
+    var nearestEnemy = 1e18
+    for color in TeamColorNames:
+      if color == myColor:
+        continue
+      for enemy in client.actorsFor(color):
+        let d = dist(enemy.pos, me)
+        if d < nearestEnemy:
+          nearestEnemy = d
+          if d <= 18.0:
+            target = enemy.pos
+            bite = true
 
   var steer = norm(bot.navSteer(client, me, target))
-  for mate in client.actorsFor(myColor):
-    let d = dist(mate.pos, me)
-    if d > 0.5 and d < MateSpacing:
-      steer = steer + norm(me - mate.pos) * 0.7
+  # Nest traffic is expected while delivering.  Repulsion is useful for
+  # outward search, but near the queen it could outweigh the final homeward
+  # step and leave a carrier orbiting just outside the scoring zone.
+  if not carrying:
+    for mate in client.actorsFor(myColor):
+      let d = dist(mate.pos, me)
+      if d > 0.5 and d < MateSpacing:
+        steer = steer + norm(me - mate.pos) * 0.7
   var moveMask = octantBits(steer)
 
   if dist(me, bot.lastPos) < 0.8:

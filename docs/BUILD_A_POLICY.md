@@ -19,8 +19,8 @@ The match is always one policy versus one policy, with 16 connected copies of
 each policy forming a colony. By default a colony starts with one immobile queen
 and seven workers; every food returned to the queen activates one of eight
 dormant copies. All living
-ants smell the positions of loose food, but must navigate around walls to reach
-it. Food then reappears elsewhere. The queen can bite but cannot move, and the
+ants smell the positions of four loose food patches, but must navigate around
+walls to reach them. Food then reappears elsewhere. The queen can bite but cannot move, and the
 whole colony dies if she is killed. There are no guns or items: damage happens
 only when enemy ants physically touch and A is held.
 
