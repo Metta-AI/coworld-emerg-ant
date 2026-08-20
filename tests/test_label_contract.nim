@@ -367,6 +367,40 @@ proc collectLabels(sim: var SimServer): HashSet[string] =
   sim.players[0].hasPlasmaArc = false
   result.absorb(sim.buildPlayerMessages(0, livingState))
 
+proc collectAntLabels(): HashSet[string] =
+  ## The CTF fixture above cannot emit the alternate colony observation
+  ## vocabulary. Exercise both queen POVs plus a carried food frame so labels
+  ## exact-scanned by an Emerg-ant policy are guarded by the same manifest.
+  var config = defaultGameConfig()
+  config.gameMode = EmergAntMode
+  config.slots.setLen(8)
+  var sim = initCtfForTest(config)
+  for i in 0 ..< 8:
+    discard sim.addPlayer("ant" & $i)
+  sim.startGame()
+  var
+    gstate = initGlobalViewerState()
+    redState: PlayerViewerState
+    blueState: PlayerViewerState
+    labels: HashSet[string]
+
+  proc absorb(messages: seq[SpritePacketMessage]) =
+    for message in messages:
+      if message.kind == spkSprite:
+        labels.incl(message.sprite.label.normalizeLabel())
+
+  absorb(sim.buildGlobalMessages(gstate))
+  absorb(sim.buildPlayerMessages(sim.queenIndex(Red), redState))
+  absorb(sim.buildPlayerMessages(sim.queenIndex(Blue), blueState))
+  let worker = 2
+  sim.flags[Blue].carrier = worker
+  sim.players[worker].carryingFlag = true
+  sim.flags[Blue].x = sim.players[worker].x + CollisionW div 2
+  sim.flags[Blue].y = sim.players[worker].y + CollisionH div 2
+  absorb(sim.buildGlobalMessages(gstate))
+  absorb(sim.buildPlayerMessages(sim.queenIndex(Red), redState))
+  result = labels
+
 suite "sprite label contract":
   test "the emitted label vocabulary matches tests/label_manifest.txt":
     var game = fullFeatureGame()
@@ -385,6 +419,8 @@ suite "sprite label contract":
     game = fullFeatureGame()
     var emitted = game.collectLabels()
     for label in emitted4:
+      emitted.incl(label)
+    for label in collectAntLabels():
       emitted.incl(label)
     # Trenches never appear in EITHER fixture above: the hand-authored
     # default arena ships none (see test_trenches.nim, "the default arena
@@ -493,7 +529,9 @@ neither failure surfaces until a league round comes back wrong.
     # exact match against a label the engine stopped emitting is the quietest
     # bug in the codebase, so assert the producer still emits each one.
     var game = fullFeatureGame()
-    let emitted = game.collectLabels()
+    var emitted = game.collectLabels()
+    for label in collectAntLabels():
+      emitted.incl(label)
     for wanted in PolicyScannedLabels:
       let pattern = wanted.normalizeLabel()
       if pattern notin emitted:

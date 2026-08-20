@@ -2,9 +2,7 @@
   "maxGames": 1,
   "gameMode": "emerg-ant",
   "forageGoal": 5,
-  "lives": 5,
   "hitPoints": 3,
-  "respawnTicks": 72,
   "fireCooldownTicks": 18,
   "carrierSpeedPct": 80,
   "playerBouncePct": 40,
@@ -147,9 +145,5 @@
       "color": "blue"
     }
   ],
-  "fireWindupTicks": 5,
-  "barrageMaxPerSec": 0,
-  "barrageStartPerSec": 4,
-  "barrageStartSec": 30,
-  "barrageSaturateSec": 30
+  "seed": 679961
 }

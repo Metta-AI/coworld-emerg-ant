@@ -523,6 +523,11 @@ proc validate(config: GameConfig) =
       "Config field gameMode must be " & CtfMode & " or " & EmergAntMode &
         "; got " & config.gameMode & "."
     )
+  if config.gameMode == EmergAntMode and config.teams != 2:
+    raise newException(
+      CtfError,
+      "Emerg-ant is always a 1v1 colony-policy match; teams must be 2."
+    )
   if config.forageGoal < 1:
     raise newException(CtfError, "Config field forageGoal must be at least 1.")
   for i, slot in config.slots:

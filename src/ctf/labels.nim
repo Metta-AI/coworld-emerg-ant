@@ -244,6 +244,13 @@ const
   LabelWeaponSpray* = "spray"
     ## Spray can. (0.7.x renamed the plasma arc, whose token was "arc"; the
     ## internal `hasPlasmaArc` field kept its name, the wire token did not.)
+  LabelWeaponMandibles* = "mandibles"
+    ## Emerg-ant contact-only attack token.
+  LabelFoodPatch* = "food patch"
+    ## One loose neutral food patch. In Emerg-ant every living ant receives
+    ## its position as scent, even when the patch is outside visual range.
+  LabelFoodCarried* = "food carried"
+    ## Neutral food riding a locally visible carrier.
   LabelTokenShield* = "shield"
     ## Optional identity-badge suffix: the wearer carries a shield.
   LabelTokenNade* = "nade"
@@ -285,6 +292,18 @@ proc labelCorpse*(color, side: string): string =
 proc labelSelf*(color, side: string): string =
   ## Your own avatar's sprite label, `self <color> <side>`.
   LabelPrefixSelf & color & " " & side
+
+proc labelQueen*(color, side: string): string =
+  ## A living Emerg-ant queen, `queen <color> <side>`.
+  "queen " & color & " " & side
+
+proc labelQueenCorpse*(color, side: string): string =
+  ## A killed Emerg-ant queen, `queen corpse <color> <side>`.
+  "queen corpse " & color & " " & side
+
+proc labelQueenSelf*(color, side: string): string =
+  ## The queen policy's own avatar, `self queen <color> <side>`.
+  "self queen " & color & " " & side
 
 proc labelSelectedPlayer*(color, side: string): string =
   ## The spectator-highlighted variant, `selected player <color> <side>`.
@@ -429,8 +448,7 @@ proc labelOwnAim*(brads: int): string =
   LabelPrefixOwnAim & $brads
 
 proc labelWeapon*(token: string): string =
-  ## The own-weapon HUD label, `weapon <token>` — LabelWeaponGun or
-  ## LabelWeaponSpray.
+  ## The own-attack HUD label, `weapon <token>` — gun, spray, or mandibles.
   LabelPrefixWeapon & token
 
 proc labelCogWeapon*(color: string; spray: bool): string =
@@ -523,10 +541,21 @@ const PolicyScannedLabels* = [
   labelSelf("red", LabelSideLeft),
   labelSelf("blue", LabelSideRight),
   labelSelf("blue", LabelSideLeft),
+  labelQueen("red", LabelSideRight),
+  labelQueen("red", LabelSideLeft),
+  labelQueen("blue", LabelSideRight),
+  labelQueen("blue", LabelSideLeft),
+  labelQueenSelf("red", LabelSideRight),
+  labelQueenSelf("red", LabelSideLeft),
+  labelQueenSelf("blue", LabelSideRight),
+  labelQueenSelf("blue", LabelSideLeft),
   labelCorpse("red", LabelSideRight),
   labelCorpse("red", LabelSideLeft),
   labelCorpse("blue", LabelSideRight),
   labelCorpse("blue", LabelSideLeft),
+  LabelFoodPatch,
+  LabelFoodCarried,
   labelWeapon(LabelWeaponGun),
-  labelWeapon(LabelWeaponSpray)
+  labelWeapon(LabelWeaponSpray),
+  labelWeapon(LabelWeaponMandibles)
 ]

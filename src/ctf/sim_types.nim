@@ -18,7 +18,20 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "52"  ## GV52 (pre-NAnts restoration): RETURN TO THE CACHE RAID.
+  GameVersion* = "53"  ## GV53 (colony rule): SMELL FOOD; FEED THE QUEEN; GROW.
+    ## Emerg-ant is a 1v1 policy duel over neutral food at deterministic-random
+    ## walkable field positions. Loose food is globally sensed as scent while
+    ## ants and terrain remain local. Each colony begins with one immobile,
+    ## crown-and-wings queen plus one worker; each delivery feeds the queen and
+    ## wakes one dormant copy of that entrant's policy. Queen death collapses
+    ## the colony. Every round has one winner: tied finishes compare food,
+    ## living ants, colony health, and contact kills, then seed parity. Guns,
+    ## projectiles, pickups, barriers, and barrage are absent; same-tick
+    ## mandible damage is simultaneous and requires physical contact.
+    ## Claimed after scanning origin on 2026-08-20: main used GV52 and no remote
+    ## branch claimed GV53 or above.
+    ##
+    ## Previously GV52 (pre-NAnts restoration): RETURN TO THE CACHE RAID.
     ## Restores the complete pre-NAnts game snapshot from commit a292bf5:
     ## replenishing enemy food caches, public pheromone trails, contact combat,
     ## and fixed colonies without queens, brood, global food odor, or neural
@@ -487,6 +500,21 @@ const
   CtfMode* = "ctf"
   EmergAntMode* = "emerg-ant"
   DefaultForageGoal* = 5       ## returned enemy food caches needed to win.
+  FoodPickupRange* = 16        ## touch radius for a wild food patch. Derived
+                               ## from the rendered 20px FoodPatchSize: its
+                               ## 10px half-extent plus PlayerHalf means a
+                               ## touching ant footprint collects it.
+  FoodSpawnMargin* = 28        ## minimum map-edge inset for random food.
+  FoodSpawnNestClear* = 96     ## food never appears inside/against a nest.
+  FoodSpawnSeparation* = 80    ## distinct loose patches do not overlap.
+  FoodSpawnAttempts* = 512     ## bounded random placement before scan fallback.
+  ContactAttackRange* = PlayerSolidSpan + 1
+                               ## centers at this Chebyshev distance have
+                               ## adjacent/touching solid footprints; farther
+                               ## ants cannot damage one another.
+  ContactAttackDamage* = 1     ## one hp per mandible strike.
+  InitialAntsPerColony* = 2    ## one fixed queen + one founding forager.
+  BroodFoodCost* = 1           ## every delivered food hatches one reserve ant.
   PheromoneStepTicks* = 24     ## a moving ant deposits at most once per second.
   PheromoneLifetimeTicks* = 24 * 30  ## public trail memory lasts 30 seconds.
   PheromoneEraseRadius* = 18   ## opposing deposits this close neutralize.
@@ -1661,6 +1689,8 @@ type
                                ## pre-barrier builds.
     pheromones*: seq[PheromoneMark] ## emerg-ant shared environmental memory;
                                ## empty and un-hashed in ordinary CTF.
+    colonyFood*: array[Team, int] ## delivered food waiting when brood is full.
+    queenSlot*: array[Team, int] ## stable queen join slot; -1 means queenless.
 
 
 # Team endzone display colors (shared by the map bake and the paint FX).

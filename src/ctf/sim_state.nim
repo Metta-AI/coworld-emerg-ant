@@ -175,6 +175,9 @@ proc gameHash*(sim: SimServer): uint64 =
     result.mixHashInt(sim.flags[team].carrier)
     result.mixHashBool(sim.flags[team].captured)
   if sim.config.isEmergAnt():
+    for team in sim.teams():
+      result.mixHashInt(sim.colonyFood[team])
+      result.mixHashInt(sim.queenSlot[team])
     result.mixHashInt(sim.pheromones.len)
     for mark in sim.pheromones:
       result.mixHashInt(mark.x)
@@ -490,8 +493,69 @@ proc emitPickup*(
     item = item
   )
 
+proc foragePositionClear(sim: SimServer, x, y: int, slot: Team): bool =
+  ## Whether a neutral Emerg-ant food patch may appear at this point. Food is
+  ## field state, never a nest fixture: it must fit an ant footprint on floor,
+  ## stay outside every capture zone and nest halo, and not overlap another
+  ## loose patch or a living ant.
+  if not sim.canOccupy(x, y):
+    return false
+  for team in sim.teams():
+    let
+      zone = sim.captureZone(team)
+      nest = sim.gameMap.flagHome(team)
+    if zone.inCaptureZone(x, y) or
+        distSq(x, y, nest.x, nest.y) < FoodSpawnNestClear * FoodSpawnNestClear:
+      return false
+  for team in sim.teams():
+    if team == slot:
+      continue
+    let other = sim.flags[team]
+    if other.carrier < 0 and not other.captured and
+        distSq(x, y, other.x, other.y) <
+          FoodSpawnSeparation * FoodSpawnSeparation:
+      return false
+  for player in sim.players:
+    if player.alive and
+        max(abs(x - player.x), abs(y - player.y)) <=
+          ContactAttackRange + FoodPickupRange:
+      return false
+  true
+
+proc randomForagePosition*(sim: var SimServer, slot: Team): tuple[x, y: int] =
+  ## Draws a deterministic random field position for one food slot. The slots
+  ## are implementation identities only: every patch is neutral and either
+  ## colony may collect it. A complete scan fallback makes placement total on
+  ## hand-authored maps even if the bounded random draws are unlucky.
+  let
+    xLo = FoodSpawnMargin
+    xHi = MapWidth - 1 - FoodSpawnMargin
+    yLo = FoodSpawnMargin
+    yHi = MapHeight - 1 - FoodSpawnMargin
+  for _ in 0 ..< FoodSpawnAttempts:
+    let
+      x = xLo + sim.rng.rand(max(0, xHi - xLo))
+      y = yLo + sim.rng.rand(max(0, yHi - yLo))
+    if sim.foragePositionClear(x, y, slot):
+      return (x, y)
+  # Team ordinal rotates the deterministic scan start so multiple fallback
+  # slots do not all ask for the same first cell.
+  let span = max(1, (xHi - xLo + 1) * (yHi - yLo + 1))
+  let start = ord(slot) * 104729 mod span
+  for offset in 0 ..< span:
+    let
+      flat = (start + offset) mod span
+      x = xLo + flat mod (xHi - xLo + 1)
+      y = yLo + flat div (xHi - xLo + 1)
+    if sim.foragePositionClear(x, y, slot):
+      return (x, y)
+  # Every shipped map has ample validated field floor. Preserve a total return
+  # for malformed test maps without inventing an out-of-bounds position.
+  sim.nearestWalkable(sim.gameMap.center.x, sim.gameMap.center.y)
+
 proc resetFlag*(sim: var SimServer, team: Team) =
-  ## Returns one team's flag to its home pedestal.
+  ## Returns one CTF flag home, or respawns one neutral Emerg-ant food patch
+  ## at a fresh field position.
   # A flag leaving an enemy's back mid-game (death, disconnect — any reason
   # other than capture) is a FlagReturn analysis event; the pedestal resets
   # at game boundaries are not (phase guard).
@@ -502,11 +566,15 @@ proc resetFlag*(sim: var SimServer, team: Team) =
       x = float(sim.flags[team].x),
       y = float(sim.flags[team].y)
     )
-  let home = sim.gameMap.flagHome(team)
-  sim.flags[team] = FlagState(x: home.x, y: home.y, carrier: -1)
+  if sim.config.isEmergAnt():
+    let food = sim.randomForagePosition(team)
+    sim.flags[team] = FlagState(x: food.x, y: food.y, carrier: -1)
+  else:
+    let home = sim.gameMap.flagHome(team)
+    sim.flags[team] = FlagState(x: home.x, y: home.y, carrier: -1)
 
 proc resetFlags*(sim: var SimServer) =
-  ## Returns every active team's flag to its home pedestal. Inactive slots
+  ## Resets every active objective. Inactive slots
   ## hold an explicit no-carrier state so nothing can misread the array's
   ## zero value (carrier 0 would mean "player 0 carries it").
   for team in Team:

@@ -17,11 +17,10 @@ Sprite v1 reserves player-input bit `7` ("must be sent as 0"). CTF assigns it:
 | `7` | `0x80` (128) | C button — hold to charge a grenade throw, release to throw |
 
 Send it in the standard `0x84` Player Input bitmask alongside the Sprite v1
-bits (d-pad, Select, A, B). A player that never sets bit 7 can still move,
-shoot, and win — but cannot throw a carried grenade. See `RULES.md`, section
-*Grenades*, for the charge/release mechanics. (The spray can is not thrown:
-carrying one turns the normal trigger into the paint cone; C keeps throwing a
-carried grenade.)
+bits (d-pad, Select, A, B). In `ctf`, C charges/releases a carried grenade; see
+`RULES.md`, section *Grenades*. In `emerg-ant`, there are no carried items and C
+is inert. A is level-triggered in Emerg-ant: hold it while physically touching
+an enemy to repeat a mandible strike whenever the attack cooldown clears.
 
 ## Player Ready (`0x85`) is supported — but do NOT send it in league play
 
@@ -39,6 +38,18 @@ champion (p=0.0039). Send `0x85` only when you know the server is in fast
 mode (fixture recording); competitive clients should not send it at all. The
 reference implementation gates it behind `CTF_BOT_FAST_READY=1`
 (`players/baseline/baseline.nim`, `fastReadyEnabled`).
+
+## Emerg-ant observation additions
+
+Loose food uses the exact label `food patch`. Every living ant receives those
+objects even outside its visual field: this is scent, not vision. Other ants
+remain fog-culled. A carried patch uses `food carried` and follows the visible
+carrier.
+
+Workers retain `player <color> <side>` and `self <color> <side>`. Queens use
+`queen <color> <side>` and `self queen <color> <side>` so a policy can identify
+and defend the reproductive center. Queen input receives observations normally,
+but movement is ignored; A can still bite an enemy in physical contact.
 
 ## Your own aim: read the `own aim` marker; dead-reckon between frames
 

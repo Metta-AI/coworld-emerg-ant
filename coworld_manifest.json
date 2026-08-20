@@ -13,7 +13,7 @@
     "replay_viewer": {
       "bundle": "static-replay-viewer"
     },
-    "description": "Emerg-ant is a competitive 8v8 colony-foraging Coworld. Ants raid a replenishing enemy food cache, return food to their nest, and coordinate through public pheromone trails that rival colonies can cancel or erase. First to five returns wins; a unique score leader wins when the clock expires.",
+    "description": "Emerg-ant is a 1v1 artificial-life colony duel. Each policy starts as a fixed winged queen and one worker; every ant smells randomly replenishing neutral food, and each delivery to the queen hatches another connected copy of that policy. Public pheromones provide shared environmental memory. There are no guns or items: rivals fight only by physical contact, and killing a queen collapses her colony.",
     "owner": "treeform@softmax.com",
     "runnable": {
       "type": "game",
@@ -139,7 +139,7 @@
           "default": 3
         },
         "hitPoints": {
-          "description": "Hit points per life. Each shot removes one; at zero you die.",
+          "description": "Hit points per life. In Emerg-ant each touching mandible strike removes one; at zero the ant dies.",
           "type": "integer",
           "minimum": 1,
           "default": 3
@@ -151,19 +151,19 @@
           "default": 72
         },
         "gunRange": {
-          "description": "Maximum hitscan gun range in pixels.",
+          "description": "CTF-only maximum hitscan gun range. Ignored in Emerg-ant, which has no ranged attacks.",
           "type": "integer",
           "minimum": 1,
           "default": 1300
         },
         "fireCooldownTicks": {
-          "description": "Minimum ticks between shots (~0.5s at 24 ticks/s).",
+          "description": "Minimum ticks between attacks. In Emerg-ant this is the cooldown between physical mandible strikes.",
           "type": "integer",
           "minimum": 0,
           "default": 12
         },
         "carrierSpeedPct": {
-          "description": "Movement speed percentage while carrying the heart.",
+          "description": "Movement speed percentage while carrying food (or a heart in CTF mode).",
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
@@ -241,13 +241,13 @@
           "default": 16
         },
         "fireWindupTicks": {
-          "description": "Ticks from trigger pull to the shot releasing (~0.2s at 24 ticks/s). Aim locks at the pull; a peeking target can duck back behind cover before the bullet leaves.",
+          "description": "CTF-only ticks from trigger pull to the shot releasing. Ignored in Emerg-ant, which has no ranged attacks.",
           "type": "integer",
           "minimum": 0,
           "default": 5
         },
         "teams": {
-          "description": "Active team count: 2 (classic sides) or 4 (corner/plus free-for-all).",
+          "description": "Active team count. CTF supports 2 or 4; emerg-ant requires 2 and is always a 1v1 policy match.",
           "type": "integer",
           "enum": [
             2,
@@ -277,7 +277,7 @@
           "default": "classic"
         },
         "gameMode": {
-          "description": "Objective ruleset. ctf is single-capture elimination; emerg-ant is a repeated food-return race with public, erasable pheromone trails.",
+          "description": "Objective ruleset. ctf is single-capture elimination. emerg-ant is a 1v1 colony duel with globally scented random food, one fixed queen plus one initial worker, one hatched reserve per delivery, queen-death collapse, public erasable pheromones, no items or ranged attacks, and touch-only combat.",
           "type": "string",
           "enum": [
             "ctf",
@@ -286,7 +286,7 @@
           "default": "ctf"
         },
         "forageGoal": {
-          "description": "Emerg-ant food returns needed for a colony win. A unique score leader wins when the clock expires.",
+          "description": "Emerg-ant food deliveries needed for a colony win. Every round has one winner; tied finishes compare food, living ants, colony health, contact kills, then replay-seed parity.",
           "type": "integer",
           "minimum": 1,
           "default": 5
@@ -424,14 +424,14 @@
           }
         },
         "barrierPickups": {
-          "description": "Cardboard-barrier pickups per team, staged between base and center. A carried barrier places with the grenade button as a standing half-hex that blocks paint but not sight, takes 10 paintball hits, and is flattened by any cog that drives into it; carrying one excludes carrying a grenade. 0 disables the item (the default).",
+          "description": "CTF-only cardboard-barrier pickups per team. Ignored in Emerg-ant, where all items are absent.",
           "type": "integer",
           "minimum": 0,
           "maximum": 2,
           "default": 0
         },
         "barrageMaxPerSec": {
-          "description": "Grenade-barrage endgame: the launch rate the bombardment ramps up to, in grenades/second across the whole board. 0 disables the mode; requires maxTicks > 0 when set. With the barrage on, the time limit no longer ends the game — it plays past 0:00 under full bombardment until one team is wiped.",
+          "description": "CTF-only grenade-barrage endgame rate. Ignored in Emerg-ant, where grenades and ranged damage are absent.",
           "type": "integer",
           "minimum": 0,
           "maximum": 50,
@@ -522,7 +522,7 @@
           }
         },
         "captures": {
-          "description": "One heart-capture count per player slot.",
+          "description": "One objective-delivery count per player slot (food deliveries in Emerg-ant, heart captures in CTF).",
           "type": "array",
           "minItems": 1,
           "maxItems": 32,
@@ -586,7 +586,7 @@
     {
       "id": "emerg-ant",
       "name": "Emerg-ant Foraging",
-      "description": "Sixteen ants in two rival colonies raid replenishing food caches and coordinate through public pheromone trails. First colony to five returns wins; a unique score leader wins at the clock.",
+      "description": "One policy faces one policy, with eight connected copies available to each colony. A winged queen and one worker begin alive. Every ant smells randomly replenishing food; each delivery hatches one reserve. Rival ants fight only by touching, and queen death collapses the colony. Every round has one winner; tied finishes use food, living ants, health, kills, then replay-seed parity.",
       "game_config": {
         "players": [
           {
@@ -642,12 +642,8 @@
         "minPlayers": 16,
         "gameMode": "emerg-ant",
         "forageGoal": 5,
-        "lives": 5,
         "hitPoints": 3,
-        "respawnTicks": 72,
-        "gunRange": 1050,
         "fireCooldownTicks": 18,
-        "fireWindupTicks": 5,
         "carrierSpeedPct": 80,
         "aimTurnRate": 5,
         "visionConeDeg": 60,
@@ -655,13 +651,13 @@
         "startWaitTicks": 120,
         "gameOverTicks": 360,
         "maxTicks": 3600,
+        "barrageMaxPerSec": 0,
         "maxGames": 1,
         "mapPath": "arena",
         "showPlayerLabels": true,
         "teams": 2,
         "scoring": "classic",
-        "lobbyJoinTimeoutTicks": 2880,
-        "barrageMaxPerSec": 0
+        "lobbyJoinTimeoutTicks": 2880
       }
     }
   ],
@@ -771,12 +767,8 @@
       "minPlayers": 16,
       "gameMode": "emerg-ant",
       "forageGoal": 1,
-      "lives": 1,
       "hitPoints": 1,
-      "respawnTicks": 72,
-      "gunRange": 1050,
       "fireCooldownTicks": 18,
-      "fireWindupTicks": 5,
       "carrierSpeedPct": 80,
       "aimTurnRate": 5,
       "visionConeDeg": 60,
@@ -790,7 +782,6 @@
       "teams": 2,
       "scoring": "classic",
       "lobbyJoinTimeoutTicks": 2880,
-      "barrageMaxPerSec": 0,
       "seed": 679961
     }
   }

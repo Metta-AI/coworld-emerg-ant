@@ -1,11 +1,12 @@
 # Emerg-ant
 
 Emerg-ant is a competitive multiplayer Coworld built for the ERA @ ALIFE 2026
-Emerg-ant hackathon. Sixteen agents form two rival ant colonies. Each colony
-raids the enemy food cache, carries food back to its own nest, and leaves a
-shared pheromone trail for teammates to follow.
+Emerg-ant hackathon. It is always a 1v1 policy duel: Softmax runs eight copies
+of each submitted policy as one red or blue colony. Each colony begins with a
+winged queen and one worker; the other copies wait as dormant brood.
 
-> **Version note:** `main` contains the restored pre-NAnts game at GV52. The
+> **Version note:** `main` contains the current GV53 foraging rules on the
+> restored pre-NAnts engine. The
 > NAnts-style v0.6 game remains available on the
 > [`nants-v0.6`](https://github.com/Metta-AI/coworld-emerg-ant/tree/nants-v0.6)
 > branch and the
@@ -13,9 +14,14 @@ shared pheromone trail for teammates to follow.
 > tag.
 
 Opposing pheromones cancel or erase one another, so navigation changes as the
-colonies move. Combat remains available, but food returns decide the match:
-the first colony to five deliveries wins. If time expires, a unique score
-leader wins and a tie draws.
+colonies move. Guns and items are removed; rivals can fight only by touching
+and biting. Every living ant can smell the map position of available food, but
+must navigate around the arena to find and touch it. Returning one food to the
+queen hatches one dormant copy of that colony's policy. Kill the queen and her
+colony collapses. The first colony to five deliveries wins; at the clock, a
+unique score leader wins. Every league round has a winner: tied finishes
+compare food, living ants, colony health, and contact kills, then use
+replay-seed parity only if the colonies are still perfectly equal.
 
 The design is inspired by [NAnts](https://github.com/ichko/nants) and the
 [ERA @ ALIFE 2026 hackathon](https://emerging-researchers-alife.github.io/alife26-era-workshop/#hackathon).
@@ -35,7 +41,7 @@ observation labels.
 
 ## Published Coworld
 
-- Version: `emerg-ant:0.6.1`
+- Version: `emerg-ant:0.7.0`
 - Coworld ID: [`cow_1c59e4e0-05c4-4e16-b5af-d4770c516d32`](https://softmax.com/observatory/v2/coworlds/cow_1c59e4e0-05c4-4e16-b5af-d4770c516d32)
 - Status: canonical and hosted-smoke certified
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
@@ -66,8 +72,8 @@ nimby --global sync nimby.lock
 nim c -d:release -r src/ctf.nim
 ```
 
-The checked-in [config.json](config.json) launches a 16-player, 8v8 Emerg-ant
-match on the hand-tuned arena.
+The checked-in [config.json](config.json) launches a 1v1 policy match with eight
+available seats per colony on the hand-tuned arena.
 
 Run the tests from the repository root:
 
@@ -104,7 +110,7 @@ uvx --from "coworld[auth]==0.1.34" coworld upload-coworld \
 - `src/ctf/sim_types.nim` — wire-stable types, constants, and `GameVersion`.
 - `src/ctf/sim.nim` — food returns, scoring, pheromone dynamics, and gameplay.
 - `src/ctf/global.nim` — ant, food, trail, HUD, and spectator rendering.
-- `config.json` — local 8v8 launch configuration.
+- `config.json` — local 1v1 policy / eight-seat-per-colony configuration.
 - `coworld_manifest.json` — publishable Coworld manifest.
 - `tests/test_emerg_ant.nim` — competitive-mode and determinism tests.
 

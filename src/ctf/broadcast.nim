@@ -465,19 +465,32 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
         float(other.x + CollisionW div 2),
         float(other.y + CollisionH div 2),
         other.hp,
-        other.carryingFlag
+        other.carryingFlag,
+        if sim.config.isEmergAnt():
+          %*{"ant": true, "queen": sim.isQueen(j)}
+        else:
+          nil
       )
-    # Hearts on their pedestals are billboards; a carried heart rides its
-    # carrier (already drawn as that player, tagged carry), so skip it here.
-    # A retired heart (GV32 capture or GV33 dead team) is out of play and
-    # never drawn.
+    # Loose objectives are fog-honest billboards. In Emerg-ant they are neutral
+    # food patches rather than team-owned hearts; a carried patch rides its ant
+    # (already drawn as that player, tagged carry), so skip it here.
     for team in sim.teams():
       if sim.flags[team].carrier >= 0 or sim.flags[team].captured:
         continue
       if not sim.flagVisibleTo(playerIndex, team):
         continue
       let f = sim.flags[team]
-      addEnt("heart", teamText(team), float(f.x), float(f.y), -1, false)
+      # Scent belongs on the tactical map / policy observation, not as an
+      # x-ray 3D billboard through stone. The raycast view draws a food body
+      # only when the ant can also see that point conventionally.
+      if sim.config.isEmergAnt() and
+          not sim.fovVisibleAt(playerIndex, f.x, f.y):
+        continue
+      addEnt(
+        (if sim.config.isEmergAnt(): "food" else: "heart"),
+        (if sim.config.isEmergAnt(): "" else: teamText(team)),
+        float(f.x), float(f.y), -1, false
+      )
 
     # Battlefield pickups the seat can see: corner grenades, center med kits,
     # endzone shields, spray cans. Each renders as a labelled item billboard.
@@ -581,6 +594,8 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
     "alive": selfAlive,
     "team": teamText(self.team),
     "carry": self.carryingFlag,
+    "ant": sim.config.isEmergAnt(),
+    "queen": sim.config.isEmergAnt() and sim.isQueen(playerIndex),
     "items": carriedItems,
     # Tick of the seat's latest PAINT hit — every weapon in the game throws
     # paint (gun, grenade, spray can), so all three stamp it. The client fires
@@ -588,31 +603,37 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
     "paintTick": self.paintHitTick
   }
 
-  # Un-fogged tactical map: EVERY player, both hearts, and all present pickups in
-  # world coordinates, plus this seat's position + aim + cone geometry. This is
-  # the omniscient spectator layer (NOT fog-honest, by design) so the viewer sees
-  # where the EYES strip is looking and standing. The strip's `ents` above stay
-  # fog-limited; this `map.here` marks the POV and its vision wedge.
+  # Tactical map plus this seat's position + aim + cone geometry. Ordinary CTF
+  # keeps its historical omniscient spectator map. Emerg-ant instead lists only
+  # locally sensed ants and food, so the POV inset honestly demonstrates the
+  # search problem a submitted policy faces.
   var mapPlayers = newJArray()
   for j in 0 ..< sim.players.len:
     let p = sim.players[j]
     if not p.alive:
+      continue
+    if sim.config.isEmergAnt() and j != playerIndex and
+        not sim.playerVisibleTo(playerIndex, j):
       continue
     mapPlayers.add(%*{
       "x": p.x + CollisionW div 2,
       "y": p.y + CollisionH div 2,
       "team": teamText(p.team),
       "self": j == playerIndex,
-      "carry": p.carryingFlag
+      "carry": p.carryingFlag,
+      "queen": sim.config.isEmergAnt() and sim.isQueen(j)
     })
   var mapHearts = newJArray()
   for team in sim.teams():
+    if sim.config.isEmergAnt() and not sim.flagVisibleTo(playerIndex, team):
+      continue
     mapHearts.add(%*{
       "x": sim.flags[team].x,
       "y": sim.flags[team].y,
       "team": teamText(team),
       "carried": sim.flags[team].carrier >= 0,
-      "captured": sim.flags[team].captured
+      "captured": sim.flags[team].captured,
+      "food": sim.config.isEmergAnt()
     })
   var mapItems = newJArray()
   proc addMapItem(kind: string, spawn: PickupSpawn) =
@@ -633,7 +654,8 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
       "aim": self.aimBrads,
       "coneDeg": sim.config.visionConeDeg,
       "bubble": sim.config.visionBubble,
-      "alive": selfAlive
+      "alive": selfAlive,
+      "queen": sim.config.isEmergAnt() and sim.isQueen(playerIndex)
     },
     "players": mapPlayers,
     "hearts": mapHearts,

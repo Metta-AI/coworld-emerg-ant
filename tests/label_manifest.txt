@@ -31,6 +31,8 @@ endzone <color> power <n> band <n>
 fire icon
 fire icon cooldown
 fog
+food carried
+food patch
 game teams <n> map <n>x<n>
 grenade
 grenade air
@@ -42,6 +44,7 @@ hit splat <color> stage <n>
 hp <n>/<n>
 hp <n>/<n> shield <n>
 identity <color> <name> gun
+identity <color> <name> mandibles
 identity <color> <name> nade gun
 identity <color> <name> shield gun
 identity <color> <name> spray
@@ -51,6 +54,8 @@ map
 map band <n>
 med kit
 muzzle bloom stage <n>
+name ant<n>
+name ant<n> flag <n>
 name p<n>
 name p<n> flag <n>
 own aim <n>
@@ -58,13 +63,19 @@ paint stain <color> variant <n>
 perks <color> -
 perks <color> armor,scope mods hp <n> aim <n> nade <n> spd <n> luck <n> dmg <n>
 perks <color> grenade thruster,luck mods hp <n> aim <n> nade <n> spd <n> luck <n> dmg <n>
+pheromone <color> food
+pheromone <color> scout
 player <color>
 player <color> <side>
 puddle <n>,<n> <n>,<n>
+queen <color> <side>
+queen corpse <color> <side>
+score ant<n> <n> color <n>
 score p<n> <n> color <n>
 score pip <color>
 selected player <color> <side>
 self <color> <side>
+self queen <color> <side>
 shield
 shield carried
 shot head <color> stage <n>
@@ -75,11 +86,14 @@ spray can
 spray can carried
 spray paint puff
 team score BLUE <n>/1
+team score BLUE FOOD <n>/5
 team score GREEN <n>/0
 team score RED <n>/0
+team score RED FOOD <n>/5
 team score YELLOW <n>/0
 throw target
 trench <n>,<n> <n>,<n>
 walkability map
 weapon gun
+weapon mandibles
 weapon spray

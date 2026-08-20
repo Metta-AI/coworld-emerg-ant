@@ -161,6 +161,42 @@ suite "first-person picture-in-picture":
         check e["d"].getInt() > 0
     check found
 
+  test "Emerg-ant POV separates visual food from global scent and marks queens":
+    var config = defaultGameConfig()
+    config.gameMode = EmergAntMode
+    config.visionBubble = 0
+    var game = initCtfForTest(config)
+    let
+      red = game.addPlayer("red-ant")
+      blue = game.addPlayer("blue-ant")
+    game.startGame()
+    game.players[red].team = Red
+    game.players[blue].team = Blue
+    game.players[red].placeAtCenter(180, MapHeight div 2)
+    game.players[red].aimBrads = 0
+    game.players[blue].placeAtCenter(60, MapHeight div 2)
+    game.flags[Red].carrier = -1
+    game.flags[Red].x = 220
+    game.flags[Red].y = MapHeight div 2
+    game.flags[Blue].carrier = -1
+    game.flags[Blue].x = 140
+    game.flags[Blue].y = MapHeight div 2
+    discard game.refreshPlayerFov(red)
+
+    let fp = game.fpFrame(game.players[red].joinOrder)
+    var visibleFood = 0
+    for e in fp["ents"]:
+      if e["k"].getStr() == "food":
+        inc visibleFood
+        check e["team"].getStr() == ""
+    check visibleFood == 1
+    check fp["map"]["hearts"].len == 2
+    check fp["map"]["hearts"][0]["food"].getBool()
+    check fp["map"]["players"].len == 1
+    check fp["self"]["ant"].getBool()
+    check fp["self"]["queen"].getBool()
+    check fp["map"]["players"][0]["queen"].getBool()
+
   test "a dead viewer sees walls but no live entities in the inset":
     var game = initCtfForTest(defaultGameConfig())
     let

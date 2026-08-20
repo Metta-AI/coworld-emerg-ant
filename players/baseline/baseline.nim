@@ -602,10 +602,10 @@ proc findSelf(
     client: ProtocolClient, color: string): tuple[alive: bool, pos: Vec] =
   ## Our avatar via the distinct self marker, only drawn while we are alive.
   for facingRight in [true, false]:
-    let label = labelSelf(
-      color, if facingRight: LabelSideRight else: LabelSideLeft)
-    for o in client.spriteObjectsWithLabel(label):
-      return (alive: true, pos: client.mapPos(o))
+    let side = if facingRight: LabelSideRight else: LabelSideLeft
+    for label in [labelSelf(color, side), labelQueenSelf(color, side)]:
+      for o in client.spriteObjectsWithLabel(label):
+        return (alive: true, pos: client.mapPos(o))
 
 proc actorsFor(client: ProtocolClient, color: string): seq[Actor] {.measure.} =
   ## Visible players of one color in map coordinates plus horizontal facing
@@ -613,10 +613,10 @@ proc actorsFor(client: ProtocolClient, color: string): seq[Actor] {.measure.} =
   ## its player, so whenever the player is visible its hp is too: attach the
   ## nearest pip bar within HpPipRadius.
   for facingRight in [true, false]:
-    let label = labelPlayer(
-      color, if facingRight: LabelSideRight else: LabelSideLeft)
-    for o in client.spriteObjectsWithLabel(label):
-      result.add(Actor(pos: client.mapPos(o), facingRight: facingRight))
+    let side = if facingRight: LabelSideRight else: LabelSideLeft
+    for label in [labelPlayer(color, side), labelQueen(color, side)]:
+      for o in client.spriteObjectsWithLabel(label):
+        result.add(Actor(pos: client.mapPos(o), facingRight: facingRight))
   for (o, label) in client.spriteObjectsWithLabelPrefix(LabelPrefixHp):
     # `hp <hp>/<max>[ shield <s>]` — TRUE hit points since the bar redesign:
     # the numerator is the seat's remaining base hp against its OWN max (the
@@ -1497,6 +1497,96 @@ proc friendlyBlocked(bot: Bot, me, aim: Vec, enemyDist: float): bool =
       return true
   false
 
+proc decideEmergAnt(
+  bot: Bot, client: ProtocolClient, me: Vec, myColor: string
+): uint8 =
+  ## Compact search/forage controller for the packaged certification policy.
+  ## It uses only the same local Sprite observations available to entrants:
+  ## neutral-food scent, carried-food markers, visible ants, and the static
+  ## walkability map. No fixed food coordinate or hidden path state leaks in.
+  var carrying = false
+  for o in client.spriteObjectsWithLabel(LabelFoodCarried):
+    if dist(client.mapPos(o), me) <= CarrySelfRadius:
+      carrying = true
+      break
+
+  var target: Vec
+  if carrying:
+    target = flagHome(bot.team)
+  else:
+    let foods = client.spriteObjectsWithLabel(LabelFoodPatch)
+    if foods.len > 0:
+      target = client.mapPos(foods[0])
+      var best = dist(target, me)
+      for i in 1 ..< foods.len:
+        let
+          p = client.mapPos(foods[i])
+          d = dist(p, me)
+        if d < best:
+          best = d
+          target = p
+    else:
+      # Boustrophedon sector sweep. Seats start at different phase offsets, so
+      # a colony covers the field instead of forming one ball. The target
+      # advances every ten seconds even if another ant blocks the exact point.
+      let
+        phase = ((bot.tick - bot.gameStart) div 240 + bot.slot * 3) mod 24
+        row = phase div 6
+        rawCol = phase mod 6
+        col = if row mod 2 == 0: rawCol else: 5 - rawCol
+      target = vec(
+        70.0 + float(col) * (float(MapW) - 140.0) / 5.0,
+        55.0 + float(row) * (float(MapH) - 110.0) / 3.0
+      )
+
+  var bite = false
+  var nearestEnemy = 1e18
+  for color in TeamColorNames:
+    if color == myColor:
+      continue
+    for enemy in client.actorsFor(color):
+      let d = dist(enemy.pos, me)
+      if d < nearestEnemy:
+        nearestEnemy = d
+        if d <= 18.0:
+          target = enemy.pos
+          bite = true
+
+  var steer = norm(bot.navSteer(client, me, target))
+  for mate in client.actorsFor(myColor):
+    let d = dist(mate.pos, me)
+    if d > 0.5 and d < MateSpacing:
+      steer = steer + norm(me - mate.pos) * 0.7
+  var moveMask = octantBits(steer)
+
+  if dist(me, bot.lastPos) < 0.8:
+    inc bot.stuckTicks
+  else:
+    bot.stuckTicks = 0
+  bot.lastPos = me
+  if bot.stuckTicks > 20:
+    bot.stuckTicks = 0
+    bot.navGoal = -1
+    moveMask = octantBits(vec(rand(-1.0 .. 1.0), rand(-1.0 .. 1.0)))
+    if moveMask == 0:
+      moveMask = ButtonUp
+
+  let desiredAim = bradsOf(if len(steer) > 0.1: steer else: target - me)
+  let err = bradsErr(desiredAim, bot.estAim)
+  var mask = moveMask
+  if err > CruiseDeadband:
+    mask = mask or ButtonB
+    bot.rotSign = 1
+  elif err < -CruiseDeadband:
+    mask = mask or ButtonSelect
+    bot.rotSign = -1
+  else:
+    bot.rotSign = 0
+  if bite:
+    mask = mask or ButtonA
+  bot.firedLast = bite
+  mask
+
 proc decide(bot: Bot, client: ProtocolClient): uint8 {.measure.} =
   ## Core CTF policy for one frame.
   when defined(statue):
@@ -1549,6 +1639,9 @@ proc decide(bot: Bot, client: ProtocolClient): uint8 {.measure.} =
   let statedAim = client.ownAimBrads()
   if statedAim >= 0:
     bot.estAim = statedAim
+  if client.spriteObjectsWithLabel(
+      labelWeapon(LabelWeaponMandibles)).len > 0:
+    return bot.decideEmergAnt(client, me, myColor)
   # Plasma arcs and shields share the endzone back columns (inset 50)
   # but are vertically SEPARATED: spray cans in the top half (quarter height),
   # shields in the bottom half (three-quarter height). Seed the spots up

@@ -91,8 +91,8 @@ Per-map descriptor `CtfMap` [sim_types.nim:733](../src/ctf/sim_types.nim#L733) c
 
 | Field | Type / default | Bounds | Effect |
 |---|---|---|---|
-| `teams` | int / `2` | must be `2` or `4` | Active team count: 2 (classic sides) or 4 (corners/plus FFA). |
-| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective rules and actor art. Emerg-ant turns hearts into replenishing food caches and enables public pheromone trails. |
+| `teams` | int / `2` | must be `2` or `4`; Emerg-ant requires `2` | Active team count. CTF supports 2 classic sides or 4 corners/plus FFA; Emerg-ant is always a 1v1 policy duel. |
+| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective/combat/item rules and actor art. Emerg-ant globally scents random neutral food, starts one queen + one worker per colony, hatches a reserve per delivery, enables public pheromones, disables every item/ranged path, and turns A into contact-only mandibles. |
 | `forageGoal` | int / `5` | `>=1` | Emerg-ant food returns needed for a colony win; inert in CTF mode. |
 | `minPlayers` | int / `16` | `1..32` | Players required to start; effectively sets roster size on open join. |
 | `closedRoster` | bool / `false` | needs ≥`minPlayers` named+tokened slots | Fixed named roster vs open join. |
@@ -159,14 +159,15 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 
 | Item | Count | Key consts (sim_types.nim) |
 |---|---|---|
-| Flags/hearts or food caches | 1 per active team | `FlagPickupRange`=34 (covers either 60px objective), `CaptureZoneWidth`=40, `PedestalCoverSize`=96; Emerg-ant caches replenish after delivery |
-| Grenades | exactly 4 corner pickups | `GrenadeRespawnTicks`=120, `GrenadeChargeTicks`=24, `GrenadeBlastRadius`=52, `GrenadeDamage`=2, `GrenadeTrenchDamage`=6, max throw = `MapWidth/5` |
-| Med kits | 2 (sides) / up to 4 (4-team) | `MedKitPickupRange`=12, `MedKitRespawnTicks`=720 |
-| Shields | 1 per team endzone | `ShieldRespawnTicks`=720, `ShieldLayerHp`=3, `ShieldFireSlowdown`=3 |
-| Plasma arcs (spray) | 1 per team endzone | `PlasmaArcRespawnTicks`=720, `PlasmaArcReach`=5, `PlasmaArcDamage`=3 |
+| Flags/hearts or food patches | 1 storage slot per active team | CTF: `FlagPickupRange`=34, `CaptureZoneWidth`=40, `PedestalCoverSize`=96. Emerg-ant slots are neutral and use `FoodPickupRange`=16 against `FoodPatchSize`=20; placement uses `FoodSpawnMargin`=28, `FoodSpawnNestClear`=96, `FoodSpawnSeparation`=80, and `FoodSpawnAttempts`=512 before a deterministic scan fallback. A delivered/dropped patch respawns somewhere new. |
+| Active ants / brood | 2 initially per Emerg-ant colony | `InitialAntsPerColony`=2 (one fixed queen + one worker); `BroodFoodCost`=1. Each delivery activates one connected dormant seat while available. Queen death eliminates the whole colony. |
+| Grenades | exactly 4 corner pickups in CTF; 0 in Emerg-ant | `GrenadeRespawnTicks`=120, `GrenadeChargeTicks`=24, `GrenadeBlastRadius`=52, `GrenadeDamage`=2, `GrenadeTrenchDamage`=6, max throw = `MapWidth/5` |
+| Med kits | 2 (sides) / up to 4 (4-team) in CTF; 0 in Emerg-ant | `MedKitPickupRange`=12, `MedKitRespawnTicks`=720 |
+| Shields | 1 per team endzone in CTF; 0 in Emerg-ant | `ShieldRespawnTicks`=720, `ShieldLayerHp`=3, `ShieldFireSlowdown`=3 |
+| Plasma arcs (spray) | 1 per team endzone in CTF; 0 in Emerg-ant | `PlasmaArcRespawnTicks`=720, `PlasmaArcReach`=5, `PlasmaArcDamage`=3 |
 | Trenches | via `mapGen.pits`/`pitDensity` | `TrenchSize`=56, `TrenchSpeedDivisor`=5, `TrenchFireSlowdown`=3, `TrenchMissPct`=70 |
 | Paint puddles | via `mapGen.puddles` (`mapPuddles`) | `PuddleSize`=64, `PuddleRollTicks`=24, `DefaultPuddleDamagePct`=20 (config `puddleDamagePct`), `MaxPuddles`=64 |
-| Cardboard barriers | via `barrierPickups` (per team) | `BarrierHp`=10, `BarrierRadius`=24, `BarrierHalfThick`=2, `BarrierRespawnTicks`=720, `MaxBarriersPlaced`=16 ([sim_types.nim](../src/ctf/sim_types.nim)) |
+| Cardboard barriers | via `barrierPickups` (per team) in CTF; 0 in Emerg-ant | `BarrierHp`=10, `BarrierRadius`=24, `BarrierHalfThick`=2, `BarrierRespawnTicks`=720, `MaxBarriersPlaced`=16 ([sim_types.nim](../src/ctf/sim_types.nim)) |
 | Pheromone marks | up to 512 in Emerg-ant mode | `PheromoneStepTicks`=24, `PheromoneLifetimeTicks`=720, `PheromoneEraseRadius`=18, `MaxPheromoneMarks`=512 |
 
 To vary item counts today: change `teams` (scales per-team items), change `mapGen`
@@ -180,7 +181,7 @@ pits (trenches), or edit the per-map spawn lists / consts in code.
 |---|---|---|---|---|
 | `scoring` | string / `"classic"` | `scoring` | `"classic"` or `"pot"` | Reward rule: classic (+1 win / −1 loss) vs pot (ante/pot split). |
 | `gameMode` | string / `"ctf"` | `gameMode` | `"ctf"` or `"emerg-ant"` | CTF capture/elimination or repeated competitive foraging. |
-| `forageGoal` | int / `5` | `forageGoal` | `>=1` | First colony to this many food returns wins; at the clock, a unique score leader wins. |
+| `forageGoal` | int / `5` | `forageGoal` | `>=1` | First colony to this many food returns wins. Tied finishes use food, living ants, health, kills, then seed parity; Emerg-ant never draws. |
 | `maxTicks` | int / `7200` (5:00) | `maxGameTicks` | `>=0` | Scheduled game end (0 = unlimited); with the barrage on it is not a hard end. |
 | `gameOverTicks` | int / `360` | | `>=0` | End-screen dwell ticks. |
 | `maxGames` | int / `0` | | `>=0` | Games before server stops (0 = unlimited). |
@@ -193,8 +194,10 @@ Reward consts: `WinReward`=+1, `LossReward`=−1, `TimeoutReward`=−1 (draw pen
 GV41 removed the action-floor overtime: the clock never extends, and a game with
 the barrage configured ignores `maxTicks` entirely (it ends only on capture/wipe). Win logic:
 capturing a heart eliminates that team; last team standing wins; 2-team ends on
-the first capture. In Emerg-ant mode a returned food cache immediately replenishes,
-the forage goal wins, and tied simultaneous goal finishes or tied clocks draw.
+the first capture. In Emerg-ant mode a returned neutral food patch immediately
+replenishes at a new random walkable field position,
+the forage goal wins. Emerg-ant always names one winner: ties compare forage
+score, living ants, total health, contact kills, then replay-seed parity.
 
 ---
 
@@ -203,15 +206,16 @@ the forage goal wins, and tied simultaneous goal finishes or tied clocks draw.
 | Field | Type / default | Bounds | Effect |
 |---|---|---|---|
 | `lives` | int / `3` | `>=1` | Respawns per player before permanent death. |
-| `hitPoints` | int / `3` | `>=1` | Hits to kill. |
+| `hitPoints` | int / `3` | `>=1` | Damage to kill. Emerg-ant mandibles deal `ContactAttackDamage`=1 per strike. |
 | `respawnTicks` | int / `72` (~3s) | `>=0` | Delay before respawning at home. |
-| `gunRange` | int / `1050` px | `>0` | Gun reach; also drives aim-jitter sigma. Falls back to map's `gunRange` if omitted. |
-| `fireCooldownTicks` | int / `12` (~0.5s) | `>=0` | Ticks between shots. |
-| `fireWindupTicks` | int / `5` (~0.2s) | `>=0` | Trigger-pull-to-shot delay; aim locks at pull. |
-| `carrierSpeedPct` | int / `70` | `1..100` | Flag/heart carrier movement speed %. |
+| `gunRange` | int / `1050` px | `>0` | CTF gun reach; ignored in Emerg-ant. |
+| `fireCooldownTicks` | int / `12` (~0.5s) | `>=0` | Ticks between CTF shots or Emerg-ant contact strikes. |
+| `fireWindupTicks` | int / `5` (~0.2s) | `>=0` | CTF trigger-pull-to-shot delay; ignored in Emerg-ant. |
+| `carrierSpeedPct` | int / `70` | `1..100` | Objective-carrier movement speed %. |
 
-Non-config envelope consts (change in code): `BulletHalfWidth`=8.0,
-`AimJitterCentralZ`=1.2815516, `CarrierFireSlowdown`=3.
+Non-config envelope consts (change in code): CTF `BulletHalfWidth`=8.0,
+`AimJitterCentralZ`=1.2815516, `CarrierFireSlowdown`=3; Emerg-ant
+`ContactAttackRange`=`PlayerSolidSpan + 1` and `ContactAttackDamage`=1.
 
 ---
 

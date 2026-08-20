@@ -1,8 +1,13 @@
 # Coworld CTF — Game Rules
 
 > The supplied `config.json` runs the competitive **Emerg-ant** foraging mode.
-> Its objective and pheromone rules are in [EMERG_ANT.md](EMERG_ANT.md); all
-> unchanged movement, combat, fog, and item rules are defined below.
+> Its complete mode overrides are in [EMERG_ANT.md](EMERG_ANT.md): food appears
+> at changing field locations and is globally sensed as scent; a fixed winged
+> queen hatches one reserve ant per returned food, and queen death collapses the
+> colony. All guns, projectiles, pickups, barriers, and barrage mechanics below
+> are disabled; A deals one damage only while two enemy ant bodies touch. The
+> remaining sections document the still-available `ctf` mode and shared
+> movement/fog behavior.
 
 Coworld CTF is a two-team capture-the-heart shooter for the Coworld platform. Two
 teams start on opposite edges of a symmetric arena, each with its own heart on a

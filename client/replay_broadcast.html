@@ -2553,7 +2553,8 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     for (var j = 0; j < ents.length; j++) {
       var e = ents[j];
       var ed = Math.max(4, e.d);
-      var worldH = (e.k === 'item' || e.k === 'heart') ? FPV_COG_H * 0.55 : FPV_COG_H;
+      var worldH = (e.k === 'item' || e.k === 'heart' || e.k === 'food')
+        ? FPV_COG_H * 0.55 : FPV_COG_H * (e.queen ? 1.18 : 1);
       var figH = projH(worldH, ed);
       // Screen-x from the true view angle: o∈[-1,1] maps across ±halfFov, and the
       // horizontal position is PROJ*tan(angle) — matched to the wall projection.
@@ -2733,6 +2734,30 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       ctx.fillStyle = AMBER;
       ctx.beginPath(); ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
+    ctx.restore();
+  }
+
+  // Neutral seed/fruit cluster used by Emerg-ant. It deliberately has no team
+  // tint: the enum slot that stores a patch is not ownership, and either colony
+  // may collect it.
+  function drawFoodGlyph(ctx, cx, cy, r, dim) {
+    dim = dim == null ? 1 : dim;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.45, dim);
+    ctx.lineWidth = Math.max(1, r * 0.1);
+    ctx.strokeStyle = 'rgba(12,8,5,0.9)';
+    [[-0.34, 0.12, 0.34], [0.02, -0.18, 0.42], [0.35, 0.16, 0.3]].forEach(function (seed) {
+      ctx.fillStyle = seed[0] < 0 ? '#d9a441' : '#edc75e';
+      ctx.beginPath();
+      ctx.arc(cx + seed[0] * r, cy + seed[1] * r, seed[2] * r, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    });
+    ctx.strokeStyle = '#5d8b46';
+    ctx.lineWidth = Math.max(1, r * 0.13);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r * 0.45);
+    ctx.quadraticCurveTo(cx + r * 0.16, cy - r * 0.82, cx + r * 0.48, cy - r * 0.72);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -3016,6 +3041,15 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       ctx.restore();
       return;
     }
+    if (e.k === 'food') {
+      var fs = figH * 0.82;
+      drawFoodGlyph(ctx, cx, feetY - fs * 0.45, fs, dim);
+      return;
+    }
+    if (e.ant) {
+      drawFpvAnt(ctx, e, cx, feetY, figH, figW, col, dim);
+      return;
+    }
     var enemy = e.k === 'enemy';
     var feet = feetY;
     var top = feet - figH;
@@ -3093,7 +3127,8 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
         ctx.fill();
       }
     }
-    // carrier heart above the head
+    // Carried objective above the head. In Emerg-ant the same amber marker
+    // reads as gathered food; no team tint implies ownership.
     if (e.carry) {
       ctx.fillStyle = AMBER;
       ctx.strokeStyle = 'rgba(12,8,5,0.85)';
@@ -3101,6 +3136,107 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       var chs = figH * 0.2;
       heartPath(ctx, cx, top - chs * (enemy ? 1.6 : 0.7), chs);
       ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Head-on ant billboard for Emerg-ant. Queens use a larger abdomen, pale
+  // wings, and a gold crown band; workers share the same three-segment body,
+  // antennae, and six contact legs used by the top-down board art.
+  function drawFpvAnt(ctx, e, cx, feet, figH, figW, col, dim) {
+    var enemy = e.k === 'enemy';
+    var queen = !!e.queen;
+    var ink = shade('#241d1f', dim);
+    var top = feet - figH;
+    var bodyW = figW * (queen ? 0.68 : 0.56);
+    var abdomenY = top + figH * 0.68;
+    var thoraxY = top + figH * 0.47;
+    var headY = top + figH * 0.27;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    ctx.beginPath();
+    ctx.ellipse(cx, feet, bodyW * 0.7, figH * 0.055, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (queen) {
+      ctx.fillStyle = 'rgba(244,224,170,' + (0.46 * dim).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.ellipse(cx - bodyW * 0.48, top + figH * 0.51,
+        bodyW * 0.38, figH * 0.22, -0.34, 0, Math.PI * 2);
+      ctx.ellipse(cx + bodyW * 0.48, top + figH * 0.51,
+        bodyW * 0.38, figH * 0.22, 0.34, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = Math.max(1.2, figH * 0.035);
+    for (var li = 0; li < 3; li++) {
+      var ly = top + figH * (0.39 + li * 0.14);
+      var reach = bodyW * (0.74 + li * 0.09);
+      ctx.beginPath();
+      ctx.moveTo(cx - bodyW * 0.18, ly);
+      ctx.lineTo(cx - reach * 0.62, ly + figH * (li - 1) * 0.035);
+      ctx.lineTo(cx - reach, ly + figH * 0.12);
+      ctx.moveTo(cx + bodyW * 0.18, ly);
+      ctx.lineTo(cx + reach * 0.62, ly + figH * (li - 1) * 0.035);
+      ctx.lineTo(cx + reach, ly + figH * 0.12);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = col;
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = Math.max(1, figH * 0.025);
+    ctx.beginPath();
+    ctx.ellipse(cx, abdomenY, bodyW * (queen ? 0.53 : 0.43),
+      figH * (queen ? 0.25 : 0.21), 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(cx, thoraxY, bodyW * 0.34, figH * 0.14, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(cx, headY, bodyW * 0.39, figH * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(cx - bodyW * 0.18, headY - figH * 0.09);
+    ctx.lineTo(cx - bodyW * 0.52, top + figH * 0.02);
+    ctx.moveTo(cx + bodyW * 0.18, headY - figH * 0.09);
+    ctx.lineTo(cx + bodyW * 0.52, top + figH * 0.02);
+    ctx.stroke();
+
+    if (queen) {
+      ctx.strokeStyle = shade('#ffdb4a', dim);
+      ctx.lineWidth = Math.max(1.4, figH * 0.045);
+      ctx.beginPath();
+      ctx.moveTo(cx - bodyW * 0.28, abdomenY - figH * 0.04);
+      ctx.lineTo(cx + bodyW * 0.28, abdomenY - figH * 0.04);
+      ctx.stroke();
+      ctx.fillStyle = shade('#ffdb4a', dim);
+      ctx.beginPath();
+      ctx.moveTo(cx - bodyW * 0.24, headY - figH * 0.11);
+      ctx.lineTo(cx - bodyW * 0.11, headY - figH * 0.20);
+      ctx.lineTo(cx, headY - figH * 0.12);
+      ctx.lineTo(cx + bodyW * 0.11, headY - figH * 0.20);
+      ctx.lineTo(cx + bodyW * 0.24, headY - figH * 0.11);
+      ctx.closePath(); ctx.fill();
+    }
+
+    if (enemy && typeof e.hp === 'number') {
+      var pips = Math.min(6, e.hp);
+      for (var p = 0; p < pips; p++) {
+        ctx.fillStyle = RED;
+        ctx.beginPath();
+        ctx.arc(cx - (pips - 1) * figH * 0.035 + p * figH * 0.07,
+          top - figH * 0.03, Math.max(1, figH * 0.022), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (e.carry) {
+      drawFoodGlyph(ctx, cx + bodyW * 0.58, top + figH * 0.18,
+        figH * 0.18, dim);
     }
     ctx.restore();
   }
@@ -3319,10 +3455,14 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       ctx.restore();
     }
 
-    // hearts (behind players)
+    // objectives (behind players): team hearts in CTF, neutral food in Emerg-ant
     (m.hearts || []).forEach(function (ht) {
-      var col = teamCol(ht.team) || AMBER;
       var hx = px(ht.x), hy = py(ht.y);
+      if (ht.food) {
+        drawFoodGlyph(ctx, hx, hy, Math.max(3, H * 0.05), 1);
+        return;
+      }
+      var col = teamCol(ht.team) || AMBER;
       ctx.save();
       ctx.fillStyle = col;
       ctx.strokeStyle = 'rgba(12,8,5,0.8)';
@@ -3353,6 +3493,21 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       ctx.lineWidth = 1;
       ctx.strokeStyle = 'rgba(12,8,5,0.85)';
       ctx.stroke();
+      if (p.queen) {
+        ctx.strokeStyle = 'rgba(244,224,170,0.9)';
+        ctx.lineWidth = Math.max(1, H * 0.012);
+        ctx.beginPath();
+        ctx.ellipse(x, y, r * 1.65, r * 0.8, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#ffdb4a';
+        ctx.beginPath();
+        ctx.moveTo(x - r * 0.7, y - r * 1.1);
+        ctx.lineTo(x - r * 0.25, y - r * 1.7);
+        ctx.lineTo(x, y - r * 1.15);
+        ctx.lineTo(x + r * 0.25, y - r * 1.7);
+        ctx.lineTo(x + r * 0.7, y - r * 1.1);
+        ctx.closePath(); ctx.fill();
+      }
       if (p.self) {
         ctx.strokeStyle = AMBER;
         ctx.lineWidth = Math.max(1, H * 0.02);
