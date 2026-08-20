@@ -22,10 +22,11 @@ block generated_checkpoint_matches_json:
   doAssert checkpoint["output_size"].getInt == AntOutputSize
   doAssert checkpoint["metadata"]["slot_feature"].getBool == false
   doAssert checkpoint["metadata"]["reinforce_updates"].getInt > 0
+  doAssert checkpoint["metadata"]["selected_reinforce_update"].getInt > 0
   let
     evaluation = checkpoint["metadata"]["evaluation"]
     deliveryFraction = evaluation["episodes_with_delivery_fraction"].getFloat
-  doAssert deliveryFraction > 0.0
+  doAssert deliveryFraction >= 0.9
 
   var input: AntInput
   for i in 0 ..< AntInputSize:
@@ -58,3 +59,14 @@ block categorical_turns_are_replay_deterministic:
   input[scalarIndex(2)] = -0.7           # wake behind
   let random = [0.125'f32, 0.5'f32, 0.875'f32]
   doAssert sampleAntAction(input, random) == sampleAntAction(input, random)
+
+block expected_steering_preserves_task_direction:
+  var homing: AntInput
+  homing[scalarIndex(0)] = 1.0
+  homing[scalarIndex(2)] = 0.8
+  homing[scalarIndex(4)] = 0.8
+  doAssert steerAntAction(homing).move == AntMoveForward
+
+  var foodRight: AntInput
+  foodRight[featureIndex(2, 3, 3)] = 1.0
+  doAssert steerAntAction(foodRight).move == AntMoveRight

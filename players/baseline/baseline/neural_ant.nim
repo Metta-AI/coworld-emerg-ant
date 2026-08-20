@@ -18,7 +18,7 @@ const
   AntHiddenSize* = CheckpointHiddenSize
   AntOutputSize* = 14
   AntCheckpointName* = CheckpointName
-  AntSamplingTemperature* = 0.5'f32
+  AntSamplingTemperature* = 0.35'f32
 
   AntMoveStay* = 0
   AntMoveForward* = 1
@@ -71,6 +71,53 @@ proc chooseAntAction*(input: AntInput): AntDecision =
   ## heads; deployment takes their maxima for reproducible replay bytes.
   let logits = inferAnt(input)
   result.move = logits.argmax(0, 9)
+  result.mark = logits.argmax(9, 12) - 9
+  result.bite = logits.argmax(12, 14) == 13
+
+proc steerAntAction*(input: AntInput): AntDecision =
+  ## Convert the learned movement distribution into its circular mean. The
+  ## old deployment sampled a fresh octant every 24 Hz, so even a strong
+  ## preference for forward motion became a diffusive random walk. Expected
+  ## steering preserves uncertainty as a smooth heading while keeping turns,
+  ## pheromone choice, and contact attack entirely network-derived.
+  let logits = inferAnt(input)
+  var peak = logits[0]
+  for i in 1 ..< 9:
+    peak = max(peak, logits[i])
+  var
+    total = 0.0'f32
+    forward = 0.0'f32
+    side = 0.0'f32
+  for i in 0 ..< 9:
+    let weight = exp((logits[i] - peak) / AntSamplingTemperature)
+    total += weight
+    case i
+    of AntMoveForward: forward += weight
+    of AntMoveForwardRight:
+      forward += weight * 0.70710677'f32
+      side += weight * 0.70710677'f32
+    of AntMoveRight: side += weight
+    of AntMoveBackRight:
+      forward -= weight * 0.70710677'f32
+      side += weight * 0.70710677'f32
+    of AntMoveBack: forward -= weight
+    of AntMoveBackLeft:
+      forward -= weight * 0.70710677'f32
+      side -= weight * 0.70710677'f32
+    of AntMoveLeft: side -= weight
+    of AntMoveForwardLeft:
+      forward += weight * 0.70710677'f32
+      side -= weight * 0.70710677'f32
+    else: discard
+  forward /= total
+  side /= total
+  if hypot(forward, side) < 0.08'f32:
+    result.move = AntMoveStay
+  else:
+    var octant = int(round(arctan2(side, forward) / (PI.float32 / 4.0'f32))) mod 8
+    if octant < 0:
+      octant += 8
+    result.move = 1 + octant
   result.mark = logits.argmax(9, 12) - 9
   result.bite = logits.argmax(12, 14) == 13
 

@@ -8,7 +8,7 @@ player. `train.py` emits two representations of the same checkpoint:
 - `../baseline/baseline/neural_ant_checkpoint.nim`: generated constants linked
   into the dependency-free tournament binary.
 
-The model is a 182→24→14 tanh MLP shared by every ant. Its input is a rotated
+The model is a 182→48→14 tanh MLP shared by every ant. Its input is a rotated
 5×5×7 patch plus carry state, bite readiness, displacement from the body's own
 wake point, distance from that point, and a sine/cosine clock. Output heads are
 movement (9), pheromone (3), and bite (2). The model never receives the seat,
@@ -25,9 +25,10 @@ nim c -d:release -r tests/test_neural_ant_policy.nim
 
 The default run is deterministic with seed `260819`. It performs local-sensor
 curriculum initialization and 20 REINFORCE updates in a compact two-colony
-transfer world. The world includes finite food, return-to-wake delivery,
+transfer world. The world includes distributed fruit, return-to-wake delivery,
 two-channel pheromones, decay, a mid-episode wash, mirrored obstacles, and
-contact attacks. `--smoke` checks the pipeline quickly without replacing the
+contact attacks. Deterministic evaluation every five updates retains the best
+checkpoint, preventing late policy-gradient regression. `--smoke` checks the pipeline quickly without replacing the
 published files if `--output` and `--nim-output` point to temporary paths.
 
 The JSON checkpoint records the transfer evaluation. It is a sanity check for
@@ -45,6 +46,10 @@ v0.2 handwritten ablation as Blue, accelerates one 16-vs-16 episode, and saves
 a normal replay plus server log. Swap the final arguments or run several seeds
 before drawing a performance conclusion. The ablation is selected only by the
 process environment variable `EMERG_ANT_POLICY=heuristic`; neural is default.
+
+Set `SEED`, `MAX_TICKS`, and `WASH_TICK` to run reproducible multi-seed
+gauntlets. The checked-in policy delivered fruit on pinned full-engine seeds
+101, 202, 303, and 404; seed 404 required the longer 2400-tick horizon.
 
 The most informative measurements are discovery time, food deliveries,
 distance traveled per delivery, deposits by channel, recovery time after the

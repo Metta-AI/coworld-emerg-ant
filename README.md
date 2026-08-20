@@ -7,15 +7,16 @@ neutral food, coordinate through locally sensed pheromones, recover after rain
 erases the shared trail field, and attack enemies only through physical
 contact.
 
-The v0.3 package keeps the v0.2 ecology and replaces its scripted starter with
-a learned NAnts-style controller. One shared 182→24→14 MLP is copied into all
+The current source extends the v0.2 ecology and replaces its scripted starter with
+a stronger NAnts-style controller. One shared 182→48→14 MLP is copied into all
 16 bodies. Each copy sees only a rotated 5×5 local patch, carried-food and bite
-state, displacement from its own wake point, and a clock. Discrete turns are
-sampled from the learned policy with a replay-deterministic private random
-stream. There is no slot feature, absolute position, predefined nest location,
-pathfinder, global live-resource feed, or cross-container communication.
+state, displacement from its own wake point, and a private-phase clock. Learned
+movement distributions become smooth expected steering for food and homing;
+uncued ants use a wake-seeded correlated random walk and local collision escape.
+There is no slot feature, absolute position, predefined nest location, pathfinder,
+global live-resource feed, or cross-container communication.
 
-Read the [complete v0.2 rules](docs/EMERG_ANT.md) or
+Read the [complete v0.4 rules](docs/EMERG_ANT.md) or
 [build a colony policy](docs/BUILD_A_POLICY.md).
 
 ## What to present at the hackathon
@@ -45,7 +46,7 @@ This is now substantively NAnts-like, while not claiming to be a fork:
 | --- | --- |
 | shared neural rule across ants | the same checked-in MLP across 16 containers |
 | local patch + wake displacement + clock | rotated 5×5×7 patch + the same private scalars |
-| sampled left/straight/right turn | sampled stay/eight-way turn, pheromone, and bite heads |
+| sampled left/straight/right turn | learned eight-way steering, pheromone, and bite heads |
 | learned writes and turns | learned scout/food deposits, movement, and contact attack |
 | one colony on a wrapping cellular field | two adversarial colonies in a physical arena |
 
@@ -65,11 +66,12 @@ nim c -d:release -r tests/test_neural_ant_policy.nim
 ```
 
 Training begins with a varied local-sensor curriculum, then uses REINFORCE in
-a two-colony transfer world containing food, carrying, trail decay, a wash,
-mirrored obstacles, and contact attacks. The checked-in seed-260819 run used 20
-policy-gradient updates; its reproducible 32-episode evaluation delivered food
-in 50% of episodes. A subsequent full-engine 16-vs-16 smoke ended with a
-learned colony returning food to its nest. See [players/neural](players/neural/README.md) for the
+a two-colony transfer world containing distributed fruit, carrying, trail decay,
+a wash, mirrored obstacles, and contact attacks. Evaluation selects the best
+self-play checkpoint instead of blindly keeping the final update. The checked-in
+seed-260819 run delivered fruit in all 32 deterministic evaluation episodes,
+averaging 5.125 deliveries. Four pinned full-engine 16-vs-16 seeds all harvested
+and returned fruit. See [players/neural](players/neural/README.md) for the
 checkpoint contract and experiment commands.
 
 ## Gameplay images
@@ -152,7 +154,7 @@ uvx --from "coworld[auth]" coworld upload-coworld \
 
 ## Architecture
 
-- `src/ctf/sim_types.nim` — replay contract, v0.2 constants, and `GameVersion`.
+- `src/ctf/sim_types.nim` — replay contract, Emerg-ant constants, and `GameVersion`.
 - `src/ctf/sim.nim` — neutral food, scoring, explicit trails, wash, and bites.
 - `src/ctf/global.nim` — ant/food/trail rendering and local observations.
 - `players/baseline/baseline/neural_ant.nim` — shared MLP inference and turns.

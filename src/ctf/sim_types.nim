@@ -18,7 +18,18 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "46"  ## GV46 (Emerg-ant spawn rule): WAKE INSIDE THE NEST.
+  GameVersion* = "47"  ## GV47 (Emerg-ant fruit rule): FORAGE THE WHOLE FIELD.
+    ## The two neutral fruit patches no longer regrow forever at two fixed
+    ## center-line points. They begin at opposite sites in an eight-site,
+    ## rot180-paired interior circuit and advance after every harvest; every
+    ## target is nudged through the installed map's real walkability mask.
+    ## `FlagState.foodSite` pins the active site in deterministic replay state
+    ## and gameHash. This changes objective positions and the flatty state
+    ## layout, so GV46 recordings are obsolete and fixtures are re-recorded.
+    ## Authored as GV47 after scanning origin on 2026-08-20: main and every
+    ## remote claim at/above main used GV46; no GV47 claim was present.
+    ##
+    ## Previously GV46 (Emerg-ant spawn rule): WAKE INSIDE THE NEST.
     ## The inherited CTF spawn fan spread a 16-ant colony far beyond a
     ## compact endzone: outer bodies woke roughly 180px above/below the nest,
     ## so NAnts-style displacement from wake position pointed somewhere that
@@ -505,6 +516,8 @@ const
   EmergAntMode* = "emerg-ant"
   DefaultForageGoal* = 5       ## neutral food deliveries needed to win.
   DefaultFoodRespawnTicks* = 10 * TargetFps ## empty patch regrowth delay.
+  FoodSiteCount* = 8           ## distributed, rot180-paired fruit sites.
+  FoodSitePairOffset* = FoodSiteCount div 2
   DefaultPheromoneWashTick* = 75 * TargetFps ## one wash, relative to kickoff.
   DefaultAntSenseRadius* = 180 ## local radius for food/pheromone observations.
   DefaultBiteDamage* = 1       ## hp removed by one contact attack.
@@ -1602,6 +1615,9 @@ type
                                ## stolen.
     respawnAt*: int            ## Emerg-ant only: tick an emptied neutral food
                                ## patch regrows; 0 while present or carried.
+    foodSite*: int             ## Emerg-ant only: distributed site occupied by
+                               ## this patch before harvest. Appended for the
+                               ## flatty wire contract; ignored by CTF.
 
   SimServer* = object
     config*: GameConfig

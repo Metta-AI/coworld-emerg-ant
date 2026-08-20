@@ -92,7 +92,7 @@ Per-map descriptor `CtfMap` [sim_types.nim:733](../src/ctf/sim_types.nim#L733) c
 | Field | Type / default | Bounds | Effect |
 |---|---|---|---|
 | `teams` | int / `2` | must be `2` or `4` | Active team count: 2 (classic sides) or 4 (corners/plus FFA). |
-| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective, input, observation, and actor-art contract. Emerg-ant uses two neutral food patches, explicit local pheromones, and contact-only combat; it requires `teams=2`. |
+| `gameMode` | string / `"ctf"` | `"ctf"` or `"emerg-ant"` | Objective, input, observation, and actor-art contract. Emerg-ant uses two neutral fruit patches rotating through eight distributed sites, explicit local pheromones, and contact-only combat; it requires `teams=2`. |
 | `forageGoal` | int / `5` | `>=1` | Emerg-ant neutral-food deliveries needed for a colony win; inert in CTF mode. |
 | `foodRespawnTicks` | int / `240` | `>=1` | Emerg-ant delay before an emptied neutral food patch regrows. |
 | `pheromoneWashTick` | int / `1800` | `>=0` | One-shot trail-field wash this many playing ticks after kickoff; 0 disables it. |
@@ -164,7 +164,7 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 
 | Item | Count | Key consts (sim_types.nim) |
 |---|---|---|
-| Flags/hearts or neutral food patches | CTF: 1 per team; Emerg-ant: 2 neutral center patches | `FlagPickupRange`=34, `CaptureZoneWidth`=40, `PedestalCoverSize`=96; ant patches regrow after `foodRespawnTicks` |
+| Flags/hearts or neutral fruit patches | CTF: 1 per team; Emerg-ant: 2 neutral patches rotating through `FoodSiteCount`=8 interior sites | `FlagPickupRange`=34, `CaptureZoneWidth`=40, `PedestalCoverSize`=96; ant patches regrow after `foodRespawnTicks`, advance one site, and begin `FoodSitePairOffset`=4 sites apart |
 | Grenades | exactly 4 corner pickups | `GrenadeRespawnTicks`=120, `GrenadeChargeTicks`=24, `GrenadeBlastRadius`=52, `GrenadeDamage`=2, `GrenadeTrenchDamage`=6, max throw = `MapWidth/5` |
 | Med kits | 2 (sides) / up to 4 (4-team) | `MedKitPickupRange`=12, `MedKitRespawnTicks`=720 |
 | Shields | 1 per team endzone | `ShieldRespawnTicks`=720, `ShieldLayerHp`=3, `ShieldFireSlowdown`=3 |
@@ -204,8 +204,9 @@ Reward consts: `WinReward`=+1, `LossReward`=−1, `TimeoutReward`=−1 (draw pen
 GV41 removed the action-floor overtime: the clock never extends, and a game with
 the barrage configured ignores `maxTicks` entirely (it ends only on capture/wipe). Win logic:
 capturing a heart eliminates that team; last team standing wins; 2-team ends on
-the first capture. In Emerg-ant mode a neutral food delivery empties its source
-patch until `foodRespawnTicks`, the forage goal wins, and tied simultaneous goal
+the first capture. In Emerg-ant mode a neutral fruit delivery empties its source
+patch until `foodRespawnTicks`, then advances it through the eight-site circuit;
+the forage goal wins, and tied simultaneous goal
 finishes or tied clocks draw.
 
 ---

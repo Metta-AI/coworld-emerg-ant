@@ -423,7 +423,10 @@ type
     antWake: Vec              # own first spawn, analogous to NAnts' wake point
     antWakeKnown: bool
     antHeuristic: bool        # explicit ablation; neural is the default
-    antRng: uint64            # private sampling stream, seeded from wake point
+    antRng: uint64            # private wake-derived seed, never a slot feature
+    antClockOffset: int       # wake-derived private phase; no slot/global cue
+    antExploreNext: int       # next correlated-random-walk turn tick
+    antStuckTicks: int        # consecutive frames without physical progress
 
 var
   SelfStrategyTeam = Red
@@ -1411,6 +1414,7 @@ proc resetTransient(bot: Bot) =
   bot.behindLines = false
   bot.navGoal = -1
   bot.antWakeKnown = false
+  bot.antStuckTicks = 0
 
 proc scanAim(bot: Bot, watch: Vec): int =
   ## The scan-sweep aim while holding a position: rake the vision cone back
@@ -1580,7 +1584,7 @@ proc buildAntInput(
     home = bot.antWake - me
     homeForward = dot(home, forward)
     homeRight = dot(home, right)
-    clock = float(bot.tick mod 720) * 2.0 * PI / 720.0
+    clock = float((bot.tick + bot.antClockOffset) mod 720) * 2.0 * PI / 720.0
   result[scalarIndex(0)] = (if carrying: 1.0 else: 0.0)
   result[scalarIndex(1)] = (if biteReady: 1.0 else: 0.0)
   result[scalarIndex(2)] = float32(clamp(homeForward / 600.0, -1.0, 1.0))
@@ -1601,18 +1605,27 @@ proc antMoveVector(move: int, forward, right: Vec): Vec =
   of AntMoveForwardLeft: norm(forward - right)
   else: vec(0, 0)
 
-proc antRandom(bot: Bot): float32 =
-  ## xorshift64*: deterministic in replays and independent per wake position.
+proc nextAntRandom(bot: Bot): uint64 =
+  ## xorshift64*: replay-deterministic and independent per wake position.
   var x = bot.antRng
   x = x xor (x shr 12)
   x = x xor (x shl 25)
   x = x xor (x shr 27)
   bot.antRng = x
-  let bits = (x * 2685821657736338717'u64) shr 40
-  float32(bits) / float32(1'u64 shl 24)
+  x * 2685821657736338717'u64
+
+proc hasAntChannel(input: AntInput, channel: int): bool =
+  for row in 0 ..< AntPatchWidth:
+    for col in 0 ..< AntPatchWidth:
+      if input[featureIndex(row, col, channel)] > 0.0:
+        return true
 
 proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
   ## The default Emerg-ant policy: one learned, shared, memoryless turn rule.
+  if dist(me, bot.lastPos) < 0.5:
+    inc bot.antStuckTicks
+  else:
+    bot.antStuckTicks = 0
   var carrying = false
   for o in client.spriteObjectsWithLabel("neutral food carried"):
     if dist(client.mapPos(o), me) <= 28.0:
@@ -1621,11 +1634,51 @@ proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
   let
     biteReady = client.spriteObjectsWithLabel("bite ready").len > 0
     input = bot.buildAntInput(client, me, carrying, biteReady)
-    decision = sampleAntAction(input,
-      [bot.antRandom(), bot.antRandom(), bot.antRandom()])
+    decision = steerAntAction(input)
+    guided = carrying or input.hasAntChannel(3) or input.hasAntChannel(5)
+  var moveChoice = decision.move
+  let forwardBlocked = input[featureIndex(1, 2, 0)] > 0.0
+  if bot.antStuckTicks >= 8:
+    # Geometry can block a side octant even when the 90px-ahead wall sample
+    # is clear. A short deterministic escape turn prevents carriers from
+    # pushing one corner forever.
+    case bot.nextAntRandom() mod 4'u64
+    of 0: moveChoice = AntMoveLeft
+    of 1: moveChoice = AntMoveRight
+    of 2: moveChoice = AntMoveBackLeft
+    else: moveChoice = AntMoveBackRight
+    bot.antStuckTicks = 0
+    bot.antExploreNext = bot.tick + 72 + int(bot.nextAntRandom() mod 97'u64)
+  elif forwardBlocked:
+    # Collision escape applies to carriers too: a locally learned home vector
+    # cannot make progress while its preferred octant points into cover.
+    let
+      leftBlocked = input[featureIndex(1, 1, 0)] > 0.0
+      rightBlocked = input[featureIndex(1, 3, 0)] > 0.0
+    moveChoice =
+      if leftBlocked != rightBlocked:
+        if leftBlocked: AntMoveForwardRight else: AntMoveForwardLeft
+      elif (bot.nextAntRandom() and 1'u64) == 0:
+        AntMoveForwardLeft
+      else:
+        AntMoveForwardRight
+    bot.antExploreNext = bot.tick + 72 + int(bot.nextAntRandom() mod 97'u64)
+  elif not guided:
+    # Correlated random walk: learned food/homing steering still owns every
+    # task-directed movement, while this ant-like motor primitive prevents a
+    # fresh categorical reroll from cancelling displacement every frame.
+    # Wake-derived schedules diversify identical replicas without a slot cue.
+    if bot.tick >= bot.antExploreNext:
+      moveChoice =
+        if (bot.nextAntRandom() and 1'u64) == 0: AntMoveForwardLeft
+        else: AntMoveForwardRight
+      bot.antExploreNext = bot.tick + 72 + int(bot.nextAntRandom() mod 97'u64)
+    else:
+      moveChoice = AntMoveForward
+  let
     forward = bradsDir(bot.estAim)
     right = vec(-forward.y, forward.x)
-    move = antMoveVector(decision.move, forward, right)
+    move = antMoveVector(moveChoice, forward, right)
   result = octantBits(move)
   case decision.mark
   of 1: result = result or ButtonB
@@ -1810,6 +1863,8 @@ proc decide(bot: Bot, client: ProtocolClient): uint8 {.measure.} =
         (uint64(max(0, int(me.y))) + 1'u64) * 0xbf58476d1ce4e5b9'u64
       if bot.antRng == 0:
         bot.antRng = 1
+      bot.antClockOffset = int(bot.antRng mod 720'u64)
+      bot.antExploreNext = bot.tick + 12 + int(bot.nextAntRandom() mod 73'u64)
     if bot.antHeuristic:
       return bot.decideAntHeuristic(client, me)
     return bot.decideAntNeural(client, me)

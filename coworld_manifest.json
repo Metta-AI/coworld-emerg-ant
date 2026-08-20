@@ -13,7 +13,7 @@
     "replay_viewer": {
       "bundle": "static-replay-viewer"
     },
-    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two shared neural policies each inhabit 16 identical ant bodies. With only a local egocentric patch and their own wake displacement, colonies forage finite food, write erasable pheromone fields, recover after a trail wash, and fight through physical contact.",
+    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two shared neural policies each inhabit 16 identical ant bodies. With only a local egocentric patch and their own wake displacement, colonies explore for fruit rotating through eight arena sites, write erasable pheromone fields, recover after a trail wash, and fight through physical contact.",
     "owner": "treeform@softmax.com",
     "runnable": {
       "type": "game",
@@ -595,7 +595,7 @@
       "id": "baseline",
       "name": "baseline",
       "type": "player",
-      "description": "Trainable shared neural-ant policy: local 5x5 observation, learned movement/pheromone/bite heads, replicated across every colony body.",
+      "description": "Shared neural-ant policy: local 5x5 observation, learned steering/pheromone/bite heads, wake-seeded correlated exploration, and collision escape replicated across every colony body.",
       "image": "{{PLAYER_IMAGE}}",
       "run": [
         "/bin/baseline"
@@ -616,7 +616,7 @@
     {
       "id": "emerg-ant",
       "name": "Emerg-ant Foraging",
-      "description": "Two policies each control 16 identical ant replicas. Colonies race finite neutral food patches using local pheromone sensing, survive a trail wash, and may bite enemy ants only on physical contact.",
+      "description": "Two policies each control 16 identical ant replicas. Colonies explore for two neutral fruit patches rotating through eight distributed sites, use local pheromone sensing, survive a trail wash, and may bite enemy ants only on physical contact.",
       "game_config": {
         "players": [
           {

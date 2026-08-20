@@ -20,13 +20,20 @@ PATCH = 5
 CHANNELS = 7
 PATCH_FEATURES = PATCH * PATCH * CHANNELS
 INPUTS = PATCH_FEATURES + 7
-HIDDEN = 24
+HIDDEN = 48
 OUTPUTS = 14
-DEPLOY_TEMPERATURE = 0.5
+DEPLOY_TEMPERATURE = 0.35
 MOVE_OFFSETS = np.array([0, 0, 1, 2, 3, 4, -3, -2, -1], dtype=np.int8)
 DIRS = np.array(
     [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]],
     dtype=np.int16,
+)
+MOVE_VECTORS = np.array(
+    [[0, 0], [1, 0], [math.sqrt(0.5), math.sqrt(0.5)], [0, 1],
+     [-math.sqrt(0.5), math.sqrt(0.5)], [-1, 0],
+     [-math.sqrt(0.5), -math.sqrt(0.5)], [0, -1],
+     [math.sqrt(0.5), -math.sqrt(0.5)]],
+    dtype=np.float32,
 )
 
 
@@ -38,6 +45,15 @@ def softmax(x: np.ndarray) -> np.ndarray:
     z = x - x.max(axis=-1, keepdims=True)
     exp = np.exp(z)
     return exp / exp.sum(axis=-1, keepdims=True)
+
+
+def steering_moves(logits: np.ndarray) -> np.ndarray:
+    """Match deployment's circular-mean decoder for persistent locomotion."""
+    vectors = softmax(logits[:, :9] / DEPLOY_TEMPERATURE) @ MOVE_VECTORS
+    angle = np.arctan2(vectors[:, 1], vectors[:, 0])
+    moves = 1 + (np.rint(angle / (math.pi / 4)).astype(np.int16) % 8)
+    moves[np.linalg.norm(vectors, axis=1) < 0.08] = 0
+    return moves
 
 
 class Policy:
@@ -87,11 +103,11 @@ def curriculum(rng: np.random.Generator, count: int) -> tuple[np.ndarray, np.nda
     x = np.zeros((count, INPUTS), np.float32)
     labels = np.zeros((count, 3), np.int16)
     for n in range(count):
-        # Half the curriculum is homing. In the physical Coworld a carrier
+        # Homing remains heavily represented. In the physical Coworld a carrier
         # must hold a heading for hundreds of ticks and enter a compact nest
         # disc; under-weighting this branch produces attractive foraging that
         # never converts into a score.
-        carrying = rng.random() < 0.5
+        carrying = rng.random() < 0.4
         bite_ready = rng.random() < 0.8
         x[n, PATCH_FEATURES] = carrying
         x[n, PATCH_FEATURES + 1] = bite_ready
@@ -112,12 +128,12 @@ def curriculum(rng: np.random.Generator, count: int) -> tuple[np.ndarray, np.nda
 
         food_cells: list[tuple[int, int]] = []
         trail_cells: list[tuple[int, int]] = []
-        if not carrying and rng.random() < 0.45:
+        if not carrying and rng.random() < 0.55:
             for _ in range(rng.integers(1, 4)):
                 r, c = rng.integers(0, PATCH, 2)
                 x[n, feature(r, c, 3)] = 1
                 food_cells.append((r, c))
-        elif not carrying and rng.random() < 0.55:
+        elif not carrying and rng.random() < 0.65:
             for _ in range(rng.integers(1, 5)):
                 r, c = rng.integers(0, PATCH, 2)
                 x[n, feature(r, c, 5)] = rng.uniform(0.4, 1)
@@ -131,10 +147,9 @@ def curriculum(rng: np.random.Generator, count: int) -> tuple[np.ndarray, np.nda
             r, c = min(cells, key=lambda rc: (rc[0] - 2) ** 2 + (rc[1] - 2) ** 2)
             labels[n] = [relative_move(c - 2, 2 - r), 1, int(enemy_contact and bite_ready)]
         else:
-            # Clock-dependent left/right casting prevents identical clones
-            # from locking into one heading after a pheromone wash.
-            cast = -1 if math.sin(phase) < -0.96 else (1 if math.sin(phase) > 0.96 else 0)
-            labels[n] = [relative_move(cast, 1), 1, int(enemy_contact and bite_ready)]
+            # Uncued locomotion is a correlated-random-walk motor primitive in
+            # deployment. The shared net learns the task-directed reactions.
+            labels[n] = [1, 1, int(enemy_contact and bite_ready)]
         # If the intended cell is a wall, rotate one octant toward an open one.
         if labels[n, 0] != 0:
             offset = int(MOVE_OFFSETS[labels[n, 0]])
@@ -182,6 +197,7 @@ class ColonyWorld:
         self.home[:, 1] = [self.size - 3, self.size // 2]
         self.pos = np.zeros((episodes, self.ants, 2), np.int16)
         self.heading = np.zeros((episodes, self.ants), np.int8)
+        self.phase_offset = rng.integers(0, 240, (episodes, self.ants), dtype=np.int16)
         self.carrying = np.zeros((episodes, self.ants), bool)
         self.team = np.tile(np.repeat(np.arange(2), self.ants_per_team), (episodes, 1))
         self.pheromone = np.zeros((episodes, 2, 2, self.size, self.size), np.float32)
@@ -199,14 +215,22 @@ class ColonyWorld:
         self.walls[:, [0, -1], :] = True
         self.walls[:, :, [0, -1]] = True
         for e in range(self.episodes):
-            # Two center food patches and light random cover; mirror cover so
-            # neither colony receives a privileged curriculum.
-            for y in self.rng.choice(np.arange(4, self.size - 4), 2, replace=False):
-                self.food[e, y, self.size // 2] = 20
+            # Light mirrored cover, followed by fruit distributed through the
+            # interior rather than fixed on one center line.
             for _ in range(7):
                 x = int(self.rng.integers(6, self.size // 2))
                 y = int(self.rng.integers(2, self.size - 2))
                 self.walls[e, y, x] = self.walls[e, y, self.size - 1 - x] = True
+            candidates = np.array([
+                (x, y)
+                for y in range(3, self.size - 3)
+                for x in range(4, self.size - 4)
+                if not self.walls[e, y, x]
+            ], np.int16)
+            for x, y in candidates[
+                self.rng.choice(len(candidates), 8, replace=False)
+            ]:
+                self.food[e, y, x] = 20
             for a in range(self.ants):
                 team = self.team[e, a]
                 self.pos[e, a] = self.home[e, team] + [0, (a % self.ants_per_team) - 2]
@@ -242,7 +266,7 @@ class ColonyWorld:
                 home_delta = self.home[e, team] - p
                 hf = float(home_delta @ f) / self.size
                 hs = float(home_delta @ right) / self.size
-                phase = (tick % 120) * 2 * math.pi / 120
+                phase = ((tick + int(self.phase_offset[e, a])) % 240) * 2 * math.pi / 240
                 obs[e, a, PATCH_FEATURES:] = [
                     self.carrying[e, a], 1, np.clip(hf, -1, 1), np.clip(hs, -1, 1),
                     min(1, np.linalg.norm(home_delta) / self.size), math.sin(phase), math.cos(phase),
@@ -309,8 +333,26 @@ class ColonyWorld:
         return reward
 
 
-def reinforce(policy: Policy, rng: np.random.Generator, updates: int, episodes: int, horizon: int) -> list[float]:
+def eval_key(evaluation: dict[str, float]) -> tuple[float, float]:
+    return (
+        evaluation["episodes_with_delivery_fraction"],
+        evaluation["mean_total_deliveries"],
+    )
+
+
+def reinforce(
+    policy: Policy,
+    rng: np.random.Generator,
+    updates: int,
+    episodes: int,
+    horizon: int,
+    eval_seed: int,
+) -> tuple[list[float], int, dict[str, float]]:
     history: list[float] = []
+    best_update = 0
+    best_params = [p.copy() for p in policy.params]
+    best_eval = deterministic_eval(policy, eval_seed, episodes=16)
+    print(f"initializer eval: {best_eval}")
     for update in range(updates):
         world = ColonyWorld(rng, episodes)
         xs: list[np.ndarray] = []
@@ -360,19 +402,27 @@ def reinforce(policy: Policy, rng: np.random.Generator, updates: int, episodes: 
         history.append(score)
         if update % 10 == 0 or update + 1 == updates:
             print(f"reinforce {update + 1:03d}/{updates}: deliveries/team={score:.3f}")
-    return history
+        if (update + 1) % 5 == 0 or update + 1 == updates:
+            evaluation = deterministic_eval(policy, eval_seed, episodes=16)
+            print(f"eval after update {update + 1:03d}: {evaluation}")
+            if eval_key(evaluation) > eval_key(best_eval):
+                best_update = update + 1
+                best_eval = evaluation
+                best_params = [p.copy() for p in policy.params]
+    for parameter, best in zip(policy.params, best_params):
+        parameter[...] = best
+    return history, best_update, best_eval
 
 
-def deterministic_eval(policy: Policy, seed: int, episodes: int = 32, horizon: int = 180) -> dict[str, float]:
+def deterministic_eval(policy: Policy, seed: int, episodes: int = 32, horizon: int = 300) -> dict[str, float]:
     rng = np.random.default_rng(seed)
     world = ColonyWorld(rng, episodes)
     for tick in range(horizon):
         flat = world.observe(tick).reshape(-1, INPUTS)
         _, logits = policy.forward(flat)
-        sample = lambda p: np.array([rng.choice(p.shape[1], p=row) for row in p], np.int16)
-        moves = sample(softmax(logits[:, :9] / DEPLOY_TEMPERATURE)).reshape(episodes, -1)
-        marks = sample(softmax(logits[:, 9:12] / DEPLOY_TEMPERATURE)).reshape(episodes, -1)
-        bites = sample(softmax(logits[:, 12:14] / DEPLOY_TEMPERATURE)).reshape(episodes, -1)
+        moves = steering_moves(logits).reshape(episodes, -1)
+        marks = logits[:, 9:12].argmax(1).reshape(episodes, -1)
+        bites = logits[:, 12:14].argmax(1).reshape(episodes, -1)
         world.step(moves, marks, bites)
         if tick == horizon // 2:
             world.pheromone.fill(0)
@@ -408,7 +458,10 @@ def save(policy: Policy, output: Path, nim_output: Path, metadata: dict) -> None
         "b2": policy.b2.tolist(),
     }
     output.write_text(json.dumps(payload, separators=(",", ":")) + "\n")
-    name = f"local-colony-seed{metadata['seed']}-u{metadata['reinforce_updates']}"
+    name = (
+        f"local-colony-seed{metadata['seed']}"
+        f"-best{metadata['selected_reinforce_update']}"
+    )
     nim_output.write_text(
         "## GENERATED by players/neural/train.py; do not edit by hand.\n\n"
         "const\n"
@@ -426,11 +479,11 @@ def save(policy: Policy, output: Path, nim_output: Path, metadata: dict) -> None
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=260819)
-    parser.add_argument("--curriculum-samples", type=int, default=30000)
-    parser.add_argument("--curriculum-epochs", type=int, default=5)
+    parser.add_argument("--curriculum-samples", type=int, default=50000)
+    parser.add_argument("--curriculum-epochs", type=int, default=1)
     parser.add_argument("--reinforce-updates", type=int, default=20)
-    parser.add_argument("--episodes", type=int, default=4)
-    parser.add_argument("--horizon", type=int, default=120)
+    parser.add_argument("--episodes", type=int, default=6)
+    parser.add_argument("--horizon", type=int, default=180)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--output", type=Path, default=Path("players/neural/checkpoint.json"))
     parser.add_argument(
@@ -444,7 +497,10 @@ def main() -> None:
     rng = np.random.default_rng(args.seed)
     policy = Policy(rng)
     imitate(policy, rng, args.curriculum_samples, args.curriculum_epochs)
-    history = reinforce(policy, rng, args.reinforce_updates, args.episodes, args.horizon)
+    history, best_update, selection_eval = reinforce(
+        policy, rng, args.reinforce_updates, args.episodes, args.horizon,
+        args.seed + 1,
+    )
     evaluation = deterministic_eval(policy, args.seed + 1)
     metadata = {
         "seed": args.seed,
@@ -454,6 +510,8 @@ def main() -> None:
         "episodes_per_update": args.episodes,
         "horizon": args.horizon,
         "final_training_deliveries_per_team": round(history[-1], 4),
+        "selected_reinforce_update": best_update,
+        "selection_evaluation": selection_eval,
         "evaluation": evaluation,
         "observation": "5x5x7 egocentric patch + carry/bite/wake displacement/clock",
         "slot_feature": False,

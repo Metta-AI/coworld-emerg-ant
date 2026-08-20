@@ -9,6 +9,7 @@ BLUE_POLICY="${3:-neural}"
 PORT="${PORT:-21819}"
 MAX_TICKS="${MAX_TICKS:-1200}"
 WASH_TICK="${WASH_TICK:-500}"
+SEED="${SEED:-}"
 
 case "$RED_POLICY:$BLUE_POLICY" in
   neural:neural|neural:heuristic|heuristic:neural|heuristic:heuristic) ;;
@@ -29,7 +30,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-python3 - "$CFG" "$MAX_TICKS" "$WASH_TICK" <<'PY'
+python3 - "$CFG" "$MAX_TICKS" "$WASH_TICK" "$SEED" <<'PY'
 import json, sys
 config = json.load(open("config.json"))
 config.update({
@@ -42,6 +43,8 @@ config.update({
     "maxGames": 1,
     "lobbyJoinTimeoutTicks": 1000,
 })
+if sys.argv[4]:
+    config["seed"] = int(sys.argv[4])
 json.dump(config, open(sys.argv[1], "w"))
 PY
 
@@ -76,5 +79,5 @@ done
 wait "$SERVER_PID"
 SERVER_PID=""
 test -s "$OUT"
-grep -E "harvested neutral food|rain washed|red wins|blue wins|draw" "$LOG" || true
+grep -E "harvested neutral food|delivered neutral food|rain washed|red win|blue win|draw" "$LOG" || true
 ls -lh "$OUT" "$LOG"

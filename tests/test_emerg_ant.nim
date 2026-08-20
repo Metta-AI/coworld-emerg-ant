@@ -25,7 +25,7 @@ proc harvestAndReturn(sim: var SimServer, playerIndex: int, patch: Team) =
   sim.players[playerIndex].placeAtCenter(home.x, home.y)
   sim.checkWinCondition()
 
-suite "Emerg-ant v0.2 config":
+suite "Emerg-ant v0.4 config":
   test "mode is opt-in and replay-pins every ecology rule":
     let plain = parseJson(defaultGameConfig().configJson())
     check not plain.hasKey("gameMode")
@@ -93,12 +93,18 @@ suite "Emerg-ant neutral foraging":
       outer = sim.spawnPosition(Red, 15)
     check abs(outer.y - inner.y) > 100
 
-  test "food patches occupy neutral center sites and either colony can harvest":
+  test "fruit sites cover the arena and begin as a symmetric pair":
     var sim = antGame()
-    check sim.flags[Red].x == sim.gameMap.medKitSpawns[0].x
-    check sim.flags[Red].y == sim.gameMap.medKitSpawns[0].y
-    check sim.flags[Blue].x == sim.gameMap.medKitSpawns[1].x
-    check sim.flags[Blue].y == sim.gameMap.medKitSpawns[1].y
+    let sites = sim.foodSpawnSites()
+    check sites.len == FoodSiteCount
+    for i, site in sites:
+      check sim.canOccupy(site.x, site.y)
+      check site notin sites[0 ..< i]
+    check sim.flags[Red].foodSite == 0
+    check sim.flags[Blue].foodSite == FoodSitePairOffset
+    check (sim.flags[Red].x, sim.flags[Red].y) == sites[0]
+    check (sim.flags[Blue].x, sim.flags[Blue].y) ==
+      sites[FoodSitePairOffset]
 
     let patch = sim.flags[Red]
     sim.players[1].placeAtCenter(patch.x, patch.y)
@@ -124,7 +130,8 @@ suite "Emerg-ant neutral foraging":
     sim.updateFoodPatches()
     check not sim.flags[Red].captured
     check sim.flags[Red].respawnAt == 0
-    check sim.flags[Red].x == sim.gameMap.medKitSpawns[0].x
+    check sim.flags[Red].foodSite == 1
+    check (sim.flags[Red].x, sim.flags[Red].y) == sim.foodSpawnSites()[1]
 
   test "simultaneous tied goal deliveries draw without processing advantage":
     var sim = antGame(goal = 1)

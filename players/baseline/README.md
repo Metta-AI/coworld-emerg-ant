@@ -4,8 +4,10 @@ The default path is `decideAntNeural` in `baseline.nim`: the same trained MLP is
 replicated across 16 ants per colony. `baseline/neural_ant.nim` owns inference;
 `players/neural/train.py` owns training and emits the checked-in checkpoint.
 Every input is local and egocentric except displacement from the ant's own wake
-point, following NAnts. Turns, scout/food marks, and contact bites are sampled
-from three network heads using a replay-deterministic private stream.
+point, following NAnts. Learned movement distributions are decoded as expected
+steering; scout/food marks and contact bites come from the other two heads.
+Wake-seeded correlated exploration and local collision escape stop identical
+replicas or carriers from diffusing in place, without introducing slot identity.
 
 Set `EMERG_ANT_POLICY=heuristic` to run the old v0.2 scripted controller as an
 ablation. It is retained for comparisons and is not the published default.

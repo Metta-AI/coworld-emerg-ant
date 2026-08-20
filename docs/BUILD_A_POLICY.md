@@ -7,7 +7,7 @@ Coordination must survive that boundary.
 
 ## 1. Start from the reference policy
 
-Read the [v0.2 rules](EMERG_ANT.md), [Sprite protocol](PROTOCOL.md), and the
+Read the [v0.4 rules](EMERG_ANT.md), [Sprite protocol](PROTOCOL.md), and the
 shared network in
 [`neural_ant.nim`](../players/baseline/baseline/neural_ant.nim). The observation
 adapter and explicit handwritten ablation are in
@@ -35,7 +35,7 @@ deltas: retain an object until the server deletes or clears it.
 
 The input mask is:
 
-| Bit | Input | v0.2 action |
+| Bit | Input | action |
 | ---: | --- | --- |
 | 0 | Up | move north |
 | 1 | Down | move south |
@@ -62,9 +62,10 @@ learned, or recurrent:
 4. **Contest:** bite only at contact where removing an enemy protects food or a
    return path. Chasing kills away from the ecology usually loses the race.
 
-The mid-match wash deliberately destroys mature trails. Keep an exploration
+The fruit patches advance through eight distributed sites as they regrow, and
+the mid-match wash deliberately destroys mature trails. Keep an exploration
 probability, recurrent uncertainty, or another recovery mechanism that can
-rebuild information after tick 1800.
+find newly stocked regions and rebuild information after tick 1800.
 
 All 16 containers run identical code. The reference network deliberately has
 no slot feature. Its private random stream is seeded from its own wake point,

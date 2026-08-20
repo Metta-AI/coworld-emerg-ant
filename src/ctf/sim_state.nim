@@ -176,6 +176,7 @@ proc gameHash*(sim: SimServer): uint64 =
     result.mixHashBool(sim.flags[team].captured)
     if sim.config.isEmergAnt():
       result.mixHashInt(sim.flags[team].respawnAt)
+      result.mixHashInt(sim.flags[team].foodSite)
   if sim.config.isEmergAnt():
     result.mixHashInt(sim.pheromones.len)
     for mark in sim.pheromones:
@@ -287,6 +288,29 @@ proc nearestWalkable*(sim: SimServer, x, y: int): tuple[x, y: int] =
         if sim.canOccupy(nx, ny):
           return (nx, ny)
   (x, y)
+
+proc foodSpawnSites*(sim: SimServer): seq[tuple[x, y: int]] =
+  ## Eight interior fruit sites, ordered as four rot180 pairs. Two patches
+  ## begin half a cycle apart and advance after every harvest, so forage
+  ## moves through upper, lower, left, right, and center-field neighborhoods
+  ## instead of teaching one hard-coded run down the center line. Every raw
+  ## point is nudged through the real collision mask for generated maps.
+  let
+    w = sim.gameMap.width
+    h = sim.gameMap.height
+    raw = [
+      (3 * w div 8, h div 4),
+      (w div 2, h div 3),
+      (5 * w div 8, h div 4),
+      (2 * w div 3, h div 2),
+      (5 * w div 8, 3 * h div 4),
+      (w div 2, 2 * h div 3),
+      (3 * w div 8, 3 * h div 4),
+      (w div 3, h div 2),
+    ]
+  for point in raw:
+    result.add sim.nearestWalkable(point[0], point[1])
+  doAssert result.len == FoodSiteCount
 
 proc spawnPosition*(sim: SimServer, team: Team, order: int): tuple[x, y: int] =
   ## Returns a deterministic spawn position just inside a team's home edge:
@@ -507,8 +531,8 @@ proc emitPickup*(
   )
 
 proc resetFlag*(sim: var SimServer, team: Team) =
-  ## Returns one team's flag to its home pedestal, or regrows one of the two
-  ## neutral Emerg-ant food patches at the map's center-field resource sites.
+  ## Returns one team's flag to its home pedestal, or advances one of the two
+  ## neutral Emerg-ant fruit patches through the distributed forage sites.
   # A flag leaving an enemy's back mid-game (death, disconnect — any reason
   # other than capture) is a FlagReturn analysis event; the pedestal resets
   # at game boundaries are not (phase guard).
@@ -519,20 +543,31 @@ proc resetFlag*(sim: var SimServer, team: Team) =
       x = float(sim.flags[team].x),
       y = float(sim.flags[team].y)
     )
+  var foodSite = -1
   let home =
-    if sim.config.isEmergAnt() and ord(team) < sim.gameMap.medKitSpawns.len:
-      sim.gameMap.medKitSpawns[ord(team)]
+    if sim.config.isEmergAnt():
+      let sites = sim.foodSpawnSites()
+      foodSite =
+        if sim.flags[team].respawnAt > 0 and sim.flags[team].foodSite >= 0:
+          (sim.flags[team].foodSite + 1) mod sites.len
+        else:
+          (ord(team) * FoodSitePairOffset) mod sites.len
+      sites[foodSite]
     else:
-      sim.gameMap.flagHome(team)
+      let flagHome = sim.gameMap.flagHome(team)
+      (x: flagHome.x, y: flagHome.y)
   sim.flags[team] = FlagState(
-    x: home.x, y: home.y, carrier: -1, captured: false, respawnAt: 0)
+    x: home.x, y: home.y, carrier: -1, captured: false, respawnAt: 0,
+    foodSite: foodSite)
 
 proc resetFlags*(sim: var SimServer) =
   ## Returns every active team's flag to its home pedestal. Inactive slots
   ## hold an explicit no-carrier state so nothing can misread the array's
   ## zero value (carrier 0 would mean "player 0 carries it").
   for team in Team:
+    sim.flags[team] = FlagState(carrier: -1, foodSite: -1)
+  for team in Team:
     if team in sim.teams():
       sim.resetFlag(team)
     else:
-      sim.flags[team] = FlagState(x: 0, y: 0, carrier: -1)
+      sim.flags[team] = FlagState(x: 0, y: 0, carrier: -1, foodSite: -1)
