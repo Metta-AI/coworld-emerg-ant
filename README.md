@@ -35,8 +35,8 @@ observation labels.
 
 ## Published Coworld
 
-- Version: `emerg-ant:0.1.0`
-- Coworld ID: `cow_82623c46-cd6a-4e39-a271-5874949d10ff`
+- Version: `emerg-ant:0.6.1`
+- Coworld ID: [`cow_1c59e4e0-05c4-4e16-b5af-d4770c516d32`](https://softmax.com/observatory/v2/coworlds/cow_1c59e4e0-05c4-4e16-b5af-d4770c516d32)
 - Status: canonical and hosted-smoke certified
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
 - Replay: [watch the certified 16-agent match](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
