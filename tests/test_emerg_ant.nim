@@ -1,8 +1,8 @@
 import
   helpers,
-  std/[json, unittest],
+  std/[json, sequtils, strutils, unittest],
   bitworld/spriteprotocol,
-  ctf/[global, sim]
+  ctf/[broadcast, global, sim]
 
 proc antGame(goal = DefaultForageGoal): SimServer =
   var config = defaultGameConfig()
@@ -25,7 +25,7 @@ proc harvestAndReturn(sim: var SimServer, playerIndex: int, patch: Team) =
   sim.players[playerIndex].placeAtCenter(home.x, home.y)
   sim.checkWinCondition()
 
-suite "Emerg-ant v0.4 config":
+suite "Emerg-ant v0.5 config":
   test "mode is opt-in and replay-pins every ecology rule":
     let plain = parseJson(defaultGameConfig().configJson())
     check not plain.hasKey("gameMode")
@@ -72,6 +72,65 @@ suite "Emerg-ant v0.4 config":
         config.update(bad)
 
 suite "Emerg-ant neutral foraging":
+  test "colonies begin with a queen, three workers, and dormant brood seats":
+    var config = defaultGameConfig()
+    config.gameMode = EmergAntMode
+    var sim = initCtfForTest(config)
+    for i in 0 ..< 12:
+      discard sim.addPlayer("ant-" & $i)
+    sim.startGame()
+    for team in [Red, Blue]:
+      let queen = sim.queenIndex(team)
+      check queen >= 0
+      check sim.players[queen].alive
+      check sim.players[queen].skin == CrownSkin
+      check sim.teamActiveAnts(team) == InitialAntsPerColony
+      check sim.colonyFood[team] == QueenStartingFood
+
+  test "surplus food hatches a dormant connected policy seat":
+    var config = defaultGameConfig()
+    config.gameMode = EmergAntMode
+    config.forageGoal = 9
+    var sim = initCtfForTest(config)
+    for i in 0 ..< 12:
+      discard sim.addPlayer("ant-" & $i)
+    sim.startGame()
+    sim.harvestAndReturn(sim.queenIndex(Red), Red)
+    check sim.teamForageScore(Red) == 1
+    check sim.teamActiveAnts(Red) == InitialAntsPerColony + 1
+    check sim.colonyFood[Red] == QueenFoodReserve
+
+  test "a killed or starving queen collapses her colony":
+    for starves in [false, true]:
+      var sim = antGame(goal = 9)
+      let queen = sim.queenIndex(Red)
+      if starves:
+        sim.colonyFood[Red] = 0
+        sim.tickCount = sim.queenFeedAt[Red]
+        sim.updateColonyLifecycle()
+        sim.checkWinCondition()
+      else:
+        sim.killPlayer(queen, sim.queenIndex(Blue))
+        sim.checkWinCondition()
+      check not sim.players[queen].alive
+      check sim.phase == GameOver
+      check sim.winner == Blue
+
+  test "a disconnected queen is not silently replaced by a worker":
+    var config = defaultGameConfig()
+    config.gameMode = EmergAntMode
+    var sim = initCtfForTest(config)
+    for i in 0 ..< 12:
+      discard sim.addPlayer("ant-" & $i)
+    sim.startGame()
+    let queen = sim.queenIndex(Red)
+    check queen >= 0
+    sim.removePlayerAt(queen)
+    check sim.queenIndex(Red) == -1
+    sim.checkWinCondition()
+    check sim.phase == GameOver
+    check sim.winner == Blue
+
   test "all 16 wake points are distinct and inside the colony nest":
     var config = defaultGameConfig()
     config.gameMode = EmergAntMode
@@ -161,6 +220,16 @@ suite "Emerg-ant neutral foraging":
     check sim.winner == Red
     check sim.timeLimitReached
 
+  test "broadcast frames expose food scores instead of a capture objective":
+    var sim = antGame(goal = 3)
+    sim.harvestAndReturn(0, Red)
+    let state = parseJson(sim.buildStateJson(
+      newJArray(), false, 1, sim.tickCount, false, true, -1, -1))
+    check state["objective"].getStr == "food"
+    check state["goal"].getInt == 3
+    check state["teams"]["red"]["score"].getInt == 1
+    check state["teams"]["blue"]["score"].getInt == 0
+
 suite "Emerg-ant explicit local stigmergy":
   test "player protocol advertises ant actions and hides CTF pickups":
     var sim = antGame()
@@ -172,10 +241,15 @@ suite "Emerg-ant explicit local stigmergy":
         labels.add(message.sprite.label)
     check "neutral food patch" in labels
     check "neutral food carried" in labels
+    check "neutral food carrier glow" in labels
+    check "queen red left" in labels or "queen red right" in labels
+    check "queen blue left" in labels or "queen blue right" in labels
+    check "self queen red left" in labels or "self queen red right" in labels
     check "bite ready" in labels
     check "bite cooldown" in labels
     check "med kit" notin labels
     check "grenade" notin labels
+    check labels.allIt("flag" notin it)
 
   test "B and C explicitly deposit home and food channels":
     var sim = antGame()

@@ -231,6 +231,13 @@ proc teamStateJson(sim: SimServer, team: Team): JsonNode =
     "prog": sim.flagCarryProgress(team),
     "policies": sim.teamPoliciesJson(team)
   }
+  if sim.config.isEmergAnt():
+    result["score"] = %sim.teamForageScore(team)
+    result["food"] = %sim.colonyFood[team]
+    result["active"] = %sim.teamActiveAnts(team)
+    let queen = sim.queenIndex(team)
+    result["queen"] = %sim.queenSlot[team]
+    result["queenAlive"] = %(queen >= 0 and sim.players[queen].alive)
   # Per-team handicap for the scorebug badge + its hover breakdown. Present only
   # when the team is actually handicapped, so an unhandicapped team shows no
   # badge. The resolved deltas are computed here (the one place the
@@ -251,7 +258,7 @@ proc teamStateJson(sim: SimServer, team: Team): JsonNode =
 proc rosterJson(sim: SimServer): JsonNode =
   ## Returns the per-player roster array keyed by stable join slot.
   result = newJArray()
-  for p in sim.players:
+  for i, p in sim.players:
     let item = %*{
       "s": p.joinOrder,
       "team": teamText(p.team),
@@ -265,6 +272,7 @@ proc rosterJson(sim: SimServer): JsonNode =
       "k": p.kills,
       "d": p.deaths,
       "cap": p.captures,
+      "queen": sim.config.isEmergAnt() and sim.isQueen(i),
       "mk2": p.multiKills2,
       "mk3": p.multiKills3,
       "tk": p.teamKills
@@ -708,6 +716,12 @@ proc buildStateJson*(
     "roster": sim.rosterJson(),
     "events": (if events.isNil: newJArray() else: events)
   }
+  if sim.config.isEmergAnt():
+    # Player-facing objective vocabulary. The inherited `flag`/`capture`
+    # fields stay on the wire so old replay tooling remains able to decode the
+    # state, while current chrome tells the actual Emerg-ant foraging story.
+    state["objective"] = %"food"
+    state["goal"] = %sim.config.forageGoal
 
   # Resolved perk magnitudes for the scorebug icon tooltips (the sim is the
   # single source of the mods, like the handicap deltas). Fractions are
@@ -793,7 +807,12 @@ proc buildStateJson*(
     for team in sim.teams():
       overTeams[teamText(team)] = %*{
         "lives": sim.teamLivesRemaining(team),
-        "prog": sim.teamFlagProgress(team)
+        "prog": sim.teamFlagProgress(team),
+        "score": (
+          if sim.config.isEmergAnt(): sim.teamForageScore(team)
+          else: 0
+        ),
+        "food": (if sim.config.isEmergAnt(): sim.colonyFood[team] else: 0)
       }
     state["over"] = %*{
       "winner": teamText(sim.winner),

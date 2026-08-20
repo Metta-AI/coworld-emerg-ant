@@ -427,6 +427,7 @@ type
     antClockOffset: int       # wake-derived private phase; no slot/global cue
     antExploreNext: int       # next correlated-random-walk turn tick
     antStuckTicks: int        # consecutive frames without physical progress
+    antQueen: bool            # this fixed seat is the colony's queen caste
 
 var
   SelfStrategyTeam = Red
@@ -610,10 +611,10 @@ proc findSelf(
     client: ProtocolClient, color: string): tuple[alive: bool, pos: Vec] =
   ## Our avatar via the distinct self marker, only drawn while we are alive.
   for facingRight in [true, false]:
-    let label = labelSelf(
-      color, if facingRight: LabelSideRight else: LabelSideLeft)
-    for o in client.spriteObjectsWithLabel(label):
-      return (alive: true, pos: client.mapPos(o))
+    let side = if facingRight: LabelSideRight else: LabelSideLeft
+    for label in [labelSelf(color, side), labelQueenSelf(color, side)]:
+      for o in client.spriteObjectsWithLabel(label):
+        return (alive: true, pos: client.mapPos(o))
 
 proc actorsFor(client: ProtocolClient, color: string): seq[Actor] {.measure.} =
   ## Visible players of one color in map coordinates plus horizontal facing
@@ -621,10 +622,10 @@ proc actorsFor(client: ProtocolClient, color: string): seq[Actor] {.measure.} =
   ## its player, so whenever the player is visible its hp is too: attach the
   ## nearest pip bar within HpPipRadius.
   for facingRight in [true, false]:
-    let label = labelPlayer(
-      color, if facingRight: LabelSideRight else: LabelSideLeft)
-    for o in client.spriteObjectsWithLabel(label):
-      result.add(Actor(pos: client.mapPos(o), facingRight: facingRight))
+    let side = if facingRight: LabelSideRight else: LabelSideLeft
+    for label in [labelPlayer(color, side), labelQueen(color, side)]:
+      for o in client.spriteObjectsWithLabel(label):
+        result.add(Actor(pos: client.mapPos(o), facingRight: facingRight))
   for (o, label) in client.spriteObjectsWithLabelPrefix(LabelPrefixHp):
     # `hp <hp>/<max>[ shield <s>]` — TRUE hit points since the bar redesign:
     # the numerator is the seat's remaining base hp against its OWN max (the
@@ -1636,6 +1637,21 @@ proc decideAntNeural(bot: Bot, client: ProtocolClient, me: Vec): uint8 =
     input = bot.buildAntInput(client, me, carrying, biteReady)
     decision = steerAntAction(input)
     guided = carrying or input.hasAntChannel(3) or input.hasAntChannel(5)
+  if bot.antQueen:
+    # A queen is a reproductive caste, not a scout. Stay at the nest anchor,
+    # return if collision displaced us, and bite only on physical contact.
+    let home = bot.antWake - me
+    result =
+      if home.len() > 18.0: octantBits(home)
+      else: 0'u8
+    result = result or ButtonB
+    if decision.bite and biteReady and input[featureIndex(2, 2, 2)] > 0 and
+        not bot.firedLast:
+      result = result or ButtonA
+    bot.firedLast = (result and ButtonA) != 0
+    bot.rotSign = 0
+    bot.lastPos = me
+    return
   var moveChoice = decision.move
   let forwardBlocked = input[featureIndex(1, 2, 0)] > 0.0
   if bot.antStuckTicks >= 8:
@@ -1856,6 +1872,11 @@ proc decide(bot: Bot, client: ProtocolClient): uint8 {.measure.} =
   if statedAim >= 0:
     bot.estAim = statedAim
   if client.hasSpriteLabel("neutral food patch"):
+    bot.antQueen = false
+    for facingRight in [true, false]:
+      let side = if facingRight: LabelSideRight else: LabelSideLeft
+      if client.spriteObjectsWithLabel(labelQueenSelf(myColor, side)).len > 0:
+        bot.antQueen = true
     if not bot.antWakeKnown:
       bot.antWake = me
       bot.antWakeKnown = true

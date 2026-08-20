@@ -345,6 +345,7 @@ html, body {
    not the viewBox edge (else the flip mirrors off-screen — invisible-at-vote). */
 .flagicon .cloth { transition: transform 90ms steps(3); transform-box: fill-box; transform-origin: left center; }
 .flagicon.taken .cloth { transform: scaleX(0.62) skewX(-8deg); }
+.flagicon.empty svg { opacity: 0.22; filter: grayscale(0.7); }
 .flagicon.flip { animation: flagflip 260ms steps(3); transform-box: fill-box; transform-origin: center; }
 @keyframes flagflip { 0% { transform: scaleY(0.2); } 100% { transform: scaleY(1); } }
 .flagicon .carrier-tag {
@@ -1561,7 +1562,7 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
         <button class="tbtn" id="btn-end" title="Jump to end (e)">|▸</button>
         <button class="tbtn" id="btn-loop" title="Loop (r)">↻</button>
         <button class="tbtn" id="btn-skip" title="Auto-skip lulls (f)">▸▸</button>
-        <button class="tbtn" id="btn-spoilers" title="Spoilers: kills / flag story / winner on the timeline ahead of the playhead (o)">spoilers</button>
+        <button class="tbtn" id="btn-spoilers" title="Spoilers: kills / objective story / winner on the timeline ahead of the playhead (o)">spoilers</button>
         <span class="ffwd-chip" id="ffwd-chip">▸▸ SKIPPING LULL</span>
         <span class="win-chip" id="win-chip"></span>
         <span class="tick-clock" id="tick-clock">0 / 0</span>
@@ -1917,9 +1918,19 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     relayout();
   }
 
-  // ---- flag icon svg (HOME/TAKEN/CAPTURED — F2; captured draws as taken) ----
-  function buildFlag(el, color) {
-    el.innerHTML =
+  function isFoodGame(s) { return !!s && s.objective === 'food'; }
+
+  // Objective icon: neutral seed cluster for Emerg-ant, inherited team flag
+  // for CTF replays. The state field stays named `flag` for old replay readers.
+  function buildObjective(el, color, food) {
+    el.innerHTML = food
+      ? '<svg viewBox="0 0 26 30" aria-hidden="true">' +
+        '<g fill="#f5bc36" stroke="#3f2d19" stroke-width="1.4">' +
+        '<circle cx="9" cy="15" r="5"/><circle cx="17" cy="15" r="5"/>' +
+        '<circle cx="13" cy="9" r="5"/><circle cx="13" cy="21" r="5"/></g>' +
+        '<circle cx="11" cy="7" r="1.5" fill="#ffeb84"/></svg>' +
+        '<div class="carrier-tag"></div>'
+      :
       '<svg viewBox="0 0 26 30" aria-hidden="true">' +
       '<rect x="4" y="2" width="2" height="26" fill="#2a1f16"/>' +
       '<g class="cloth"><path d="M6 3 L22 3 L18 9 L22 15 L6 15 Z" fill="' + color + '"/></g>' +
@@ -2156,8 +2167,8 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
   // match in practice). Plates alternate sides in TEAM_ORDER — index 0/2 left,
   // 1/3 right — so both team names stay innermost, flanking the clock.
   var sbTeams = null;
-  function ensureScorebug(teams) {
-    var key = teams.join(',');
+  function ensureScorebug(s, teams) {
+    var key = (isFoodGame(s) ? 'food:' : 'ctf:') + teams.join(',');
     if (sbTeams === key) return;
     sbTeams = key;
     var sides = [$('plates-l'), $('plates-r')];
@@ -2181,17 +2192,19 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
         '<div class="squad" id="squad-' + team + '"></div>' +
         '</div>';
       sides[i % 2].appendChild(plate);
-      buildFlag($('flag-' + team), teamCol(team) || AMBER);
+      buildObjective($('flag-' + team), teamCol(team) || AMBER, isFoodGame(s));
     });
   }
 
   function renderScorebug(s) {
     var teams = activeTeams(s);
-    ensureScorebug(teams);
+    ensureScorebug(s, teams);
     var tr = s.teams || {};
     var lives = {};
+    var foodScores = {};
     teams.forEach(function (team) {
       lives[team] = (tr[team] && tr[team].lives) || 0;
+      foodScores[team] = (tr[team] && tr[team].score) || 0;
     });
 
     teams.forEach(function (team) {
@@ -2199,7 +2212,19 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       setHandicap('hcap-' + team, s, team);
       // '—' until the frame actually carries this team's entry (a pre-roster
       // frame would otherwise read as a real 0). Matches the league shell.
-      $('lives-' + team).textContent = tr[team] ? lives[team] : '—';
+      var plate = document.querySelector('.plate[data-team="' + team + '"]');
+      var label = plate && plate.querySelector('.lives-label');
+      if (isFoodGame(s)) {
+        if (label) label.textContent = 'Food';
+        $('lives-' + team).textContent = tr[team] ?
+          String(tr[team].score || 0) + '/' + String(s.goal || '?') +
+            ' · store ' + String(tr[team].food || 0) +
+            ' · Q' + (tr[team].queenAlive ? '✓' : '✕') +
+            ' · ants ' + String(tr[team].active || 0) : '—';
+      } else {
+        if (label) label.textContent = 'Lives';
+        $('lives-' + team).textContent = tr[team] ? lives[team] : '—';
+      }
       // Squad pips grouped by policy with perk badges around each group
       // (the pip strip is the life meter; see renderSquad).
       renderSquad($('squad-' + team), s, team, s.pov);
@@ -2207,13 +2232,14 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       // leader pulse when this team leads EVERY rival by >= 3
       var bestRival = -Infinity;
       teams.forEach(function (o) {
-        if (o !== team) bestRival = Math.max(bestRival, lives[o]);
+        if (o !== team) bestRival = Math.max(bestRival,
+          isFoodGame(s) ? foodScores[o] : lives[o]);
       });
-      var plate = document.querySelector('.plate[data-team="' + team + '"]');
       if (plate) {
         plate.classList.toggle(
           'leader',
-          lives[team] - bestRival >= 3 && s.ph === 'playing'
+          (isFoodGame(s) ? foodScores[team] > bestRival : lives[team] - bestRival >= 3) &&
+            s.ph === 'playing'
         );
       }
     });
@@ -2229,6 +2255,7 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     var taken = tstate.flag === 'taken' || tstate.flag === 'captured';
     var was = el.classList.contains('taken');
     el.classList.toggle('taken', taken);
+    el.classList.toggle('empty', isFoodGame(s) && tstate.flag === 'captured');
     if (was !== taken) { el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip'); }
     var tag = el.querySelector('.carrier-tag');
     if (tag) {
@@ -2553,13 +2580,13 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     for (var j = 0; j < ents.length; j++) {
       var e = ents[j];
       var ed = Math.max(4, e.d);
-      var worldH = (e.k === 'item' || e.k === 'heart') ? FPV_COG_H * 0.55 : FPV_COG_H;
+      var worldH = (e.k === 'item' || e.k === 'heart' || e.k === 'food') ? FPV_COG_H * 0.55 : FPV_COG_H;
       var figH = projH(worldH, ed);
       // Screen-x from the true view angle: o∈[-1,1] maps across ±halfFov, and the
       // horizontal position is PROJ*tan(angle) — matched to the wall projection.
       var ang = (e.o || 0) * halfFov;
       var ex = W / 2 + PROJ * Math.tan(ang);
-      var figW = figH * ((e.k === 'item' || e.k === 'heart') ? 0.85 : 0.9);
+      var figW = figH * ((e.k === 'item' || e.k === 'heart' || e.k === 'food') ? 0.85 : 0.9);
       // Plant the figure on the visible FLOOR: the floor at this depth projects to
       // horizon + projH(FPV_EYE, d). Feet sit there; the body rises figH above it.
       // (Previously feet were pinned near the horizon, so cogs floated at eye level.)
@@ -2679,6 +2706,14 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     ctx.bezierCurveTo(cx - s * 0.95, cy - s * 0.15, cx - s * 0.45, cy - s * 0.72, cx, cy - s * 0.22);
     ctx.bezierCurveTo(cx + s * 0.45, cy - s * 0.72, cx + s * 0.95, cy - s * 0.15, cx, cy + s * 0.5);
     ctx.closePath();
+  }
+
+  function foodPath(ctx, cx, cy, s) {
+    var r = s * 0.22;
+    [[-0.22, 0.05], [0.22, 0.05], [0, -0.2], [0, 0.28]].forEach(function (p) {
+      ctx.moveTo(cx + p[0] * s + r, cy + p[1] * s);
+      ctx.arc(cx + p[0] * s, cy + p[1] * s, r, 0, Math.PI * 2);
+    });
   }
 
   // Item glyphs for the first-person billboards, drawn in a figH-scaled box.
@@ -3003,15 +3038,17 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       drawItemGlyph(ctx, e.item, cx, feetY - ir * 0.5, ir, dim);
       return;
     }
-    if (e.k === 'heart') {
+    if (e.k === 'heart' || e.k === 'food') {
       // A heart pedestal sits on the floor; lift the glyph so it rests, not floats.
       var hs = figH * 0.9;
       ctx.save();
       ctx.lineJoin = 'round';
-      ctx.fillStyle = col;
+      ctx.fillStyle = e.k === 'food' ? '#f5bc36' : col;
       ctx.strokeStyle = 'rgba(12,8,5,0.85)';
       ctx.lineWidth = Math.max(1, figH * 0.05);
-      heartPath(ctx, cx, feetY - hs * 0.5, hs);
+      ctx.beginPath();
+      if (e.k === 'food') foodPath(ctx, cx, feetY - hs * 0.5, hs);
+      else heartPath(ctx, cx, feetY - hs * 0.5, hs);
       ctx.fill(); ctx.stroke();
       ctx.restore();
       return;
@@ -3093,13 +3130,15 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
         ctx.fill();
       }
     }
-    // carrier heart above the head
+    // carried objective above the head
     if (e.carry) {
       ctx.fillStyle = AMBER;
       ctx.strokeStyle = 'rgba(12,8,5,0.85)';
       ctx.lineWidth = Math.max(1, figH * 0.03);
       var chs = figH * 0.2;
-      heartPath(ctx, cx, top - chs * (enemy ? 1.6 : 0.7), chs);
+      ctx.beginPath();
+      if (isFoodGame(lastState)) foodPath(ctx, cx, top - chs * (enemy ? 1.6 : 0.7), chs);
+      else heartPath(ctx, cx, top - chs * (enemy ? 1.6 : 0.7), chs);
       ctx.fill(); ctx.stroke();
     }
     ctx.restore();
@@ -3200,12 +3239,14 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       hpHtml += '<i' + (i < self.hp ? '' : ' class="spent"') + '></i>';
     }
     hpEl.innerHTML = hpHtml;
-    // gear: lives count, carried pickups, and the enemy-heart flag
+    // gear: lives count, carried pickups, and the carried objective
     var gearEl = $('fpv-gear'), bits = [];
     if (typeof self.lives === 'number') bits.push('×' + self.lives);
     (self.items || []).forEach(function (it) { bits.push(ITEM_LABEL[it] || it.toUpperCase()); });
     var html = bits.map(function (b) { return '<span>' + b + '</span>'; }).join('');
-    if (self.carry) html += '<span class="carry">♥ HEART</span>';
+    if (self.carry) html += isFoodGame(lastState)
+      ? '<span class="carry">● FOOD</span>'
+      : '<span class="carry">♥ HEART</span>';
     gearEl.innerHTML = html;
   }
 
@@ -3319,15 +3360,17 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       ctx.restore();
     }
 
-    // hearts (behind players)
+    // Objective patches (the inherited map key is `hearts`).
     (m.hearts || []).forEach(function (ht) {
       var col = teamCol(ht.team) || AMBER;
       var hx = px(ht.x), hy = py(ht.y);
       ctx.save();
-      ctx.fillStyle = col;
+      ctx.fillStyle = isFoodGame(lastState) ? '#f5bc36' : col;
       ctx.strokeStyle = 'rgba(12,8,5,0.8)';
       ctx.lineWidth = 1;
-      heartPath(ctx, hx, hy, Math.max(3, H * 0.05));
+      ctx.beginPath();
+      if (isFoodGame(lastState)) foodPath(ctx, hx, hy, Math.max(3, H * 0.05));
+      else heartPath(ctx, hx, hy, Math.max(3, H * 0.05));
       ctx.fill(); ctx.stroke();
       ctx.restore();
     });
@@ -3432,16 +3475,26 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
   }
 
   function onSteal(e, s) {
+    if (isFoodGame(s)) {
+      banner('FOOD HARVESTED', 'steal accent');
+      return;
+    }
     var heartTeam = e.flag; // the team whose heart was TAKEN (e.flag is the legacy event field)
     banner(String(heartTeam).toUpperCase() + ' HEART TAKEN', 'steal accent ' + heartTeam);
   }
   function onReturn(e, s) {
+    if (isFoodGame(s)) {
+      banner('FOOD LOST — PATCH REGROWING', 'returned accent');
+      return;
+    }
     var heartTeam = e.flag;
     banner(String(heartTeam).toUpperCase() + ' HEART RETURNED', 'returned accent ' + heartTeam);
   }
   function onCapture(e, s) {
     var byTeam = captureTeam(s, e);
-    banner(String(byTeam).toUpperCase() + ' CAPTURES', 'wipe accent ' + byTeam);
+    banner(String(byTeam).toUpperCase() +
+      (isFoodGame(s) ? ' DELIVERS FOOD' : ' CAPTURES'),
+      'wipe accent ' + byTeam);
   }
 
   // (teamOf / esc live in the shared chrome — chrome_common.js. The shared esc
@@ -3517,20 +3570,24 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     return team === 'red' ? (o.redLives || 0) : team === 'blue' ? (o.blueLives || 0) : 0;
   }
 
-  function endcardWinCondition(o, teams) {
+  function endcardWinCondition(s, o, teams) {
     // The condition CHIP: how the match ended, in two or three words.
     // (A time-limit ending is always a draw in the current rules — the sim's
     // checkMaxTicks path never crowns a winner — so timeLimit only pairs
     // with draw here.)
     if (o.draw) return o.timeLimit ? 'TIME LIMIT — DRAW' : 'DRAW';
+    if (isFoodGame(s)) return o.timeLimit ? 'FORAGING LEAD' : 'FOOD GOAL';
     var losers = teams.filter(function (t) { return t !== o.winner; });
     var bestLoser = 0;
     losers.forEach(function (t) { bestLoser = Math.max(bestLoser, overLives(o, t)); });
     return bestLoser <= 0 ? 'ELIMINATION' : 'HEART CAPTURE';
   }
 
-  function endcardOrder(a, b) {
-    // Kills lead the board; fewer deaths, then captures, break ties.
+  function endcardOrder(s, a, b) {
+    if (isFoodGame(s)) {
+      return (b.cap || 0) - (a.cap || 0) || (b.k || 0) - (a.k || 0) ||
+        (a.d || 0) - (b.d || 0) || a.s - b.s;
+    }
     return (b.k || 0) - (a.k || 0) || (a.d || 0) - (b.d || 0) ||
       (b.cap || 0) - (a.cap || 0) || a.s - b.s;
   }
@@ -3562,7 +3619,10 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     }
   }
 
-  function capturedHeartHtml(heartTeam) {
+  function capturedHeartHtml(s, heartTeam) {
+    if (isFoodGame(s)) {
+      return '<span class="ec-heart-glyph" title="Delivered one food cluster">●</span>';
+    }
     // One captured heart, drawn as the captured team's own heart art (its
     // baked pixel art); a team without baked art gets a tinted glyph.
     if (heartTeam === 'red' || heartTeam === 'blue' ||
@@ -3588,7 +3648,7 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       flags = [];
       for (var i = 0; i < caps; i++) flags.push(enemy);
     }
-    return flags.map(capturedHeartHtml).join('');
+    return flags.map(function (flag) { return capturedHeartHtml(s, flag); }).join('');
   }
 
   function renderEndcardRows(s, team, el, mvpSlot) {
@@ -3600,7 +3660,7 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     // teammate kills. A mixed team (2+ policies) groups its rows under policy
     // subheaders so each policy's contribution reads separately.
     var rows = (s.roster || []).filter(function (p) { return p.team === team; })
-      .slice().sort(endcardOrder);
+      .slice().sort(function (a, b) { return endcardOrder(s, a, b); });
     var pols = teamPolicies(s, team);
     var grouped = pols.length > 1 && pols.length <= 4;
     var html = '';
@@ -3610,7 +3670,8 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
       var cluster = (p.mk2 || 0) + (p.mk3 || 0);
       return '<div class="ec-row' + (mvp ? ' mvp' : '') + '">' +
         '<span class="pcell">' +
-        '<span class="pname">' + esc(shortName(rosterName(s, p.s))) + '</span>' +
+        '<span class="pname">' + (p.queen ? 'QUEEN · ' : '') +
+          esc(shortName(rosterName(s, p.s))) + '</span>' +
         marks +
         '</span>' +
         '<span class="n">' + (p.k || 0) + '</span>' +
@@ -3636,8 +3697,8 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
   // Rebuild the endcard's per-team stat panels when the active team set
   // changes (once per match in practice): one panel per team, in display order.
   var ecTeams = null;
-  function ensureEndcardTeams(teams) {
-    var key = teams.join(',');
+  function ensureEndcardTeams(s, teams) {
+    var key = (isFoodGame(s) ? 'food:' : 'ctf:') + teams.join(',');
     if (ecTeams === key) return;
     ecTeams = key;
     var wrap = $('ec-teams');
@@ -3652,7 +3713,8 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
         '<span class="fl-num ' + team + '" id="ec-' + team + '">0</span>' +
         '<span class="fl-cap">Lives left</span>' +
         '</div>' +
-        '<div class="ec-thead"><span>Player</span><span>K</span><span>D</span><span>Clstr</span><span>Cap</span></div>' +
+        '<div class="ec-thead"><span>Player</span><span>K</span><span>D</span><span>Clstr</span><span>' +
+        (isFoodGame(s) ? 'Food' : 'Cap') + '</span></div>' +
         '<div id="ec-rows-' + team + '"></div>';
       wrap.appendChild(el);
     });
@@ -3664,7 +3726,7 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     card.classList.add('on'); // own the frame at GameOver (§8) — before either verdict branch
     var o = s.over;
     var teams = activeTeams(s);
-    ensureEndcardTeams(teams);
+    ensureEndcardTeams(s, teams);
 
     // The loop countdown ticks every second while everything else is frozen,
     // so it renders unconditionally; the static content is keyed and only
@@ -3677,7 +3739,7 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     card._key = key;
 
     var head = $('ec-headline'), how = $('ec-how');
-    $('ec-wincond').textContent = endcardWinCondition(o, teams);
+    $('ec-wincond').textContent = endcardWinCondition(s, o, teams);
 
     // MVP: the winning team's best final line (kills > fewer deaths >
     // captures — the capturer keeps their ⚑ mark, the star follows the guns).
@@ -3686,7 +3748,7 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     var mvpSlot = null;
     if (!o.draw) {
       var winners = (s.roster || []).filter(function (p) { return p.team === o.winner; })
-        .sort(endcardOrder);
+        .sort(function (a, b) { return endcardOrder(s, a, b); });
       if (winners.length) mvpSlot = winners[0].s;
     }
     teams.forEach(function (team) {
@@ -3698,9 +3760,11 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
 
     if (o.draw) {
       head.className = 'headline draw';
-      head.textContent = 'DRAW — NO SCORE';
+      head.textContent = isFoodGame(s) ? 'DRAW — FOOD TIED' : 'DRAW — NO SCORE';
       how.textContent = o.timeLimit
-        ? 'Time expired before a capture or a wipe — a scoreless draw, with no tiebreak on lives.'
+        ? (isFoodGame(s)
+          ? 'Time expired with both colonies holding the same food score.'
+          : 'Time expired before a capture or a wipe — a scoreless draw, with no tiebreak on lives.')
         : 'The match ended with neither side scoring — no winner.';
       return;
     }
@@ -3715,7 +3779,17 @@ body[data-noviewpanel] #viewpanel { display: none !important; }
     var bestLoser = 0;
     losers.forEach(function (t) { bestLoser = Math.max(bestLoser, overLives(o, t)); });
 
-    if (o.timeLimit) {
+    if (isFoodGame(s)) {
+      var winScore = o.teams && o.teams[winner] ? (o.teams[winner].score || 0) : 0;
+      if (o.timeLimit) {
+        how.textContent = 'Time expired — ' + winName + ' led the foraging race with ' +
+          winScore + ' food delivered.';
+      } else if (bestLoser <= 0) {
+        how.textContent = winName + ' was the last colony with living ants.';
+      } else {
+        how.textContent = winName + ' reached the food goal: ' + winScore + '/' + s.goal + '.';
+      }
+    } else if (o.timeLimit) {
       // Time-limit resolution — name the key and the values (F3).
       if (winL !== bestLoser) {
         how.textContent = 'Time expired — ' + winName + ' held more lives (' + winL + ' vs ' + bestLoser + ').';

@@ -4262,7 +4262,7 @@ proc buildPlantedFlagSprite(team: Team): seq[uint8] {.measure.} =
   result = newSeq[uint8](gemSize * PlantedFlagCanvasH * boardScale * 4)
   copyMem(result[0].addr, gem[0].addr, gem.len)
 
-proc buildFlagAuraSprite(team: Team): seq[uint8] {.measure.} =
+proc buildFlagAuraSprite(team: Team, foodMode = false): seq[uint8] {.measure.} =
   ## Builds the soft carrier halo in the FLAG's team color: a feathered disc
   ## drawn UNDER the carrier so the flag-runner is the brightest, most-tracked
   ## figure on the board (TagPro / TF2 carrier-glow convention). A blue player
@@ -4271,7 +4271,9 @@ proc buildFlagAuraSprite(team: Team): seq[uint8] {.measure.} =
   let outSize = FlagAuraSize * boardScale
   result = newRgbaPixels(outSize, outSize)
   let
-    base = Palette[teamColor(team) and 0x0f]
+    base =
+      if foodMode: rgba(245, 188, 54, 255)
+      else: Palette[teamColor(team) and 0x0f]
     c = float(outSize - boardScale) / 2
   for y in 0 ..< outSize:
     for x in 0 ..< outSize:
@@ -4336,8 +4338,9 @@ proc addFlagSprites(
       FlagAuraSpriteBase + ord(team),
       FlagAuraSize,
       FlagAuraSize,
-      buildFlagAuraSprite(team),
-      flagLabel(team) & " carrier glow",
+      buildFlagAuraSprite(team, foodMode),
+      if foodMode: "neutral food carrier glow"
+      else: flagLabel(team) & " carrier glow",
       native = boardScale
     )
   # The carried heart is baked PER AIM STEP (team×16) so it rotates with the cog;
@@ -4468,12 +4471,19 @@ proc antRotPixels(team: Team, skin: Skin, rot, renderScale: int): seq[uint8] =
         if segmentDistance(rx, ry, ax, ay, bx, by) <= 0.7:
           leg = true
       let
-        abdomen = ((along + 8.0) / 7.0) ^ 2 + (side / 5.5) ^ 2 <= 1.0
+        abdomen =
+          if skin == CrownSkin:
+            ((along + 7.0) / 9.0) ^ 2 + (side / 7.0) ^ 2 <= 1.0
+          else:
+            ((along + 8.0) / 7.0) ^ 2 + (side / 5.5) ^ 2 <= 1.0
         thorax = (along / 5.0) ^ 2 + (side / 4.5) ^ 2 <= 1.0
         head = ((along - 8.0) / 5.0) ^ 2 + (side / 4.8) ^ 2 <= 1.0
         solid = abdomen or thorax or head
         edge = solid and (
-          ((along + 8.0) / 6.2) ^ 2 + (side / 4.7) ^ 2 > 1.0 and abdomen or
+          (if skin == CrownSkin:
+            ((along + 7.0) / 8.2) ^ 2 + (side / 6.2) ^ 2 > 1.0 and abdomen
+           else:
+            ((along + 8.0) / 6.2) ^ 2 + (side / 4.7) ^ 2 > 1.0 and abdomen) or
           (along / 4.3) ^ 2 + (side / 3.8) ^ 2 > 1.0 and thorax or
           ((along - 8.0) / 4.3) ^ 2 + (side / 4.1) ^ 2 > 1.0 and head)
         pixel = y * canvas + x
@@ -4497,7 +4507,8 @@ proc addPlayerActorSprites(
   ## SoldierRotations-step set per team, plus selected outlines for the map.
   let usedSkins = sim.config.usedSkins()
   for skin in Skin:
-    if skin notin usedSkins:
+    if skin notin usedSkins and
+        not (sim.config.isEmergAnt() and skin == CrownSkin):
       continue
     for team in sim.teams():
       let color = teamText(team)
@@ -4521,7 +4532,10 @@ proc addPlayerActorSprites(
           SoldierCanvas,
           SoldierCanvas,
           pixels,
-          labelPlayer(color, side),
+          if sim.config.isEmergAnt() and skin == CrownSkin:
+            labelQueen(color, side)
+          else:
+            labelPlayer(color, side),
           native = boardScale
         )
         # Corpse and selection variants derive from the same rendered pixels.
@@ -4531,7 +4545,10 @@ proc addPlayerActorSprites(
           SoldierCanvas,
           SoldierCanvas,
           soldierCorpse(pixels),
-          labelCorpse(color, side),
+          if sim.config.isEmergAnt() and skin == CrownSkin:
+            labelQueenCorpse(color, side)
+          else:
+            labelCorpse(color, side),
           native = boardScale
         )
         if selected:
@@ -4843,6 +4860,21 @@ proc blitNameFlag(
         if solid(x - 1, y) or solid(x + 1, y) or solid(x, y - 1) or solid(x, y + 1):
           target.putTextSpritePixel(targetWidth, targetHeight, px, py, OutlineColor)
 
+proc blitNameFood(
+  target: var seq[uint8],
+  targetWidth, targetHeight, baseX, baseY: int
+) =
+  ## Blits a tiny neutral gold seed cluster beside an Emerg-ant carrier's name.
+  ## This occupies the legacy flag chip's footprint but never implies that the
+  ## carried resource belongs to either colony.
+  const Seeds = [(1, 3), (3, 3), (2, 1), (2, 5)]
+  for (sx, sy) in Seeds:
+    for y in sy .. sy + 1:
+      for x in sx .. sx + 1:
+        if x >= 0 and x < NameFlagW and y >= 0 and y < TextLineHeight:
+          target.putTextSpritePixel(
+            targetWidth, targetHeight, baseX + x, baseY + y, 9'u8)
+
 proc buildCarrierNameSprite(
   sim: SimServer,
   player: Player,
@@ -4868,7 +4900,10 @@ proc buildCarrierNameSprite(
     result.pixels.blitRgbaBuffer(result.width * k, result.height * k,
       nameSpr.pixels, nameSpr.width * k, nameSpr.height * k, 0, 0)
     var chip = newRgbaPixels(NameFlagW, TextLineHeight)
-    chip.blitNameFlag(NameFlagW, TextLineHeight, 0, 0, Team(flagTeamOrd))
+    if sim.config.isEmergAnt():
+      chip.blitNameFood(NameFlagW, TextLineHeight, 0, 0)
+    else:
+      chip.blitNameFlag(NameFlagW, TextLineHeight, 0, 0, Team(flagTeamOrd))
     result.pixels.blitRgbaBuffer(result.width * k, result.height * k,
       scaleSpritePixels(chip, NameFlagW, TextLineHeight, k),
       NameFlagW * k, TextLineHeight * k, (nameSpr.width + gap) * k, 0)
@@ -4879,8 +4914,11 @@ proc buildCarrierNameSprite(
   result.pixels = newRgbaPixels(result.width, result.height)
   sim.blitSmallText(result.pixels, result.width, result.height, name, 0, 0,
     PlayerNameColor)
-  result.pixels.blitNameFlag(result.width, result.height, nameW + gap, 0,
-    Team(flagTeamOrd))
+  if sim.config.isEmergAnt():
+    result.pixels.blitNameFood(result.width, result.height, nameW + gap, 0)
+  else:
+    result.pixels.blitNameFlag(result.width, result.height, nameW + gap, 0,
+      Team(flagTeamOrd))
 
 proc spritePlayerX(player: Player): int =
   ## Returns the global viewer x position for a player sprite: the soldier
@@ -6731,9 +6769,14 @@ proc buildSpriteProtocolPlayerUpdates*(
           ),
           # Documented self marker (RULES.md): `self <color> <side>`, only drawn
           # while alive. Side follows the aim exactly as the sim's flipH does.
-          labelSelf(
-            teamText(other.team),
-            if soldierFacingRight(rot): LabelSideRight else: LabelSideLeft)
+          if sim.config.isEmergAnt() and sim.isQueen(i):
+            labelQueenSelf(
+              teamText(other.team),
+              if soldierFacingRight(rot): LabelSideRight else: LabelSideLeft)
+          else:
+            labelSelf(
+              teamText(other.team),
+              if soldierFacingRight(rot): LabelSideRight else: LabelSideLeft)
         )
       let objectId = other.spriteObjectId()
       currentIds.add(objectId)
@@ -7755,7 +7798,8 @@ proc buildSpriteProtocolUpdates*(
         # flag marker changes. Skip rebuild + wire when the key already matches.
         labelKey =
           if flagTeamOrd >= 0:
-            "name " & playerLabelText(player) & " flag " & $flagTeamOrd
+            "name " & playerLabelText(player) &
+              (if sim.config.isEmergAnt(): " food" else: " flag " & $flagTeamOrd)
           else:
             "name " & playerLabelText(player)
         defIndex = nextState.spriteDefs.spriteDefinitionIndex(labelSpriteId)

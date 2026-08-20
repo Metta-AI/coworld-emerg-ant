@@ -286,6 +286,18 @@ proc labelSelf*(color, side: string): string =
   ## Your own avatar's sprite label, `self <color> <side>`.
   LabelPrefixSelf & color & " " & side
 
+proc labelQueen*(color, side: string): string =
+  ## A living Emerg-ant queen, `queen <color> <side>`.
+  "queen " & color & " " & side
+
+proc labelQueenCorpse*(color, side: string): string =
+  ## A killed Emerg-ant queen, `queen corpse <color> <side>`.
+  "queen corpse " & color & " " & side
+
+proc labelQueenSelf*(color, side: string): string =
+  ## The queen policy's own avatar, `self queen <color> <side>`.
+  "self queen " & color & " " & side
+
 proc labelSelectedPlayer*(color, side: string): string =
   ## The spectator-highlighted variant, `selected player <color> <side>`.
   LabelPrefixSelectedPlayer & color & " " & side

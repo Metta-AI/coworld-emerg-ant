@@ -178,6 +178,10 @@ proc gameHash*(sim: SimServer): uint64 =
       result.mixHashInt(sim.flags[team].respawnAt)
       result.mixHashInt(sim.flags[team].foodSite)
   if sim.config.isEmergAnt():
+    for team in sim.teams():
+      result.mixHashInt(sim.colonyFood[team])
+      result.mixHashInt(sim.queenFeedAt[team])
+      result.mixHashInt(sim.queenSlot[team])
     result.mixHashInt(sim.pheromones.len)
     for mark in sim.pheromones:
       result.mixHashInt(mark.x)

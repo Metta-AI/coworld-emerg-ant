@@ -1,9 +1,10 @@
-# Emerg-ant v0.4 — Two Brains, 32 Bodies
+# Emerg-ant v0.5 — Two Queens, Growing Colonies
 
 Emerg-ant is a competitive artificial-life Coworld for the ERA @ ALIFE 2026
-Emerg-ant hackathon. Two policies each inhabit a colony of 16 independent ant
-bodies. Every body runs another copy of the same policy image; no process is a
-colony manager and no hidden state is shared between copies.
+Emerg-ant hackathon. Two policies each occupy 16 fixed seats. A match begins
+with one crown-marked queen and three workers per colony; the other connected
+policy seats are dormant brood. Every active worker runs another copy of the
+same policy image. Colony memory remains in the world, not in a manager.
 
 The experiment asks a compact question: can useful colony organization emerge
 from local sensing, repeated rules, and marks left in the world?
@@ -19,7 +20,8 @@ correlated random walk supplies uncued exploration, and local stall escape keeps
 carriers moving around cover. Training and its portable checkpoint live under
 `players/neural/`.
 
-Every ant wakes on a symmetric 2×8 lattice inside its colony's scoring zone.
+Every seat has a distinct wake point on a symmetric 2×8 lattice inside its
+colony's nest. Founders wake there at kickoff; brood hatch there later.
 This makes “displacement from wake” truthfully mean “direction home,” as it
 does in NAnts; the inherited CTF fan placed outer seats well away from a
 compact nest and was incompatible with that local contract.
@@ -29,17 +31,28 @@ compact nest and was incompatible with that local contract.
 - Two neutral fruit patches begin at opposite sites in an eight-site interior
   circuit. Either colony may harvest either patch by touching it.
 - An ant carries one item. Returning it to that ant's own endzone scores one
-  forage point, empties the source patch, and starts its regrowth timer. When
+  delivery, adds one food to the colony store, empties the source patch, and
+  starts its regrowth timer. When
   it regrows, that patch advances to the next walkable site, so colonies must
   continue exploring upper, lower, left, right, and center-field regions.
+- A queen reserves her last food ration. Every surplus food spends one unit to
+  hatch a dormant policy seat as a new worker. Never-hatched seats are chosen
+  before previously killed workers.
+- The queen first becomes hungry after 1,080 ticks (45 seconds), then every 720
+  ticks (30 seconds). Each check consumes one stored food. With no food she
+  starves, and if combat kills her the same collapse occurs immediately.
+- Queen loss eliminates every worker in that colony. Emerg-ant does not use the
+  inherited per-player lives setting: a worker death is permanent until food
+  funds another hatch.
 - The published variant regrows an empty patch after 240 ticks (10 seconds),
-  ends when one colony reaches 10 deliveries, and seats 16 ants per colony.
+  ends when one colony reaches 5 deliveries, and reserves 16 policy seats per
+  colony.
 - At the time limit a unique forage leader wins; equal scores draw.
-- A colony also wins if contact combat leaves no enemy ants in play. Published
-  ants have five lives, so biting disrupts the food race without replacing it.
+- A colony also wins when the enemy queen dies or starves.
 
-The top score reads `RED FOOD 3/10`. Existing tournament results use each
-ant's `captures` field for its delivered-food count.
+The top score reads `FOOD 3/5 · STORE 1`; the queen and active brood count are
+also carried in replay state. Existing tournament results retain the internal
+`captures` field name solely as a compatibility container for deliveries.
 
 ## Stigmergy and disruption
 
@@ -67,6 +80,11 @@ Policy-visible labels are:
 ```text
 neutral food patch
 neutral food carried
+neutral food carrier glow
+queen red left|right
+queen blue left|right
+self queen red left|right
+self queen blue left|right
 pheromone red scout
 pheromone red food
 pheromone blue scout
@@ -94,8 +112,8 @@ the ordinary regrowth timer.
 | C | Deposit food pheromone |
 | Select | Reserved / no-op |
 
-The CTF-derived engine remains available behind `gameMode: "ctf"`, where its
-original aim, weapons, hearts, and pickups are unchanged.
+The old CTF engine remains available only as a separate compatibility mode; it
+is not part of an Emerg-ant match or its fiction.
 
 ## Published configuration
 
@@ -103,7 +121,7 @@ original aim, weapons, hearts, and pickups are unchanged.
 {
   "gameMode": "emerg-ant",
   "minPlayers": 32,
-  "forageGoal": 10,
+  "forageGoal": 5,
   "foodRespawnTicks": 240,
   "pheromoneWashTick": 1800,
   "antSenseRadius": 180,

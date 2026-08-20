@@ -234,6 +234,31 @@ proc resetBarriers*(sim: var SimServer) =
   for i in 0 ..< sim.players.len:
     sim.players[i].hasBarrier = false
 
+proc queenIndex*(sim: SimServer, team: Team): int =
+  ## The queen is the colony's first joined policy seat. This is derived from
+  ## stable join order, so it requires no per-player wire field and survives
+  ## replay joins/disconnect bookkeeping.
+  result = -1
+  if sim.config.isEmergAnt() and sim.queenFeedAt[team] > 0:
+    for i, player in sim.players:
+      if player.team == team and player.joinOrder == sim.queenSlot[team]:
+        return i
+    return -1
+  var firstOrder = high(int)
+  for i, player in sim.players:
+    if player.team == team and player.joinOrder < firstOrder:
+      firstOrder = player.joinOrder
+      result = i
+
+proc isQueen*(sim: SimServer, playerIndex: int): bool =
+  playerIndex >= 0 and playerIndex < sim.players.len and
+    sim.queenIndex(sim.players[playerIndex].team) == playerIndex
+
+proc teamActiveAnts*(sim: SimServer, team: Team): int =
+  for player in sim.players:
+    if player.team == team and player.alive:
+      inc result
+
 proc startGame*(sim: var SimServer) =
   sim.logGameEvent("game started: players=" & $sim.players.len)
   sim.recentShots = @[]
@@ -246,10 +271,26 @@ proc startGame*(sim: var SimServer) =
   sim.pheromones = @[]
   sim.recentShouts = @[]
   sim.arrangeHomePositions()
+  for team in sim.teams():
+    let foundingQueen = sim.queenIndex(team)
+    sim.queenSlot[team] =
+      if foundingQueen >= 0: sim.players[foundingQueen].joinOrder else: -1
+    sim.colonyFood[team] =
+      if sim.config.isEmergAnt(): QueenStartingFood else: 0
+    sim.queenFeedAt[team] =
+      if sim.config.isEmergAnt(): sim.tickCount + QueenGraceTicks else: 0
   for i in 0 ..< sim.players.len:
     sim.players[i].lastShoutTick = -1
-    sim.players[i].alive = true
-    sim.players[i].lives = sim.config.livesFor(sim.players[i].team)
+    var teamRank = 0
+    for other in sim.players:
+      if other.team == sim.players[i].team and
+          other.joinOrder < sim.players[i].joinOrder:
+        inc teamRank
+    sim.players[i].alive =
+      not sim.config.isEmergAnt() or teamRank < InitialAntsPerColony
+    sim.players[i].lives =
+      if sim.config.isEmergAnt(): 0
+      else: sim.config.livesFor(sim.players[i].team)
     sim.players[i].hp =
       sim.config.maxHpFor(sim.players[i].team, sim.players[i].perks)
     sim.players[i].respawnTimer = 0
@@ -270,6 +311,10 @@ proc startGame*(sim: var SimServer) =
     sim.players[i].multiKills3 = 0
     sim.players[i].teamKills = 0
     sim.players[i].arcKillsThisFire = 0
+    if sim.config.isEmergAnt():
+      # CrownSkin is reserved for the derived queen in ant mode; the distinct
+      # sprite/label makes the colony's single point of failure observable.
+      sim.players[i].skin = if sim.isQueen(i): CrownSkin else: DefaultSkin
     sim.recordGameTeamAssigned(i)
   sim.resetFlags()
   sim.resetGrenades()
@@ -2832,6 +2877,73 @@ proc eliminateTeam(sim: var SimServer, team: Team, killerIndex: int) =
     if sim.players[i].alive:
       sim.killPlayer(i, killerIndex, elimination = true)
 
+proc hatchBrood(sim: var SimServer, team: Team): bool =
+  ## Activates one connected reserve policy at the queen's nest. Seats that
+  ## have never hatched are preferred, then dead workers may be reborn; the
+  ## queen herself is never a brood candidate.
+  let queen = sim.queenIndex(team)
+  var candidate = -1
+  for pass in 0 .. 1:
+    for i, player in sim.players:
+      if i == queen or player.team != team or player.alive:
+        continue
+      if pass == 0 and player.deaths > 0:
+        continue
+      if candidate < 0 or player.joinOrder < sim.players[candidate].joinOrder:
+        candidate = i
+    if candidate >= 0:
+      break
+  if candidate < 0:
+    return false
+  let spawn = sim.randomEndzonePosition(team)
+  sim.placePlayer(candidate, spawn.x, spawn.y)
+  sim.players[candidate].alive = true
+  sim.players[candidate].lives = 0
+  sim.players[candidate].respawnTimer = 0
+  sim.players[candidate].hp =
+    sim.config.maxHpFor(team, sim.players[candidate].perks)
+  sim.players[candidate].aimBrads = sim.gameMap.spawnAimBrads(team)
+  sim.players[candidate].flipH = sim.gameMap.spawnFlipH(team)
+  sim.emitEvent(
+    Respawn, source = candidate,
+    x = float(sim.players[candidate].x + CollisionW div 2),
+    y = float(sim.players[candidate].y + CollisionH div 2))
+  sim.logGameEvent(
+    teamText(team) & " queen hatched " & sim.playerText(candidate))
+  true
+
+proc updateColonyLifecycle*(sim: var SimServer) =
+  ## Feeds queens, collapses queenless colonies, then spends only SURPLUS food
+  ## on brood. A delivery on the exact hunger tick can save the queen because
+  ## delivery resolution precedes this procedure.
+  if not sim.config.isEmergAnt() or sim.phase != Playing:
+    return
+  for team in sim.teams():
+    let queen = sim.queenIndex(team)
+    if queen < 0:
+      sim.logGameEvent(teamText(team) & " queen disconnected; colony collapsed")
+      sim.eliminateTeam(team, -1)
+      continue
+    if sim.players[queen].alive:
+      while sim.tickCount >= sim.queenFeedAt[team]:
+        if sim.colonyFood[team] < QueenUpkeepFoodCost:
+          sim.logGameEvent(teamText(team) & " queen starved; colony collapsed")
+          sim.killPlayer(queen, -1, cause = "starved")
+          break
+        sim.colonyFood[team] -= QueenUpkeepFoodCost
+        sim.queenFeedAt[team] += QueenUpkeepTicks
+        sim.logGameEvent(
+          teamText(team) & " queen fed; " & $sim.colonyFood[team] &
+            " food remains")
+    if not sim.players[queen].alive:
+      sim.logGameEvent(teamText(team) & " queen lost; colony collapsed")
+      sim.eliminateTeam(team, -1)
+      continue
+    while sim.colonyFood[team] >= QueenFoodReserve + BroodFoodCost:
+      if not sim.hatchBrood(team):
+        break
+      sim.colonyFood[team] -= BroodFoodCost
+
 proc updatePuddles*(sim: var SimServer) =
   ## One tick of the paint-puddle hazard: every full second (PuddleRollTicks
   ## ticks) a cog's center spends CONTINUOUSLY inside a puddle rolls a
@@ -2979,6 +3091,7 @@ proc checkEmergAntWinCondition(sim: var SimServer) =
     if not zone.inCaptureZone(cx, cy):
       continue
     sim.recordCapture(carrierIndex)
+    sim.colonyFood[carrier.team] += 1
     sim.emitEvent(Capture, source = carrierIndex, x = float(cx), y = float(cy))
     sim.logGameEvent(
       teamText(carrier.team) & " delivered neutral food (" &
@@ -2989,6 +3102,8 @@ proc checkEmergAntWinCondition(sim: var SimServer) =
     sim.flags[foodTeam].carrier = -1
     sim.flags[foodTeam].captured = true
     sim.flags[foodTeam].respawnAt = sim.tickCount + sim.config.foodRespawnTicks
+
+  sim.updateColonyLifecycle()
 
   var
     leaders: seq[Team] = @[]

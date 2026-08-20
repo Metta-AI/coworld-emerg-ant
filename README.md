@@ -2,36 +2,39 @@
 
 Emerg-ant is a competitive artificial-life Coworld for the
 [ERA @ ALIFE 2026 Emerg-ant hackathon](https://emerging-researchers-alife.github.io/alife26-era-workshop/#hackathon).
-Two policies each inhabit 16 identical ant bodies. The replicas forage finite
-neutral food, coordinate through locally sensed pheromones, recover after rain
-erases the shared trail field, and attack enemies only through physical
-contact.
+Two policies each occupy 16 fixed colony seats, but only a queen and three
+workers begin alive. Workers forage finite neutral food, coordinate through
+locally sensed pheromones, and attack by physical contact. Food returned to the
+nest feeds the queen and hatches dormant policy seats into new ant bodies; if
+the queen starves or is killed, her colony collapses.
 
 The current source extends the v0.2 ecology and replaces its scripted starter with
 a stronger NAnts-style controller. One shared 182→48→14 MLP is copied into all
-16 bodies. Each copy sees only a rotated 5×5 local patch, carried-food and bite
+active worker bodies. Each copy sees only a rotated 5×5 local patch, carried-food and bite
 state, displacement from its own wake point, and a private-phase clock. Learned
 movement distributions become smooth expected steering for food and homing;
 uncued ants use a wake-seeded correlated random walk and local collision escape.
 There is no slot feature, absolute position, predefined nest location, pathfinder,
 global live-resource feed, or cross-container communication.
 
-Read the [complete v0.4 rules](docs/EMERG_ANT.md) or
+Read the [complete v0.5 rules](docs/EMERG_ANT.md) or
 [build a colony policy](docs/BUILD_A_POLICY.md).
 
 ## What to present at the hackathon
 
-**Two Brains, 32 Bodies** is both the demo and the experiment:
+**Two Brains, Two Queens, Growing Colonies** is both the demo and the experiment:
 
-1. Start a 16-vs-16 replay and show identical policy replicas dispersing from
-   each nest.
+1. Start with two crown-marked queens, six founding workers, and 24 dormant
+   policy seats waiting as brood.
 2. Follow the first food discovery as C-marked return trails recruit other
    locally sensing ants.
-3. Show congestion, enemy trail cancellation, and contact-only fights around
-   a finite patch—coordination and conflict arise from the same local rule.
-4. At 1:15, rain removes every pheromone. Compare each colony's recovery time
+3. Watch returned food become population: each surplus cluster hatches another
+   connected policy seat at the nest.
+4. Show a queen assassination or an empty food store collapse a whole colony,
+   making defense and resource allocation inseparable from foraging.
+5. At 1:15, rain removes every pheromone. Compare each colony's recovery time
    and the routes that re-emerge.
-5. End on the Softmax replay/league page: participants can fork the starter,
+6. End on the Softmax replay/league page: participants can fork the starter,
    upload one policy image, and watch 16 replicas compete as a colony.
 
 The research artifact is not merely the score. It is the relationship between
@@ -135,7 +138,7 @@ nim c -d:release -r tests/tests.nim
 
 ```bash
 uvx --from "coworld[auth]" coworld build \
-  --version 0.4.0 \
+  --version 0.5.0 \
   --project . \
   --compose compose.yaml \
   --template coworld_manifest.json \

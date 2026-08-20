@@ -13,7 +13,7 @@
     "replay_viewer": {
       "bundle": "static-replay-viewer"
     },
-    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two shared neural policies each inhabit 16 identical ant bodies. With only a local egocentric patch and their own wake displacement, colonies explore for fruit rotating through eight arena sites, write erasable pheromone fields, recover after a trail wash, and fight through physical contact.",
+    "description": "Emerg-ant is competitive artificial life inspired by NAnts: two fixed 16-seat policy colonies begin with a queen and three workers. Local neural ants forage fruit, write erasable pheromone fields, hatch dormant policy seats with surplus food, defend their queen, and fight only through physical contact.",
     "owner": "treeform@softmax.com",
     "runnable": {
       "type": "game",
@@ -163,7 +163,7 @@
           "default": 12
         },
         "carrierSpeedPct": {
-          "description": "Movement speed percentage while carrying a heart or neutral food.",
+          "description": "Movement speed percentage while carrying food home.",
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
@@ -277,7 +277,7 @@
           "default": "classic"
         },
         "gameMode": {
-          "description": "Objective ruleset. ctf is single-capture elimination; emerg-ant is a local-sensing neutral-food race with explicit, erasable pheromone trails and contact combat.",
+          "description": "Objective ruleset. Emerg-ant is a local-sensing food economy with queens, food-funded brood, erasable pheromone trails, and contact combat.",
           "type": "string",
           "enum": [
             "ctf",
@@ -514,7 +514,7 @@
           }
         },
         "win": {
-          "description": "One win flag per player slot.",
+          "description": "One win indicator per player policy seat.",
           "type": "array",
           "minItems": 1,
           "maxItems": 32,
@@ -552,7 +552,7 @@
           }
         },
         "captures": {
-          "description": "One objective-delivery count per player slot: heart captures in CTF or neutral-food deliveries in Emerg-ant.",
+          "description": "One food-delivery count per ant slot. The inherited field name is retained for platform compatibility.",
           "type": "array",
           "minItems": 1,
           "maxItems": 32,
@@ -595,7 +595,7 @@
       "id": "baseline",
       "name": "baseline",
       "type": "player",
-      "description": "Shared neural-ant policy: local 5x5 observation, learned steering/pheromone/bite heads, wake-seeded correlated exploration, and collision escape replicated across every colony body.",
+      "description": "Shared neural-ant policy: local 5x5 observation, learned steering/pheromone/bite heads, queen defense, wake-seeded exploration, and collision escape replicated across active worker bodies.",
       "image": "{{PLAYER_IMAGE}}",
       "run": [
         "/bin/baseline"
@@ -616,7 +616,7 @@
     {
       "id": "emerg-ant",
       "name": "Emerg-ant Foraging",
-      "description": "Two policies each control 16 identical ant replicas. Colonies explore for two neutral fruit patches rotating through eight distributed sites, use local pheromone sensing, survive a trail wash, and may bite enemy ants only on physical contact.",
+      "description": "Two fixed 16-seat policy colonies begin with a queen and three workers. Food hatches dormant seats into workers and feeds the queen; queen death collapses the colony. Workers sense locally, write pheromones, and bite only on contact.",
       "game_config": {
         "players": [
           {
@@ -687,13 +687,13 @@
         "num_agents": 32,
         "minPlayers": 32,
         "gameMode": "emerg-ant",
-        "forageGoal": 10,
+        "forageGoal": 5,
         "foodRespawnTicks": 240,
         "pheromoneWashTick": 1800,
         "antSenseRadius": 180,
         "biteDamage": 1,
         "biteCooldownTicks": 18,
-        "lives": 5,
+        "lives": 1,
         "hitPoints": 3,
         "respawnTicks": 72,
         "gunRange": 1050,

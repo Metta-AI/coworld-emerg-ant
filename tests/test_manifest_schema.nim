@@ -176,7 +176,7 @@ suite "league manifest config_schema vs GameConfig":
   test "emerg-ant publishes a full competitive colony roster":
     let gameConfig = manifestVariant("emerg-ant")["game_config"]
     check gameConfig["gameMode"].getStr() == EmergAntMode
-    check gameConfig["forageGoal"].getInt() == 10
+    check gameConfig["forageGoal"].getInt() == 5
     check gameConfig["num_agents"].getInt() == 32
     check gameConfig["players"].len == 32
     check gameConfig["minPlayers"].getInt() == 32

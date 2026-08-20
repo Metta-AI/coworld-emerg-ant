@@ -5,9 +5,14 @@ container receives only its own Sprite v1 observation and sends one input
 mask. There is no shared process, shared memory, or colony-wide observation.
 Coordination must survive that boundary.
 
+Only four seats per colony are embodied at kickoff. A dormant connection sees
+no living self object and should keep sending neutral input until the queen
+hatches it. The first joined seat is the queen caste; it sees `self queen ...`
+instead of `self ...` and should remain inside and defend the nest.
+
 ## 1. Start from the reference policy
 
-Read the [v0.4 rules](EMERG_ANT.md), [Sprite protocol](PROTOCOL.md), and the
+Read the [v0.5 rules](EMERG_ANT.md), [Sprite protocol](PROTOCOL.md), and the
 shared network in
 [`neural_ant.nim`](../players/baseline/baseline/neural_ant.nim). The observation
 adapter and explicit handwritten ablation are in
@@ -21,6 +26,15 @@ The mode-specific object labels are:
 ```text
 neutral food patch
 neutral food carried
+neutral food carrier glow
+queen red left
+queen red right
+queen blue left
+queen blue right
+self queen red left
+self queen red right
+self queen blue left
+self queen blue right
 pheromone red scout
 pheromone red food
 pheromone blue scout
@@ -59,17 +73,19 @@ learned, or recurrent:
    the oldest or strongest trail still reaches stocked food.
 3. **Return:** while carrying, navigate home and lay C. Nearby replicas can
    reinforce the route without reading the carrier's private state.
-4. **Contest:** bite only at contact where removing an enemy protects food or a
-   return path. Chasing kills away from the ecology usually loses the race.
+4. **Defend/raid queens:** a queen stays near its wake point; workers bite at
+   contact to protect their queen, food, and return paths. An observed enemy
+   queen is a legitimate colony-ending target.
 
 The fruit patches advance through eight distributed sites as they regrow, and
 the mid-match wash deliberately destroys mature trails. Keep an exploration
 probability, recurrent uncertainty, or another recovery mechanism that can
 find newly stocked regions and rebuild information after tick 1800.
 
-All 16 containers run identical code. The reference network deliberately has
-no slot feature. Its private random stream is seeded from its own wake point,
-which breaks clone symmetry without assigning roles or a commander.
+All 16 containers run identical code. Caste is observable from the self sprite,
+not a hidden slot feature. The reference network deliberately has no numerical
+seat input; a worker's private random stream is seeded from its wake point,
+which breaks clone symmetry without a commander.
 
 ## 3. Train a turn rule
 

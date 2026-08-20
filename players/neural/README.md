@@ -8,11 +8,14 @@ player. `train.py` emits two representations of the same checkpoint:
 - `../baseline/baseline/neural_ant_checkpoint.nim`: generated constants linked
   into the dependency-free tournament binary.
 
-The model is a 182→48→14 tanh MLP shared by every ant. Its input is a rotated
+The model is a 182→48→14 tanh MLP shared by every active worker. Its input is a rotated
 5×5×7 patch plus carry state, bite readiness, displacement from the body's own
 wake point, distance from that point, and a sine/cosine clock. Output heads are
 movement (9), pheromone (3), and bite (2). The model never receives the seat,
 absolute coordinates, a predefined nest, or data from another container.
+The queen is an explicit caste around that learned worker rule: the crown-marked
+first seat holds its wake/nest position and contact-bites intruders. Dormant
+policy connections run no body until stored food hatches them.
 
 ## Reproduce
 

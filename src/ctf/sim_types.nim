@@ -18,7 +18,18 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "47"  ## GV47 (Emerg-ant fruit rule): FORAGE THE WHOLE FIELD.
+  GameVersion* = "48"  ## GV48 (Emerg-ant colony rule): THE QUEEN MAKES THE COLONY.
+    ## Each fixed hosted roster now begins as a queen, three workers, and
+    ## dormant brood policies. Food delivered to the nest enters a colony
+    ## store; surplus above the queen's reserve hatches dormant policy seats
+    ## as new ant bodies. The queen consumes food periodically, starves when
+    ## the store is empty, and a colony collapses immediately when its queen
+    ## is killed. Emerg-ant lives, population, win timing, observations, hash,
+    ## and flatty state all change, so GV47 recordings are obsolete.
+    ## Authored as GV48 after scanning origin on 2026-08-20: main and every
+    ## remote claim at/above main used GV47; no GV48 claim was present.
+    ##
+    ## Previously GV47 (Emerg-ant fruit rule): FORAGE THE WHOLE FIELD.
     ## The two neutral fruit patches no longer regrow forever at two fixed
     ## center-line points. They begin at opposite sites in an eight-site,
     ## rot180-paired interior circuit and advance after every harvest; every
@@ -522,6 +533,13 @@ const
   DefaultAntSenseRadius* = 180 ## local radius for food/pheromone observations.
   DefaultBiteDamage* = 1       ## hp removed by one contact attack.
   DefaultBiteCooldownTicks* = 18 ## minimum ticks between successful attempts.
+  InitialAntsPerColony* = 4  ## queen + founding workers; remaining seats brood.
+  QueenStartingFood* = 1     ## reserve carried into the first hunger cycle.
+  QueenFoodReserve* = 1      ## hatching never spends the queen's last ration.
+  BroodFoodCost* = 1         ## stored food consumed to hatch one reserve seat.
+  QueenUpkeepFoodCost* = 1   ## stored food consumed at each hunger check.
+  QueenGraceTicks* = 45 * TargetFps ## first hunger check after kickoff.
+  QueenUpkeepTicks* = 30 * TargetFps ## later hunger-check interval.
   AntBiteRange* = 2 * PlayerHalf + 6 ## center distance: touching ant bodies.
   PheromoneStepTicks* = 24     ## held B/C deposits at most once per second.
   PheromoneLifetimeTicks* = 24 * 30  ## local trail memory lasts 30 seconds.
@@ -1707,6 +1725,9 @@ type
                                ## pre-barrier builds.
     pheromones*: seq[PheromoneMark] ## emerg-ant shared environmental memory;
                                ## empty and un-hashed in ordinary CTF.
+    colonyFood*: array[Team, int] ## emerg-ant stored food after brood/upkeep.
+    queenFeedAt*: array[Team, int] ## next deterministic queen hunger tick.
+    queenSlot*: array[Team, int] ## stable join slot; survives player removals.
 
 
 # Team endzone display colors (shared by the map bake and the paint FX).
