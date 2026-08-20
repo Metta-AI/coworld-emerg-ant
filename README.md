@@ -31,21 +31,21 @@ observation labels.
 
 ## Gameplay
 
-[![Both colonies rush their nests at the start of a certified replay](docs/images/emerg-ant-nest-rush.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
+[![Both colonies rush their nests at the start of a certified replay](docs/images/emerg-ant-nest-rush.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_7b867933-3ba2-4e68-92c6-f120a804cf56/sha256%3A530db427227e6bc1af3f0bc11fb80fe08e6caf5682bdf00fc9ab00b16dfffcde/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F07bb3467-e6ed-4d3d-bb54-32ff8ae18708.replay&v=2)
 
 *The red and blue colonies leave their nests in the hosted certification replay.*
 
-[![Ant colonies form competing public pheromone trails](docs/images/emerg-ant-pheromone-race.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
+[![Ant colonies form competing public pheromone trails](docs/images/emerg-ant-pheromone-race.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_7b867933-3ba2-4e68-92c6-f120a804cf56/sha256%3A530db427227e6bc1af3f0bc11fb80fe08e6caf5682bdf00fc9ab00b16dfffcde/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F07bb3467-e6ed-4d3d-bb54-32ff8ae18708.replay&v=2)
 
 *Public red and blue pheromones expose the routes each colony is building.*
 
 ## Published Coworld
 
 - Version: `emerg-ant:0.7.0`
-- Coworld ID: [`cow_1c59e4e0-05c4-4e16-b5af-d4770c516d32`](https://softmax.com/observatory/v2/coworlds/cow_1c59e4e0-05c4-4e16-b5af-d4770c516d32)
+- Coworld ID: [`cow_7b867933-3ba2-4e68-92c6-f120a804cf56`](https://softmax.com/observatory/v2/coworlds/cow_7b867933-3ba2-4e68-92c6-f120a804cf56)
 - Status: canonical and hosted-smoke certified
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
-- Replay: [watch the certified 16-agent match](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_82623c46-cd6a-4e39-a271-5874949d10ff/sha256%3Aed94ce9c56ea236611adce265668a5968f2d4c4bd96bb04c5df51fc83629efea/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1cee985b-7ec8-41a0-aa1b-b17462a3da19.replay&v=2)
+- Replay: [watch ladder round 72 produce a clear winner](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_7b867933-3ba2-4e68-92c6-f120a804cf56/sha256%3A530db427227e6bc1af3f0bc11fb80fe08e6caf5682bdf00fc9ab00b16dfffcde/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F07bb3467-e6ed-4d3d-bb54-32ff8ae18708.replay&v=2)
 
 ## Competition league
 
@@ -88,7 +88,7 @@ reference player image used by hosted certification.
 
 ```bash
 uvx --from "coworld[auth]==0.1.34" coworld build \
-  --version 0.1.0 \
+  --version 0.7.0 \
   --project . \
   --compose compose.yaml \
   --template coworld_manifest.json \
