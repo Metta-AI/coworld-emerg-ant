@@ -1,12 +1,14 @@
 #!/bin/bash
 # Records one full-scale CTF episode as a .bitreplay fixture.
 # Usage: tools/record_fixture.sh <out.bitreplay> <seed> [maxTicks] [extraConfigJson]
+# Set FIXTURE_SLOTS=32 when recording a 32-seat four-team fixture.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="$1"; SEED="$2"; MAXTICKS="${3:-10000}"; EXTRA="${4:-}"; PORT="${PORT:-21000}"
+FIXTURE_SLOTS="${FIXTURE_SLOTS:-16}"
 [ -z "$EXTRA" ] && EXTRA='{}'
 CFG=$(mktemp /tmp/ctf-fixture-cfg-$$-XXXXXX)
-python3 - "$CFG" "$SEED" "$MAXTICKS" "$EXTRA" <<'PY'
+python3 - "$CFG" "$SEED" "$MAXTICKS" "$EXTRA" "$FIXTURE_SLOTS" <<'PY'
 import json, sys
 cfg = json.load(open("config.json"))
 # This tool records the legacy CTF regression fixtures even when the checked-in
@@ -19,9 +21,10 @@ cfg["carrierSpeedPct"] = 70
 # The checked-in Emerg-ant launch roster can be larger than this tool's
 # documented 16-bot CTF fixture shape. Keep fixture joins, result slots, and
 # bot count aligned instead of inheriting dormant Emerg-ant clone seats.
+slot_count = int(sys.argv[5])
 for key in ("tokens", "players", "slots"):
     if key in cfg:
-        cfg[key] = cfg[key][:16]
+        cfg[key] = cfg[key][:slot_count]
 cfg["seed"] = int(sys.argv[2])
 cfg["maxTicks"] = int(sys.argv[3])
 cfg["speed"] = 16
@@ -50,7 +53,7 @@ done
 nc -z 127.0.0.1 "$PORT" || { echo "server never listened" >&2; tail -20 "$LOG" >&2; exit 1; }
 
 BOT_PIDS=()
-for i in ${SLOTS:-$(seq 0 15)}; do
+for i in ${SLOTS:-$(seq 0 $((FIXTURE_SLOTS - 1)))}; do
   CTF_BOT_FAST_READY=1 \
   COWORLD_PLAYER_WS_URL="ws://127.0.0.1:$PORT/player?slot=$i&token=0xBADA55_$i" \
     ./players/baseline/baseline.out >/dev/null 2>&1 &

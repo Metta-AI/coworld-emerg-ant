@@ -5,7 +5,7 @@ Emerg-ant hackathon. It is always a 1v1 policy duel: Softmax connects 16 copies
 of each submitted policy as one red or blue colony. By default each colony
 begins with a winged queen and seven workers; eight copies wait as dormant brood.
 
-> **Version note:** `main` contains the current GV54 colony-roster rules on the
+> **Version note:** `main` contains the current GV55 colony-viability rules on the
 > restored pre-NAnts engine. The
 > NAnts-style v0.6 game remains available on the
 > [`nants-v0.6`](https://github.com/Metta-AI/coworld-emerg-ant/tree/nants-v0.6)

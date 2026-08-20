@@ -289,6 +289,35 @@ proc nearestWalkable*(sim: SimServer, x, y: int): tuple[x, y: int] =
           return (nx, ny)
   (x, y)
 
+proc nearestFreeBody*(
+  sim: SimServer, playerIndex, x, y: int
+): tuple[x, y: int, found: bool] =
+  ## Returns the nearest walkable position where `playerIndex` does not overlap
+  ## another living body. The deterministic expanding-ring order keeps replay
+  ## simulation stable and makes the helper safe for founders, brood hatches,
+  ## and players displaced by moving terrain.
+  for r in 0 .. max(MapWidth, MapHeight):
+    for dy in -r .. r:
+      for dx in -r .. r:
+        if r > 0 and abs(dx) != r and abs(dy) != r:
+          continue
+        let
+          nx = x + dx
+          ny = y + dy
+        if not sim.canOccupy(nx, ny):
+          continue
+        var clear = true
+        for j in 0 ..< sim.players.len:
+          if j == playerIndex or not sim.players[j].alive:
+            continue
+          if max(abs(sim.players[j].x - nx), abs(sim.players[j].y - ny)) <=
+              PlayerSolidSpan:
+            clear = false
+            break
+        if clear:
+          return (nx, ny, true)
+  (x, y, false)
+
 proc spawnPosition*(sim: SimServer, team: Team, order: int): tuple[x, y: int] =
   ## Returns a deterministic spawn position just inside a team's home edge:
   ## players stagger along the edge, perpendicular to their home axis (down

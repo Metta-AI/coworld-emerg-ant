@@ -6,9 +6,9 @@ import
 
 const
   # The event-substrate fixture: a full 16-bot match recorded against the
-  # CURRENT gameplay rules (GameVersion 54, seed 907, lives 9:
+  # CURRENT gameplay rules (GameVersion 55, seed 907, lives 9:
   #   record_fixture.sh tests/replays/ctf.bitreplay 907 10000 '{"lives":9}')
-  # The GV54 take keeps all three weapon families, steals, and heals; the exact
+  # The GV55 take keeps all three weapon families, steals, and heals; the exact
   # counts are intentionally not pinned because bot process scheduling changes
   # the mix between recordings of the same seed.
   # Seed 907 survives the GV42 heart rule, but the SEED ALONE DOES NOT PIN

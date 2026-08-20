@@ -294,6 +294,15 @@ proc teamActiveAnts*(sim: SimServer, team: Team): int =
     if player.team == team and player.alive:
       inc result
 
+proc teamHasLivingWorker*(sim: SimServer, team: Team): bool =
+  ## A fixed queen cannot forage. A colony remains operational only while at
+  ## least one non-queen copy of its policy is alive.
+  let queen = sim.queenIndex(team)
+  for i, player in sim.players:
+    if i != queen and player.team == team and player.alive:
+      return true
+  false
+
 proc startGame*(sim: var SimServer) =
   sim.logGameEvent("game started: players=" & $sim.players.len)
   sim.recentShots = @[]
@@ -359,6 +368,17 @@ proc startGame*(sim: var SimServer) =
       sim.placePlayer(queen, nest.x, nest.y)
       sim.players[queen].homeX = nest.x
       sim.players[queen].homeY = nest.y
+    # Moving each queen to its nest can put it directly on a founder position.
+    # Resolve every worker in stable player order so all active ants begin as
+    # distinct, mobile bodies instead of an invisible stack on the queen.
+    for i in 0 ..< sim.players.len:
+      if not sim.players[i].alive or sim.isQueen(i):
+        continue
+      let free = sim.nearestFreeBody(i, sim.players[i].x, sim.players[i].y)
+      if free.found:
+        sim.placePlayer(i, free.x, free.y)
+        sim.players[i].homeX = free.x
+        sim.players[i].homeY = free.y
   sim.resetFlags()
   sim.resetGrenades()
   sim.resetShields()
@@ -2899,8 +2919,12 @@ proc hatchBrood*(sim: var SimServer, team: Team): bool =
       break
   if candidate < 0:
     return false
-  let spawn = sim.randomEndzonePosition(team)
-  sim.placePlayer(candidate, spawn.x, spawn.y)
+  let
+    spawn = sim.randomEndzonePosition(team)
+    free = sim.nearestFreeBody(candidate, spawn.x, spawn.y)
+  if not free.found:
+    return false
+  sim.placePlayer(candidate, free.x, free.y)
   sim.players[candidate].alive = true
   sim.players[candidate].lives = 0
   sim.players[candidate].respawnTimer = 0
@@ -2937,6 +2961,10 @@ proc updateColonyLifecycle*(sim: var SimServer) =
       if not sim.hatchBrood(team):
         break
       sim.colonyFood[team] -= BroodFoodCost
+    if not sim.teamHasLivingWorker(team):
+      sim.logGameEvent(
+        teamText(team) & " has no living workers; colony collapsed")
+      sim.eliminateTeam(team, -1)
 
 proc teamLivingHp(sim: SimServer, team: Team): int =
   for player in sim.players:
@@ -3471,35 +3499,6 @@ proc restampDiamondGeometry*(sim: var SimServer) =
     if sim.diamondPatches[index].frame < 0:
       continue                          # nothing stamped yet.
     sim.stampDiamondPatch(index, sim.diamondPatches[index].frame)
-
-proc nearestFreeBody(
-  sim: SimServer, playerIndex, x, y: int
-): tuple[x, y: int, found: bool] =
-  ## The nearest cell where player `playerIndex` can stand without overlapping
-  ## any OTHER live body, via the same deterministic expanding ring search as
-  ## nearestWalkable. Unlike that one it reports failure instead of handing
-  ## back the blocked point it was asked to escape.
-  for r in 0 .. max(MapWidth, MapHeight):
-    for dy in -r .. r:
-      for dx in -r .. r:
-        if r > 0 and abs(dx) != r and abs(dy) != r:
-          continue
-        let
-          nx = x + dx
-          ny = y + dy
-        if not sim.canOccupy(nx, ny):
-          continue
-        var clear = true
-        for j in 0 ..< sim.players.len:
-          if j == playerIndex or not sim.players[j].alive:
-            continue
-          if max(abs(sim.players[j].x - nx), abs(sim.players[j].y - ny)) <=
-              PlayerSolidSpan:
-            clear = false
-            break
-        if clear:
-          return (nx, ny, true)
-  (x, y, false)
 
 proc sweptByDiamond(sim: SimServer, px, py: int): bool =
   ## True when any pixel of the player box at (px, py) is inside a spinning

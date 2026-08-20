@@ -11,6 +11,10 @@ proc antGame(goal = DefaultForageGoal): SimServer =
   result = initCtfForTest(config)
   discard result.addPlayer("red-ant")
   discard result.addPlayer("blue-ant")
+  # Keep one worker alive behind each queen so focused foraging/combat tests do
+  # not accidentally exercise the queen-only colony-collapse rule.
+  discard result.addPlayer("red-worker")
+  discard result.addPlayer("blue-worker")
   result.startGame()
   result.players[0].team = Red
   result.players[1].team = Blue
@@ -80,6 +84,13 @@ suite "Emerg-ant colonies":
     sim.startGame()
     check sim.teamActiveAnts(Red) == 8
     check sim.teamActiveAnts(Blue) == 8
+    for i, player in sim.players:
+      if not player.alive:
+        continue
+      for j in i + 1 ..< sim.players.len:
+        if sim.players[j].alive:
+          check max(abs(player.x - sim.players[j].x),
+                    abs(player.y - sim.players[j].y)) > PlayerSolidSpan
     check not sim.players[16].alive
     sim.returnFood(2, Blue)
     check sim.teamForageScore(Red) == 1
@@ -133,6 +144,36 @@ suite "Emerg-ant colonies":
     for player in sim.players:
       if player.team == Red:
         check not player.alive
+
+  test "losing the last worker immediately collapses the colony":
+    var sim = antColonyGame(goal = 9)
+    let
+      redQueen = sim.queenIndex(Red)
+      blueWorker = 3
+    for i in 0 ..< sim.players.len:
+      if sim.players[i].team == Red and i != redQueen:
+        sim.players[i].alive = false
+        sim.players[i].lives = 0
+    sim.colonyFood[Red] = 0
+    sim.checkWinCondition()
+    check sim.phase == GameOver
+    check sim.winner == Blue
+    check sim.players[blueWorker].alive
+    check not sim.players[redQueen].alive
+
+  test "stored food hatches a worker before a queen-only colony collapses":
+    var sim = antColonyGame(goal = 9)
+    let redQueen = sim.queenIndex(Red)
+    for i in 0 ..< sim.players.len:
+      if sim.players[i].team == Red and i != redQueen:
+        sim.players[i].alive = false
+        sim.players[i].lives = 0
+    sim.colonyFood[Red] = BroodFoodCost
+    sim.checkWinCondition()
+    check sim.phase == Playing
+    check sim.players[redQueen].alive
+    check sim.teamHasLivingWorker(Red)
+    check sim.colonyFood[Red] == 0
 
 suite "Emerg-ant foraging":
   test "food touch radius covers the complete rendered patch":

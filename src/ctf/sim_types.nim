@@ -18,7 +18,18 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "54"  ## GV54 (colony roster): EIGHT FORAGE; EIGHT WAIT TO HATCH.
+  GameVersion* = "55"  ## GV55 (colony viability): NO WORKERS MEANS NO COLONY.
+    ## Emerg-ant founders and newly hatched brood now land clear of every living
+    ## body, so a worker cannot disappear under the stationary queen at the
+    ## nest. After stored food gets its chance to hatch a reserve, a colony
+    ## with no living worker collapses immediately: the queen cannot forage and
+    ## dormant seats are not hidden lives. Previously GV54 allowed a queen and
+    ## an overlapped worker to survive invisibly until the clock, so all
+    ## Emerg-ant episode behavior and fixtures are obsolete. Claimed after
+    ## scanning origin on 2026-08-20: main used GV54 and no remote branch
+    ## claimed GV55 or above.
+    ##
+    ## Previously GV54 (colony roster): EIGHT FORAGE; EIGHT WAIT TO HATCH.
     ## Emerg-ant's starting colony size is now replay-pinned by
     ## `startingAntsPerColony` (default 8). The published 32-seat 1v1 gives
     ## each submitted policy 16 connected copies: its queen plus seven workers

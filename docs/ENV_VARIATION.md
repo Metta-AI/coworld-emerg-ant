@@ -161,7 +161,7 @@ for curved/organic terrain. Trenches are also `ArenaShape` (the generator emits
 | Item | Count | Key consts (sim_types.nim) |
 |---|---|---|
 | Flags/hearts or food patches | 1 storage slot per active team | CTF: `FlagPickupRange`=34, `CaptureZoneWidth`=40, `PedestalCoverSize`=96. Emerg-ant slots are neutral and use `FoodPickupRange`=16 against `FoodPatchSize`=20; placement uses `FoodSpawnMargin`=28, `FoodSpawnNestClear`=96, `FoodSpawnSeparation`=80, and `FoodSpawnAttempts`=512 before a deterministic scan fallback. A delivered/dropped patch respawns somewhere new. |
-| Active ants / brood | configurable; published default 8 active + 8 brood per colony | `startingAntsPerColony` defaults to `DefaultStartingAntsPerColony`=8 (one fixed queen + seven workers); `BroodFoodCost`=1. Each delivery activates one connected dormant seat while available. Queen death eliminates the whole colony. |
+| Active ants / brood | configurable; published default 8 active + 8 brood per colony | `startingAntsPerColony` defaults to `DefaultStartingAntsPerColony`=8 (one fixed queen + seven workers); `BroodFoodCost`=1. Each delivery activates one connected dormant seat while available. Queen death eliminates the whole colony; so does losing the last worker without enough stored food to hatch one immediately. |
 | Grenades | exactly 4 corner pickups in CTF; 0 in Emerg-ant | `GrenadeRespawnTicks`=120, `GrenadeChargeTicks`=24, `GrenadeBlastRadius`=52, `GrenadeDamage`=2, `GrenadeTrenchDamage`=6, max throw = `MapWidth/5` |
 | Med kits | 2 (sides) / up to 4 (4-team) in CTF; 0 in Emerg-ant | `MedKitPickupRange`=12, `MedKitRespawnTicks`=720 |
 | Shields | 1 per team endzone in CTF; 0 in Emerg-ant | `ShieldRespawnTicks`=720, `ShieldLayerHp`=3, `ShieldFireSlowdown`=3 |

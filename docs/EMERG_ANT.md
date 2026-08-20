@@ -34,6 +34,9 @@ colony's fresh deposit erases opposing trail within 18 pixels.
   across episode seeds.
 - Kill the enemy queen and every ant in her colony dies. Workers do not respawn
   on a timer; only a living queen can replace one by receiving food. There are
+  no hidden lives: if the last worker dies and the queen has no stored food to
+  hatch another, the colony collapses immediately. Stored food is resolved
+  first, so a queen that can hatch a worker survives. There are
   no guns, grenades, spray cans, shields, med kits, barriers, or bombardment: an
   ant can damage a rival only by holding A while their bodies physically touch.
 
