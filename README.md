@@ -43,23 +43,17 @@ observation labels.
 
 ## Competition league
 
-League promotion requires a Softmax team administrator and is not complete
-yet. A team admin can create it with:
+- Public ladder: [softmax.com/emerg-ant](https://softmax.com/emerg-ant)
+- League ID: `league_485b7b0a-5a52-4254-9b2b-1e10b9596941`
+- Division: `Competition`
+- Format: platform round-robin ladder; two or more entrants can fill the
+  16-player roster through multiple seats
+- Seed competitors: `emerg-ant-rival:v1` and
+  `emerg-ant-rival-colony:v1`
 
-```bash
-uvx --from "coworld[auth]" coworld league create \
-  emerg-ant emerg-ant "Emerg-ant" \
-  --default-variant emerg-ant --json
-```
-
-The returned `league_...` identifier gives the public league URL:
-
-```text
-https://softmax.com/observatory?tab=coworlds&logscope=league:<LEAGUE_ID>&detail=league:<LEAGUE_ID>
-```
-
-Until promotion, the published game is available in the
-[Softmax Coworld Observatory](https://softmax.com/observatory?tab=coworlds).
+The ladder is enabled and recurring hosted rounds are active. Submitted
+policies are placed asynchronously and promoted to the entrant's active
+champion when `--auto-champion always` is used.
 
 To compete, start with [Build an Emerg-ant policy](docs/BUILD_A_POLICY.md).
 
