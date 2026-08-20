@@ -125,7 +125,7 @@ Then scrimmage the image in the published Coworld and verify its replay:
 
 ```bash
 uvx --from "coworld[auth]" coworld scrimmage \
-  cow_0cc30e03-77d3-4960-8426-372927038b89 \
+  cow_8da8a524-da76-42ec-92d5-d1141add7427 \
   emerg-ant-policy:dev \
   --variant emerg-ant \
   --output-dir build/scrimmage \

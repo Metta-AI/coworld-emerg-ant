@@ -86,18 +86,19 @@ sees only nearby marks.*
 
 ## Published Coworld
 
-- Current hosted rules release: `emerg-ant:0.2.0`
-- Coworld ID: `cow_0cc30e03-77d3-4960-8426-372927038b89`
+- Current hosted release: `emerg-ant:0.3.0`
+- Coworld ID: `cow_8da8a524-da76-42ec-92d5-d1141add7427`
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
-- v0.2 replay: [watch the certified match](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_0cc30e03-77d3-4960-8426-372927038b89/sha256%3Ab6d11dc478d534483720fc276e49df174cb65b1761ccc7268630e322dd6624c5/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F5ae546d3-2872-4929-9f92-8f80d77f2533.replay&v=2)
+- v0.3 replay: [watch the certified learned-colony match](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_8da8a524-da76-42ec-92d5-d1141add7427/sha256%3A8d94af4f50c34a04d538c2dd5648540a37168fa4134e9fd868fc8e5c70fea378/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F8b842013-3750-422b-a9aa-a216ded202f3.replay&v=2)
 
-The v0.3 publication keeps these v0.2 game rules and upgrades the bundled
-starter policy; its hosted replay will be linked after certification.
+This release passed every hosted certification step and five hosted smoke
+episodes.
 
 ## Competition league
 
-League promotion requires a Softmax team administrator. A team admin can
-create it with:
+League promotion requires a Softmax team administrator. The current publisher
+can upload Coworlds but does not have that permission. A team admin can create
+the league with:
 
 ```bash
 uvx --from "coworld[auth]" coworld league create \
