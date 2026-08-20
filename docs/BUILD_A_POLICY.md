@@ -130,7 +130,7 @@ Then run the policy in all 32 seats against the published Coworld:
 
 ```bash
 uvx --from "coworld[auth]" coworld scrimmage \
-  cow_82623c46-cd6a-4e39-a271-5874949d10ff \
+  cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8 \
   emerg-ant-policy:dev \
   --variant emerg-ant \
   --output-dir build/scrimmage \

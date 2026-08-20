@@ -41,11 +41,12 @@ observation labels.
 
 ## Published Coworld
 
-- Version: `emerg-ant:0.7.0`
-- Coworld ID: [`cow_7b867933-3ba2-4e68-92c6-f120a804cf56`](https://softmax.com/observatory/v2/coworlds/cow_7b867933-3ba2-4e68-92c6-f120a804cf56)
+- Version: `emerg-ant:0.8.0`
+- Coworld ID: [`cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8`](https://softmax.com/observatory/v2/coworlds/cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8)
 - Status: canonical and hosted-smoke certified
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
-- Replay: [watch ladder round 72 produce a clear winner](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_7b867933-3ba2-4e68-92c6-f120a804cf56/sha256%3A530db427227e6bc1af3f0bc11fb80fe08e6caf5682bdf00fc9ab00b16dfffcde/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F07bb3467-e6ed-4d3d-bb54-32ff8ae18708.replay&v=2)
+- Ladder replay: [watch the first 0.8.0 round produce a clear winner](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8/sha256%3Afec79a0c3a6d3d254e06cf27ceed961fe0cf437842d22e73379c39cba0a7c453/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Fe6da2e50-ae8b-4175-ab7b-58c868f598b7.replay&v=2)
+- Hatch replay: [watch food return at tick 226 activate a ninth ant](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8/sha256%3Afec79a0c3a6d3d254e06cf27ceed961fe0cf437842d22e73379c39cba0a7c453/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1437f9f0-68cd-4e82-8799-3510d6935dcc.replay&v=2)
 
 ## Competition league
 
