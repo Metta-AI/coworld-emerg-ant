@@ -229,17 +229,6 @@ proc spriteObjectsWithLabel*(
       height: sprite.height
     ))
 
-proc hasSpriteLabel*(client: ProtocolClient, label: string): bool =
-  ## Returns whether the stream has defined a sprite with this semantic
-  ## label, even when no corresponding object is currently inside the local
-  ## observation. Useful for mode contracts whose resources can disappear.
-  if client.sprite.isNil:
-    return false
-  for sprite in client.sprite.sprites:
-    if not sprite.isNil and sprite.defined and sprite.label == label:
-      return true
-  false
-
 proc spriteObjectsWithLabelPrefix*(
   client: ProtocolClient,
   prefix: string

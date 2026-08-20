@@ -234,31 +234,6 @@ proc resetBarriers*(sim: var SimServer) =
   for i in 0 ..< sim.players.len:
     sim.players[i].hasBarrier = false
 
-proc queenIndex*(sim: SimServer, team: Team): int =
-  ## The queen is the colony's first joined policy seat. This is derived from
-  ## stable join order, so it requires no per-player wire field and survives
-  ## replay joins/disconnect bookkeeping.
-  result = -1
-  if sim.config.isEmergAnt() and sim.queenFeedAt[team] > 0:
-    for i, player in sim.players:
-      if player.team == team and player.joinOrder == sim.queenSlot[team]:
-        return i
-    return -1
-  var firstOrder = high(int)
-  for i, player in sim.players:
-    if player.team == team and player.joinOrder < firstOrder:
-      firstOrder = player.joinOrder
-      result = i
-
-proc isQueen*(sim: SimServer, playerIndex: int): bool =
-  playerIndex >= 0 and playerIndex < sim.players.len and
-    sim.queenIndex(sim.players[playerIndex].team) == playerIndex
-
-proc teamActiveAnts*(sim: SimServer, team: Team): int =
-  for player in sim.players:
-    if player.team == team and player.alive:
-      inc result
-
 proc startGame*(sim: var SimServer) =
   sim.logGameEvent("game started: players=" & $sim.players.len)
   sim.recentShots = @[]
@@ -271,26 +246,10 @@ proc startGame*(sim: var SimServer) =
   sim.pheromones = @[]
   sim.recentShouts = @[]
   sim.arrangeHomePositions()
-  for team in sim.teams():
-    let foundingQueen = sim.queenIndex(team)
-    sim.queenSlot[team] =
-      if foundingQueen >= 0: sim.players[foundingQueen].joinOrder else: -1
-    sim.colonyFood[team] =
-      if sim.config.isEmergAnt(): QueenStartingFood else: 0
-    sim.queenFeedAt[team] =
-      if sim.config.isEmergAnt(): sim.tickCount + QueenGraceTicks else: 0
   for i in 0 ..< sim.players.len:
     sim.players[i].lastShoutTick = -1
-    var teamRank = 0
-    for other in sim.players:
-      if other.team == sim.players[i].team and
-          other.joinOrder < sim.players[i].joinOrder:
-        inc teamRank
-    sim.players[i].alive =
-      not sim.config.isEmergAnt() or teamRank < InitialAntsPerColony
-    sim.players[i].lives =
-      if sim.config.isEmergAnt(): 0
-      else: sim.config.livesFor(sim.players[i].team)
+    sim.players[i].alive = true
+    sim.players[i].lives = sim.config.livesFor(sim.players[i].team)
     sim.players[i].hp =
       sim.config.maxHpFor(sim.players[i].team, sim.players[i].perks)
     sim.players[i].respawnTimer = 0
@@ -311,10 +270,6 @@ proc startGame*(sim: var SimServer) =
     sim.players[i].multiKills3 = 0
     sim.players[i].teamKills = 0
     sim.players[i].arcKillsThisFire = 0
-    if sim.config.isEmergAnt():
-      # CrownSkin is reserved for the derived queen in ant mode; the distinct
-      # sprite/label makes the colony's single point of failure observable.
-      sim.players[i].skin = if sim.isQueen(i): CrownSkin else: DefaultSkin
     sim.recordGameTeamAssigned(i)
   sim.resetFlags()
   sim.resetGrenades()
@@ -821,14 +776,12 @@ proc killPlayer*(
   for team in sim.teams():
     if sim.flags[team].carrier == targetIndex:
       sim.players[targetIndex].carryingFlag = false
-      if sim.config.isEmergAnt():
-        sim.flags[team].carrier = -1
-        sim.flags[team].captured = true
-        sim.flags[team].respawnAt = sim.tickCount + sim.config.foodRespawnTicks
-        sim.logGameEvent("carried food was lost")
-      else:
-        sim.logGameEvent(teamText(team) & " heart returned home")
-        sim.resetFlag(team)
+      sim.logGameEvent(
+        teamText(team) &
+          (if sim.config.isEmergAnt(): " food returned to its cache"
+           else: " heart returned home")
+      )
+      sim.resetFlag(team)
   # Leave a cosmetic splatter at the death spot (never enters gameHash).
   sim.splatters.add SplatterFx(
     x: sim.players[targetIndex].x,
@@ -2079,80 +2032,6 @@ proc resolveSimultaneousFire*(sim: var SimServer, shooters: openArray[int]) =
   for shot in shots:
     sim.applyFire(shot)
 
-proc resolveContactAttacks*(sim: var SimServer, attackers: openArray[int]) =
-  ## Resolves every fresh mandible attack from the same post-movement
-  ## snapshot. Each attacker bites the nearest enemy body in contact; all hp
-  ## losses are applied before any death, so ants can kill one another on the
-  ## same tick. A target mobbed by several ants takes every bite, with the
-  ## first closest/index-stable attacker receiving the single kill credit.
-  type PendingBite = tuple[attacker, target, distanceSq: int]
-  var pending: seq[PendingBite] = @[]
-  let rangeSq = AntBiteRange * AntBiteRange
-  for attacker in attackers:
-    if attacker < 0 or attacker >= sim.players.len or
-        not sim.players[attacker].alive or
-        sim.players[attacker].fireCooldown > 0:
-      continue
-    let
-      ax = sim.players[attacker].x + CollisionW div 2
-      ay = sim.players[attacker].y + CollisionH div 2
-    var
-      target = -1
-      closest = high(int)
-    for victim in 0 ..< sim.players.len:
-      if victim == attacker or not sim.players[victim].alive or
-          sim.players[victim].team == sim.players[attacker].team:
-        continue
-      let d = distSq(
-        ax, ay,
-        sim.players[victim].x + CollisionW div 2,
-        sim.players[victim].y + CollisionH div 2)
-      if d <= rangeSq and d < closest:
-        target = victim
-        closest = d
-    if target >= 0:
-      pending.add((attacker, target, closest))
-      sim.players[attacker].fireCooldown = sim.config.biteCooldownTicks
-
-  var
-    totalDamage = newSeq[int](sim.players.len)
-    creditedAttacker = newSeq[int](sim.players.len)
-  for i in 0 ..< creditedAttacker.len:
-    creditedAttacker[i] = -1
-  for bite in pending:
-    totalDamage[bite.target] += sim.config.biteDamage
-    if creditedAttacker[bite.target] < 0:
-      creditedAttacker[bite.target] = bite.attacker
-
-  for target in 0 ..< sim.players.len:
-    if totalDamage[target] <= 0 or not sim.players[target].alive:
-      continue
-    let
-      attacker = creditedAttacker[target]
-      damage = totalDamage[target]
-      blocked = sim.absorbDamage(target, damage)
-      px = sim.players[target].x + CollisionW div 2
-      py = sim.players[target].y + CollisionH div 2
-    sim.emitEvent(
-      Damage, source = attacker, target = target, weapon = "mandible",
-      amount = damage, hp = max(0, sim.players[target].hp), blocked = blocked,
-      x = float(px), y = float(py))
-    sim.damagePops.add DamageFx(
-      x: px, y: py, tick: sim.tickCount, amount: damage,
-      color: sim.players[target].color)
-    if sim.players[target].hp <= 0:
-      sim.killPlayer(target, attacker)
-      sim.recordKill(attacker)
-      sim.emitEvent(
-        Kill, source = attacker, target = target, weapon = "mandible",
-        amount = damage, x = float(px), y = float(py))
-    else:
-      sim.hitFlashes.add HitFlashFx(playerIndex: target, tick: sim.tickCount)
-      sim.logGameEvent(
-        playerColorText(sim.players[target].color) & " bitten by " &
-          sim.playerText(attacker) & " (" & $sim.players[target].hp &
-          " hp left)")
-
 proc tryPickupFlags*(sim: var SimServer, playerIndex: int) =
   ## Lets a living player steal ANY enemy team's flag off its pedestal by
   ## touch. A player's own flag cannot be interacted with by their own team.
@@ -2169,7 +2048,7 @@ proc tryPickupFlags*(sim: var SimServer, playerIndex: int) =
     py = sim.players[playerIndex].y + CollisionH div 2
     rangeSq = FlagPickupRange * FlagPickupRange
   for flagTeam in sim.teams():
-    if not sim.config.isEmergAnt() and flagTeam == sim.players[playerIndex].team:
+    if flagTeam == sim.players[playerIndex].team:
       continue
     if sim.flags[flagTeam].carrier >= 0 or sim.flags[flagTeam].captured:
       continue
@@ -2181,11 +2060,9 @@ proc tryPickupFlags*(sim: var SimServer, playerIndex: int) =
         x = float(sim.flags[flagTeam].x), y = float(sim.flags[flagTeam].y)
       )
       sim.logGameEvent(
-        if sim.config.isEmergAnt():
-          teamText(sim.players[playerIndex].team) & " harvested neutral food"
-        else:
-          teamText(sim.players[playerIndex].team) & " stole the " &
-            teamText(flagTeam) & " heart"
+        teamText(sim.players[playerIndex].team) & " stole the " &
+          teamText(flagTeam) &
+          (if sim.config.isEmergAnt(): " food" else: " heart")
       )
       return
 
@@ -2202,24 +2079,12 @@ proc updateFlags(sim: var SimServer) =
       sim.flags[team].y = sim.players[carrier].y + CollisionH div 2
     else:
       # Carrier vanished; the flag goes straight back home.
-      if sim.config.isEmergAnt():
-        sim.flags[team].carrier = -1
-        sim.flags[team].captured = true
-        sim.flags[team].respawnAt = sim.tickCount + sim.config.foodRespawnTicks
-        sim.logGameEvent("carried food was lost")
-      else:
-        sim.logGameEvent(teamText(team) & " heart returned home")
-        sim.resetFlag(team)
-
-proc updateFoodPatches*(sim: var SimServer) =
-  ## Regrows each emptied neutral food patch on its own deterministic timer.
-  if not sim.config.isEmergAnt() or sim.phase != Playing:
-    return
-  for patch in sim.teams():
-    if sim.flags[patch].captured and sim.flags[patch].respawnAt > 0 and
-        sim.tickCount >= sim.flags[patch].respawnAt:
-      sim.resetFlag(patch)
-      sim.logGameEvent("a neutral food patch regrew")
+      sim.logGameEvent(
+        teamText(team) &
+          (if sim.config.isEmergAnt(): " food returned to its cache"
+           else: " heart returned home")
+      )
+      sim.resetFlag(team)
 
 proc teamForageScore*(sim: SimServer, team: Team): int =
   ## Returns food delivered by one colony in Emerg-ant mode. Captures remain
@@ -2229,17 +2094,11 @@ proc teamForageScore*(sim: SimServer, team: Team): int =
     if player.team == team:
       result += player.captures
 
-proc updatePheromones*(sim: var SimServer, inputs: openArray[InputState]) =
-  ## Deposits one explicitly selected trail mark per ant each second. Opposing marks
+proc updatePheromones*(sim: var SimServer) =
+  ## Deposits one public trail mark per moving ant each second. Opposing marks
   ## laid together inside the erase radius cancel simultaneously; surviving
   ## new marks erase older enemy trail. This avoids player-index advantage.
   if not sim.config.isEmergAnt() or sim.phase != Playing:
-    return
-  let elapsed = sim.tickCount - sim.gameStartTick
-  if sim.config.pheromoneWashTick > 0 and
-      elapsed == sim.config.pheromoneWashTick:
-    sim.pheromones = @[]
-    sim.logGameEvent("rain washed away every pheromone trail")
     return
   var live: seq[PheromoneMark] = @[]
   for mark in sim.pheromones:
@@ -2250,16 +2109,15 @@ proc updatePheromones*(sim: var SimServer, inputs: openArray[InputState]) =
     return
 
   var candidates: seq[PheromoneMark] = @[]
-  for i, player in sim.players:
-    if not player.alive or i >= inputs.len or
-        (not inputs[i].b and not inputs[i].c):
+  for player in sim.players:
+    if not player.alive or (player.velX == 0 and player.velY == 0):
       continue
     candidates.add PheromoneMark(
       x: player.x + CollisionW div 2,
       y: player.y + CollisionH div 2,
       team: player.team,
       tick: sim.tickCount,
-      food: inputs[i].c
+      food: player.carryingFlag
     )
   let eraseSq = PheromoneEraseRadius * PheromoneEraseRadius
   var canceled = newSeq[bool](candidates.len)
@@ -2314,14 +2172,10 @@ proc applyInput*(
   if input.down:
     inputY += 1
 
-  # Ants face where they move: B/C belong to their pheromone channels rather
-  # than turret rotation. CTF keeps decoupled aim unchanged.
-  if sim.config.isEmergAnt() and (inputX != 0 or inputY != 0):
-    player.aimBrads = bradsOfVector(inputX, inputY)
   # Aim rotation is decoupled from locomotion: holding B turns the aim
   # counter-clockwise, holding Select clockwise; holding both cancels out,
   # and the d-pad never changes the aim.
-  if not sim.config.isEmergAnt() and input.b != input.select:
+  if input.b != input.select:
     let turn =
       if input.b: sim.config.aimTurnRate else: -sim.config.aimTurnRate
     player.aimBrads =
@@ -2662,35 +2516,12 @@ proc playerVisibleTo*(sim: SimServer, viewerIndex, targetIndex: int): bool =
   )
 
 proc flagVisibleTo*(sim: SimServer, viewerIndex: int, team: Team): bool =
-  ## CTF hearts are permanent public landmarks. Every living ant smells every
-  ## available planted food patch regardless of distance; policies use its
-  ## global bearing as odor while exact contact and pheromone detail stay local.
-  ## Carried food remains visible exactly when its carrier is visible.
+  ## Returns whether one team's flag is observable by a viewer: always on its
+  ## pedestal; riding a carrier it is exactly as visible as the carrier.
   let carrier = sim.flags[team].carrier
   if carrier < 0:
-    if sim.config.isEmergAnt():
-      if sim.flags[team].captured or viewerIndex < 0 or
-          viewerIndex >= sim.players.len or not sim.players[viewerIndex].alive:
-        return false
-      return true
     return true
   sim.playerVisibleTo(viewerIndex, carrier)
-
-proc pheromoneVisibleTo*(
-  sim: SimServer, viewerIndex: int, mark: PheromoneMark
-): bool =
-  ## Pheromone is smelled locally without line-of-sight, but dead ants have no
-  ## observation stream. The broadcast uses viewerIndex < 0 and sees all.
-  if viewerIndex < 0:
-    return true
-  if viewerIndex >= sim.players.len or not sim.players[viewerIndex].alive:
-    return false
-  let viewer = sim.players[viewerIndex]
-  distSq(
-    viewer.x + CollisionW div 2,
-    viewer.y + CollisionH div 2,
-    mark.x,
-    mark.y) <= sim.config.antSenseRadius * sim.config.antSenseRadius
 
 proc finishGame*(sim: var SimServer, winner: Team, isDraw = false, timeLimitReached = false) =
   ## Moves to game over and awards all winning players.
@@ -2871,73 +2702,6 @@ proc eliminateTeam(sim: var SimServer, team: Team, killerIndex: int) =
     if sim.players[i].alive:
       sim.killPlayer(i, killerIndex, elimination = true)
 
-proc hatchBrood(sim: var SimServer, team: Team): bool =
-  ## Activates one connected reserve policy at the queen's nest. Seats that
-  ## have never hatched are preferred, then dead workers may be reborn; the
-  ## queen herself is never a brood candidate.
-  let queen = sim.queenIndex(team)
-  var candidate = -1
-  for pass in 0 .. 1:
-    for i, player in sim.players:
-      if i == queen or player.team != team or player.alive:
-        continue
-      if pass == 0 and player.deaths > 0:
-        continue
-      if candidate < 0 or player.joinOrder < sim.players[candidate].joinOrder:
-        candidate = i
-    if candidate >= 0:
-      break
-  if candidate < 0:
-    return false
-  let spawn = sim.randomEndzonePosition(team)
-  sim.placePlayer(candidate, spawn.x, spawn.y)
-  sim.players[candidate].alive = true
-  sim.players[candidate].lives = 0
-  sim.players[candidate].respawnTimer = 0
-  sim.players[candidate].hp =
-    sim.config.maxHpFor(team, sim.players[candidate].perks)
-  sim.players[candidate].aimBrads = sim.gameMap.spawnAimBrads(team)
-  sim.players[candidate].flipH = sim.gameMap.spawnFlipH(team)
-  sim.emitEvent(
-    Respawn, source = candidate,
-    x = float(sim.players[candidate].x + CollisionW div 2),
-    y = float(sim.players[candidate].y + CollisionH div 2))
-  sim.logGameEvent(
-    teamText(team) & " queen hatched " & sim.playerText(candidate))
-  true
-
-proc updateColonyLifecycle*(sim: var SimServer) =
-  ## Feeds queens, collapses queenless colonies, then spends only SURPLUS food
-  ## on brood. A delivery on the exact hunger tick can save the queen because
-  ## delivery resolution precedes this procedure.
-  if not sim.config.isEmergAnt() or sim.phase != Playing:
-    return
-  for team in sim.teams():
-    let queen = sim.queenIndex(team)
-    if queen < 0:
-      sim.logGameEvent(teamText(team) & " queen disconnected; colony collapsed")
-      sim.eliminateTeam(team, -1)
-      continue
-    if sim.players[queen].alive:
-      while sim.tickCount >= sim.queenFeedAt[team]:
-        if sim.colonyFood[team] < QueenUpkeepFoodCost:
-          sim.logGameEvent(teamText(team) & " queen starved; colony collapsed")
-          sim.killPlayer(queen, -1, cause = "starved")
-          break
-        sim.colonyFood[team] -= QueenUpkeepFoodCost
-        sim.queenFeedAt[team] += QueenUpkeepTicks
-        sim.logGameEvent(
-          teamText(team) & " queen fed; " & $sim.colonyFood[team] &
-            " food remains")
-    if not sim.players[queen].alive:
-      sim.logGameEvent(teamText(team) & " queen lost; colony collapsed")
-      sim.eliminateTeam(team, -1)
-      continue
-    while sim.colonyFood[team] >= QueenFoodReserve + BroodFoodCost:
-      if not sim.hatchBrood(team):
-        break
-      sim.colonyFood[team] -= BroodFoodCost
-
 proc updatePuddles*(sim: var SimServer) =
   ## One tick of the paint-puddle hazard: every full second (PuddleRollTicks
   ## ticks) a cog's center spends CONTINUOUSLY inside a puddle rolls a
@@ -3068,8 +2832,8 @@ proc updateBarrage*(sim: var SimServer) =
       sim.launchBarrageShell()
 
 proc checkEmergAntWinCondition(sim: var SimServer) =
-  ## Neutral-patch foraging: every carried food returned home scores one, then
-  ## its emptied patch regrows after the configured delay. All deliveries on this tick
+  ## Replenishing-cache foraging: every enemy cache returned home scores one,
+  ## then immediately regrows at its owner's nest. All deliveries on this tick
   ## resolve before the goal check, so simultaneous finishes draw rather than
   ## inheriting enum/player processing order.
   for foodTeam in sim.teams():
@@ -3085,19 +2849,15 @@ proc checkEmergAntWinCondition(sim: var SimServer) =
     if not zone.inCaptureZone(cx, cy):
       continue
     sim.recordCapture(carrierIndex)
-    sim.colonyFood[carrier.team] += 1
     sim.emitEvent(Capture, source = carrierIndex, x = float(cx), y = float(cy))
     sim.logGameEvent(
-      teamText(carrier.team) & " delivered neutral food (" &
-        $sim.teamForageScore(carrier.team) & "/" &
+      teamText(carrier.team) & " returned " & teamText(foodTeam) &
+        " food (" & $sim.teamForageScore(carrier.team) & "/" &
         $sim.config.forageGoal & ")"
     )
     sim.players[carrierIndex].carryingFlag = false
     sim.flags[foodTeam].carrier = -1
-    sim.flags[foodTeam].captured = true
-    sim.flags[foodTeam].respawnAt = sim.tickCount + sim.config.foodRespawnTicks
-
-  sim.updateColonyLifecycle()
+    sim.resetFlag(foodTeam)
 
   var
     leaders: seq[Team] = @[]
@@ -3773,11 +3533,10 @@ proc step*(
   var
     firing: seq[int] = @[]
     arcFiring: seq[int] = @[]
-    biting: seq[int] = @[]
   for playerIndex in 0 ..< sim.players.len:
     if sim.players[playerIndex].fireCooldown > 0:
       dec sim.players[playerIndex].fireCooldown
-    if not sim.config.isEmergAnt() and sim.players[playerIndex].fireWindup > 0:
+    if sim.players[playerIndex].fireWindup > 0:
       dec sim.players[playerIndex].fireWindup
       if sim.players[playerIndex].fireWindup == 0:
         firing.add(playerIndex)
@@ -3788,13 +3547,9 @@ proc step*(
       if playerIndex < prevInputs.len: prevInputs[playerIndex]
       else: InputState()
     sim.applyInput(playerIndex, input)
-    if sim.config.isEmergAnt():
-      if input.attack and not prev.attack:
-        biting.add(playerIndex)
-    else:
-      sim.applyGrenadeInput(playerIndex, input, prev)
-      sim.applyBarrierInput(playerIndex, input, prev)
-    if not sim.config.isEmergAnt() and input.attack and not prev.attack:
+    sim.applyGrenadeInput(playerIndex, input, prev)
+    sim.applyBarrierInput(playerIndex, input, prev)
+    if input.attack and not prev.attack:
       if sim.players[playerIndex].hasPlasmaArc:
         if sim.canFireArc(playerIndex):
           arcFiring.add(playerIndex)
@@ -3805,36 +3560,30 @@ proc step*(
             firing.add(playerIndex)
         else:
           sim.startFireWindup(playerIndex)
-  if sim.config.isEmergAnt():
-    sim.resolveContactAttacks(biting)
-  else:
-    sim.resolveSimultaneousFire(firing)
-    for playerIndex in arcFiring:
-      sim.startArcFire(playerIndex)
-    sim.resolveActiveArcCones()
-    sim.updateGrenades()
-    sim.updateMedKits()
-    sim.updateShields()
-    sim.updatePlasmaArcs()
-    sim.updateBarriers()
+  sim.resolveSimultaneousFire(firing)
+  for playerIndex in arcFiring:
+    sim.startArcFire(playerIndex)
+  sim.resolveActiveArcCones()
+  sim.updateGrenades()
+  sim.updateMedKits()
+  sim.updateShields()
+  sim.updatePlasmaArcs()
+  sim.updateBarriers()
 
-  sim.updateFoodPatches()
   for playerIndex in 0 ..< sim.players.len:
     sim.tryPickupFlags(playerIndex)
-    if not sim.config.isEmergAnt():
-      sim.tryPickupGrenades(playerIndex)
-      sim.tryPickupMedKits(playerIndex)
-      sim.tryPickupShields(playerIndex)
-      sim.tryPickupPlasmaArcs(playerIndex)
-      sim.tryPickupBarriers(playerIndex)
+    sim.tryPickupGrenades(playerIndex)
+    sim.tryPickupMedKits(playerIndex)
+    sim.tryPickupShields(playerIndex)
+    sim.tryPickupPlasmaArcs(playerIndex)
+    sim.tryPickupBarriers(playerIndex)
   sim.updateFlags()
   sim.respawnPlayers()
   # Puddle damage resolves after movement and pickups, before the win check,
   # so a lethal roll feeds the same tick's wipe resolution.
   sim.updatePuddles()
-  if not sim.config.isEmergAnt():
-    sim.updateBarrage()
-  sim.updatePheromones(inputs)
+  sim.updateBarrage()
+  sim.updatePheromones()
 
   sim.checkWinCondition()
   sim.checkMaxTicks()

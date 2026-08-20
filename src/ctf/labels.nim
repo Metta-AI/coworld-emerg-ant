@@ -148,11 +148,6 @@ const
     ## docs/PROTOCOL.md, "Your own aim"). NOT named `self aim`: consumers
     ## prefix-match `self ` for the avatar, and a marker sharing that prefix
     ## would false-positive every such scan.
-  LabelCarryingFood* = "carrying food"
-    ## Emerg-ant proprioception marker: an invisible 1x1 object appears only
-    ## in the carrier's own player stream while this ant holds neutral food.
-    ## Policies should scan PRESENT objects with this exact label; sprite
-    ## definitions are cached and therefore do not encode the current state.
   LabelPrefixEndzone* = "endzone "
     ## The per-team endzone marker,
     ## `endzone <color> <shape> <x0>,<y0> <x1>,<y1>`: an invisible 1x1 object
@@ -290,18 +285,6 @@ proc labelCorpse*(color, side: string): string =
 proc labelSelf*(color, side: string): string =
   ## Your own avatar's sprite label, `self <color> <side>`.
   LabelPrefixSelf & color & " " & side
-
-proc labelQueen*(color, side: string): string =
-  ## A living Emerg-ant queen, `queen <color> <side>`.
-  "queen " & color & " " & side
-
-proc labelQueenCorpse*(color, side: string): string =
-  ## A killed Emerg-ant queen, `queen corpse <color> <side>`.
-  "queen corpse " & color & " " & side
-
-proc labelQueenSelf*(color, side: string): string =
-  ## The queen policy's own avatar, `self queen <color> <side>`.
-  "self queen " & color & " " & side
 
 proc labelSelectedPlayer*(color, side: string): string =
   ## The spectator-highlighted variant, `selected player <color> <side>`.
@@ -527,7 +510,6 @@ const PolicyScannedLabels* = [
   LabelGrenadeCarried,
   LabelBarrier,
   LabelBarrierCarried,
-  LabelCarryingFood,
   LabelThrowTarget,
   labelFlag("red"),
   labelFlag("blue"),

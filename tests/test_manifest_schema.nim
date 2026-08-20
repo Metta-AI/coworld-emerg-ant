@@ -59,7 +59,6 @@ const SampleJson = """{
   "fastMode": {"fastMode": false},
   "fireCooldownTicks": {"fireCooldownTicks": 20},
   "fireWindupTicks": {"fireWindupTicks": 9},
-  "foodRespawnTicks": {"foodRespawnTicks": 120},
   "gameOverTicks": {"gameOverTicks": 100},
   "gameMode": {"gameMode": "emerg-ant"},
   "forageGoal": {"forageGoal": 7},
@@ -78,10 +77,6 @@ const SampleJson = """{
   "maxGames": {"maxGames": 3},
   "maxTicks": {"maxTicks": 777},
   "minPlayers": {"minPlayers": 4},
-  "antSenseRadius": {"antSenseRadius": 120},
-  "biteDamage": {"biteDamage": 2},
-  "biteCooldownTicks": {"biteCooldownTicks": 12},
-  "pheromoneWashTick": {"pheromoneWashTick": 900},
   "players": {"players": [{"name": "tester"}]},
   "respawnTicks": {"respawnTicks": 33},
   "scoring": {"scoring": "pot"},
@@ -177,27 +172,21 @@ suite "league manifest config_schema vs GameConfig":
     let gameConfig = manifestVariant("emerg-ant")["game_config"]
     check gameConfig["gameMode"].getStr() == EmergAntMode
     check gameConfig["forageGoal"].getInt() == 5
-    check gameConfig["num_agents"].getInt() == 32
-    check gameConfig["players"].len == 32
-    check gameConfig["minPlayers"].getInt() == 32
+    check gameConfig["num_agents"].getInt() == 16
+    check gameConfig["players"].len == 16
     check gameConfig["teams"].getInt() == 2
     check gameConfig["barrageMaxPerSec"].getInt() == 0
-    check gameConfig["foodRespawnTicks"].getInt() == 240
-    check gameConfig["pheromoneWashTick"].getInt() == 1800
-    check gameConfig["antSenseRadius"].getInt() == 180
-    check gameConfig["biteDamage"].getInt() == 1
-    check gameConfig["biteCooldownTicks"].getInt() == 18
     var config = defaultGameConfig()
     config.update($gameConfig)
     check config.isEmergAnt()
-    check config.maxTicks == 7200
+    check config.maxTicks == 3600
 
-  test "certification exercises the ant ruleset with thirty-two seats":
+  test "certification exercises the ant ruleset with sixteen seats":
     let manifest = parseFile(GameDir / ManifestName)
     let gameConfig = manifest["certification"]["game_config"]
-    check manifest["certification"]["players"].len == 32
-    check gameConfig["players"].len == 32
-    check gameConfig["minPlayers"].getInt() == 32
+    check manifest["certification"]["players"].len == 16
+    check gameConfig["players"].len == 16
+    check gameConfig["minPlayers"].getInt() == 16
     check gameConfig["gameMode"].getStr() == EmergAntMode
     check gameConfig["forageGoal"].getInt() == 1
     var config = defaultGameConfig()

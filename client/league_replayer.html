@@ -161,10 +161,8 @@
   .flagicon svg{width:100%; height:100%; display:block}
   .flagicon .cloth{transition:transform 90ms steps(3); transform-box:fill-box; transform-origin:left center}
   .flagicon.taken .cloth{transform:scaleX(.62) skewX(-8deg)}
-  .flagicon.empty svg{opacity:.22;filter:grayscale(.7)}
   .flagicon.flip{animation:flagflip 260ms steps(3); transform-box:fill-box; transform-origin:center}
   @keyframes flagflip{0%{transform:scaleY(.2)}100%{transform:scaleY(1)}}
-  .foodscore{font-family:var(--numfont);font-size:calc(11*var(--u));color:var(--amber);white-space:nowrap}
   .khead,.krow{display:grid; align-items:center; gap:calc(5*var(--u));
     grid-template-columns:1fr calc(16*var(--u)) calc(16*var(--u)) calc(34*var(--u))}
   .khead{font-family:var(--finefont); font-size:calc(8*var(--u)); letter-spacing:.08em; text-transform:uppercase;
@@ -323,7 +321,7 @@
       <button class="tbtn" id="btn-end" title="Jump to end (e)">|▸</button>
       <button class="tbtn" id="btn-loop" title="Loop (r)">↻</button>
       <button class="tbtn" id="btn-skip" title="Auto-skip lulls (f)">▸▸</button>
-      <button class="tbtn" id="btn-spoilers" title="Spoilers: kills / objective story / winner on the timeline ahead of the playhead (o)">spoilers</button>
+      <button class="tbtn" id="btn-spoilers" title="Spoilers: kills / flag story / winner on the timeline ahead of the playhead (o)">spoilers</button>
       <span class="ffwd-chip" id="ffwd-chip">▸▸ SKIPPING LULL</span>
       <span class="win-chip" id="win-chip"></span>
       <span class="tick-clock" id="tick-clock">0 / 0</span>
@@ -607,14 +605,11 @@
   }
   // (esc / setName live in the shared chrome — chrome_common.js)
 
-  function isFoodGame(s){ return !!s && s.objective==='food'; }
-  function buildObjective(el, color, food){
-    el.innerHTML = food
-      ? '<svg viewBox="0 0 26 30" aria-hidden="true"><g fill="#f5bc36" stroke="#3f2d19" stroke-width="1.4">'+
-        '<circle cx="9" cy="15" r="5"/><circle cx="17" cy="15" r="5"/>'+
-        '<circle cx="13" cy="9" r="5"/><circle cx="13" cy="21" r="5"/></g>'+
-        '<circle cx="11" cy="7" r="1.5" fill="#ffeb84"/></svg>'
-      :
+  // ---- flag icon svg (HOME/TAKEN are the only two states) ------------------
+  // The carrier's identity is shown by the ♥ marker in the roster table, so the
+  // flag icon carries no name tag here — just the home/taken cloth state.
+  function buildFlag(el, color){
+    el.innerHTML =
       '<svg viewBox="0 0 26 30" aria-hidden="true">' +
       '<rect x="4" y="2" width="2" height="26" fill="#2a1f16"/>' +
       '<g class="cloth"><path d="M6 3 L22 3 L18 9 L22 15 L6 15 Z" fill="'+color+'"/></g>' +
@@ -628,7 +623,6 @@
     var taken = tstate.flag==='taken' || tstate.flag==='captured';
     var was = el.classList.contains('taken');
     el.classList.toggle('taken', taken);
-    el.classList.toggle('empty', isFoodGame(s) && tstate.flag==='captured');
     if (was!==taken){ el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip'); }
   }
 
@@ -636,8 +630,8 @@
   // changes (once per match in practice). Teams alternate sides in TEAM_ORDER —
   // index 0/2 left, 1/3 right — matching the board's plate layout.
   var shellTeams=null;
-  function ensureShellTeams(s,teams){
-    var key=(isFoodGame(s)?'food:':'ctf:')+teams.join(',');
+  function ensureShellTeams(teams){
+    var key=teams.join(',');
     if (shellTeams===key) return;
     shellTeams=key;
     var names=[$('names-l'), $('names-r')];
@@ -666,14 +660,13 @@
         '<div class="flagicon" id="flag-'+team+'"></div>'+
         '<div class="lives-line">'+
         '<span class="meters" id="meters-'+team+'"></span>'+
-        '<span class="foodscore" id="foodscore-'+team+'"></span>'+
         '</div>'+
         '</div>'+
         '<div class="khead"><span>Name</span><span>K</span><span>D</span><span>Lives</span></div>'+
         '<div id="rows-'+team+'"></div>'+
         '<div class="pfoot" id="foot-'+team+'"></div>';
       cols[side].appendChild(pl);
-      buildObjective($('flag-'+team), teamCol(team) || AMBER, isFoodGame(s));
+      buildFlag($('flag-'+team), teamCol(team) || AMBER);
       // clicking a KDA row → POV lens on that player (toggles)
       $('rows-'+team).addEventListener('click', function(ev){
         var row=ev.target.closest('.krow'); if(!row) return;
@@ -684,12 +677,10 @@
 
   function renderScorebug(s){
     var teams=activeTeams(s);
-    ensureShellTeams(s,teams);
+    ensureShellTeams(teams);
     var tr=s.teams||{};
     var lives={};
-    var foodScores={};
     teams.forEach(function(team){ lives[team]=(tr[team]&&tr[team].lives)||0; });
-    teams.forEach(function(team){ foodScores[team]=(tr[team]&&tr[team].score)||0; });
     teams.forEach(function(team){
       setName('name-'+team, teamName(s, team, team.toUpperCase()));
       setHandicap('hcap-'+team, s, team);
@@ -697,20 +688,12 @@
       // renderTeamMeters): the classic single "Lives N", or per-policy split
       // meters in CTF-Doubles.
       renderTeamMeters($('meters-'+team), s, team);
-      $('foodscore-'+team).textContent=isFoodGame(s)
-        ? 'FOOD '+String((tr[team]&&tr[team].score)||0)+'/'+String(s.goal||'?')+
-          ' · STORE '+String((tr[team]&&tr[team].food)||0)+
-          ' · Q'+((tr[team]&&tr[team].queenAlive)?'✓':'✕')+
-          ' · ANTS '+String((tr[team]&&tr[team].active)||0)
-        : '';
       updateFlag('flag-'+team, team, tr[team]||{}, s);
       // leader pulse when this team leads EVERY rival by >= 3
       var bestRival=-Infinity;
-      teams.forEach(function(o){ if(o!==team) bestRival=Math.max(bestRival,
-        isFoodGame(s)?foodScores[o]:lives[o]); });
+      teams.forEach(function(o){ if(o!==team) bestRival=Math.max(bestRival, lives[o]); });
       var headEl=document.querySelector('.team-head[data-team="'+team+'"]');
-      if(headEl) headEl.classList.toggle('leader',
-        (isFoodGame(s)?foodScores[team]>bestRival:lives[team]-bestRival>=3) && s.ph==='playing');
+      if(headEl) headEl.classList.toggle('leader', lives[team]-bestRival>=3 && s.ph==='playing');
     });
   }
 
@@ -765,12 +748,12 @@
       // No team color: replays identify players by name, and the trailing seat
       // disambiguates teammates who share one policy name. Team identity rides
       // the wall-corner headline above the table.
-      var who=(p.queen?'QUEEN · ':'')+shortName(rosterName(s, p.s));
+      var who=shortName(rosterName(s, p.s));
       if (c.nm.textContent!==who) c.nm.textContent=who;
       var seatTxt=String(seat);
       if (c.seatno.textContent!==seatTxt) c.seatno.textContent=seatTxt;
-      var objective=p.carry?(isFoodGame(s)?'●':'♥'):'';
-      if (c.carry.textContent!==objective) c.carry.textContent=objective;
+      var heart=p.carry?'♥':'';
+      if (c.carry.textContent!==heart) c.carry.textContent=heart;
       var kTxt=String(p.k||0); if (c.k.textContent!==kTxt) c.k.textContent=kTxt;
       var dTxt=String(p.d||0); if (c.d.textContent!==dTxt) c.d.textContent=dTxt;
       setLivePips(c, p.lives||0, mx);

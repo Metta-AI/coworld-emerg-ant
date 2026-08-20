@@ -18,88 +18,16 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "51"  ## GV51 (Emerg-ant scent rule): ANTENNAE FIND FOOD; WALLS DO NOT HOLD ANTS.
-    ## Every living ant now smells the bearing and distance of every available
-    ## fruit patch, while exact nearby food, ants, walls, and pheromones remain
-    ## local. Regrowing fruit chooses a replay-deterministic random site instead
-    ## of walking a fixed circuit, and a queen consumes two delivered pieces per
-    ## brood hatch. A private carrying-food marker makes self-state explicit.
-    ## The bundled shared controller gains the matching odor inputs and
-    ## persistent wall-following escape. Food placement, observations,
-    ## population timing, inputs, hashes, and replay outcomes change, so GV50
-    ## recordings are obsolete.
-    ## Authored as GV51 after scanning origin on 2026-08-20: main and every
-    ## remote claim at/above main used GV50; no GV51 claim was present.
-    ##
-    ## Previously GV50 (Emerg-ant founder rule): A COLONY STARTS AS A SWARM.
-    ## Each 16-seat colony now wakes a queen and seven founding workers; the
-    ## other eight connected policy seats remain dormant brood. Three workers
-    ## were too sparse for the distributed eight-site fruit circuit: two
-    ## certified hosted GV49 matches produced only one late harvest apiece
-    ## before starvation or queen disconnect. Population, motion, hash, and
-    ## replay outcomes change, so GV49 recordings are obsolete.
-    ## Authored as GV50 after scanning origin on 2026-08-20: main and every
-    ## remote claim at/above main used GV49; no GV50 claim was present.
-    ##
-    ## Previously GV49 (Emerg-ant famine rule): FORAGING GETS A FAIR FIRST CHANCE.
-    ## A queen now eats her starting ration at 75 seconds and, without a food
-    ## delivery, starves at 135 seconds — fifteen seconds before the published
-    ## 150-second limit. GV48's 45/30-second clock killed both four-founder
-    ## colonies at 75 seconds while their first locally discovered fruit was
-    ## still returning. Queen timing, win timing, hash, and replay outcomes
-    ## change, so GV48 recordings are obsolete.
-    ## Authored as GV49 after scanning origin on 2026-08-20: main and every
-    ## remote claim at/above main used GV48; no GV49 claim was present.
-    ##
-    ## Previously GV48 (Emerg-ant colony rule): THE QUEEN MAKES THE COLONY.
-    ## Each fixed hosted roster now begins as a queen, three workers, and
-    ## dormant brood policies. Food delivered to the nest enters a colony
-    ## store; surplus above the queen's reserve hatches dormant policy seats
-    ## as new ant bodies. The queen consumes food periodically, starves when
-    ## the store is empty, and a colony collapses immediately when its queen
-    ## is killed. Emerg-ant lives, population, win timing, observations, hash,
-    ## and flatty state all change, so GV47 recordings are obsolete.
-    ## Authored as GV48 after scanning origin on 2026-08-20: main and every
-    ## remote claim at/above main used GV47; no GV48 claim was present.
-    ##
-    ## Previously GV47 (Emerg-ant fruit rule): FORAGE THE WHOLE FIELD.
-    ## The two neutral fruit patches no longer regrow forever at two fixed
-    ## center-line points. They begin at opposite sites in an eight-site,
-    ## rot180-paired interior circuit and advance after every harvest; every
-    ## target is nudged through the installed map's real walkability mask.
-    ## `FlagState.foodSite` pins the active site in deterministic replay state
-    ## and gameHash. This changes objective positions and the flatty state
-    ## layout, so GV46 recordings are obsolete and fixtures are re-recorded.
-    ## Authored as GV47 after scanning origin on 2026-08-20: main and every
-    ## remote claim at/above main used GV46; no GV47 claim was present.
-    ##
-    ## Previously GV46 (Emerg-ant spawn rule): WAKE INSIDE THE NEST.
-    ## The inherited CTF spawn fan spread a 16-ant colony far beyond a
-    ## compact endzone: outer bodies woke roughly 180px above/below the nest,
-    ## so NAnts-style displacement from wake position pointed somewhere that
-    ## could never score a food delivery. Emerg-ant now packs each colony on
-    ## a symmetric 2x8 lattice wholly inside its capture zone. The learned
-    ## shared controller can therefore use its own wake displacement as its
-    ## sole home vector, with no absolute nest coordinate or privileged slot.
-    ## Spawn coordinates and all subsequent motion hashes change, so GV45
-    ## replays are obsolete and fixtures are re-recorded.
-    ## Authored as GV46 after scanning origin on 2026-08-19: main and every
-    ## remote claim at/above main used GV44; this branch had already claimed
-    ## GV45 for the v0.2 ecology and no remote GV45/GV46 claim was present.
-    ##
-    ## Previously GV45 (Emerg-ant ecology): TWO BRAINS, 32 BODIES.
-    ## Emerg-ant is now a colony experiment rather than CTF with ant art.
-    ## Its two team-owned caches become neutral, finite center-field food
-    ## patches that disappear when harvested and regrow on a configurable
-    ## clock. B and C explicitly lay home and food pheromone channels; marks
-    ## are locally sensed, expire/cancel as before, and a configured one-shot
-    ## wash clears the shared field to test recovery. A is now a simultaneous
-    ## contact-only mandible attack, and every ranged weapon/pickup path is
-    ## disabled in ant mode. Movement points the ant's vision cone. These
-    ## objective, input, observation, and hashed-state changes cannot replay
-    ## GV44 recordings; fixtures are re-recorded.
-    ## Authored as GV45 after scanning origin on 2026-08-19: main and every
-    ## remote claim at/above main used GV44; no GV45 claim was present.
+  GameVersion* = "52"  ## GV52 (pre-NAnts restoration): RETURN TO THE CACHE RAID.
+    ## Restores the complete pre-NAnts game snapshot from commit a292bf5:
+    ## replenishing enemy food caches, public pheromone trails, contact combat,
+    ## and fixed colonies without queens, brood, global food odor, or neural
+    ## policy machinery. The NAnts-style v0.6 release remains preserved on the
+    ## `nants-v0.6` branch and `v0.6.0-nants` tag. This restores GV44 behavior,
+    ## not its already-spent version number; every fixture is re-recorded as
+    ## GV52 so new replays cannot be mistaken for historical GV44 recordings.
+    ## Claimed after scanning origin on 2026-08-20: main and nants-v0.6 used
+    ## GV51, and no remote branch claimed GV52 or above.
     ##
     ## Previously GV44 (Emerg-ant mode): FOLLOW THE TRAIL, RAID THE NEST.
     ## Adds the opt-in `emerg-ant` competitive foraging ruleset. Enemy hearts
@@ -558,24 +486,9 @@ const
                               ## split the forfeit (see potScoring below).
   CtfMode* = "ctf"
   EmergAntMode* = "emerg-ant"
-  DefaultForageGoal* = 5       ## neutral food deliveries needed to win.
-  DefaultFoodRespawnTicks* = 10 * TargetFps ## empty patch regrowth delay.
-  FoodSiteCount* = 8           ## distributed, rot180-paired fruit sites.
-  FoodSitePairOffset* = FoodSiteCount div 2
-  DefaultPheromoneWashTick* = 75 * TargetFps ## one wash, relative to kickoff.
-  DefaultAntSenseRadius* = 180 ## local radius for food/pheromone observations.
-  DefaultBiteDamage* = 1       ## hp removed by one contact attack.
-  DefaultBiteCooldownTicks* = 18 ## minimum ticks between successful attempts.
-  InitialAntsPerColony* = 8  ## queen + 7 founding workers; 8 seats stay brood.
-  QueenStartingFood* = 1     ## reserve carried into the first hunger cycle.
-  QueenFoodReserve* = 1      ## hatching never spends the queen's last ration.
-  BroodFoodCost* = 2         ## delivered food consumed to hatch one reserve seat.
-  QueenUpkeepFoodCost* = 1   ## stored food consumed at each hunger check.
-  QueenGraceTicks* = 75 * TargetFps ## first hunger check after kickoff.
-  QueenUpkeepTicks* = 60 * TargetFps ## later hunger-check interval.
-  AntBiteRange* = 2 * PlayerHalf + 6 ## center distance: touching ant bodies.
-  PheromoneStepTicks* = 24     ## held B/C deposits at most once per second.
-  PheromoneLifetimeTicks* = 24 * 30  ## local trail memory lasts 30 seconds.
+  DefaultForageGoal* = 5       ## returned enemy food caches needed to win.
+  PheromoneStepTicks* = 24     ## a moving ant deposits at most once per second.
+  PheromoneLifetimeTicks* = 24 * 30  ## public trail memory lasts 30 seconds.
   PheromoneEraseRadius* = 18   ## opposing deposits this close neutralize.
   MaxPheromoneMarks* = 512     ## deterministic oldest-first trail cap.
   TimeoutReward* = -1         ## EVERY player scores -1 on a time-limit draw
@@ -1311,11 +1224,6 @@ type
                                   ## no placements, no new RNG draws).
     gameMode*: string             ## `ctf` (default) or competitive `emerg-ant`.
     forageGoal*: int              ## emerg-ant food returns needed to win.
-    foodRespawnTicks*: int        ## empty neutral-patch regrowth delay.
-    pheromoneWashTick*: int       ## one-shot trail wash after kickoff; 0 = off.
-    antSenseRadius*: int          ## local food/pheromone sensing radius.
-    biteDamage*: int              ## contact attack damage per fresh A press.
-    biteCooldownTicks*: int       ## cooldown shared through fireCooldown.
 
   Player* = object
     x*, y*: int
@@ -1664,11 +1572,6 @@ type
                                ## team has been completely killed (GV33). A
                                ## retired heart is never drawn and cannot be
                                ## stolen.
-    respawnAt*: int            ## Emerg-ant only: tick an emptied neutral food
-                               ## patch regrows; 0 while present or carried.
-    foodSite*: int             ## Emerg-ant only: distributed site occupied by
-                               ## this patch before harvest. Appended for the
-                               ## flatty wire contract; ignored by CTF.
 
   SimServer* = object
     config*: GameConfig
@@ -1758,9 +1661,6 @@ type
                                ## pre-barrier builds.
     pheromones*: seq[PheromoneMark] ## emerg-ant shared environmental memory;
                                ## empty and un-hashed in ordinary CTF.
-    colonyFood*: array[Team, int] ## emerg-ant stored food after brood/upkeep.
-    queenFeedAt*: array[Team, int] ## next deterministic queen hunger tick.
-    queenSlot*: array[Team, int] ## stable join slot; survives player removals.
 
 
 # Team endzone display colors (shared by the map bake and the paint FX).

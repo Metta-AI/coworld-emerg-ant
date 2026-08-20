@@ -6,20 +6,15 @@ import
 
 const
   # The event-substrate fixture: a full 16-bot match recorded against the
-  # CURRENT gameplay rules (GameVersion 51, seed 908, lives 9:
-  #   record_fixture.sh tests/replays/ctf.bitreplay 908 10000 \
-  #     '{"lives":9,"carrierSpeedPct":1}')
-  # The GV51 take kept all three weapons (gun 67 / grenade 1 / spray 40,
-  # fourteen steals and fourteen heals). GV51 also pins carrierSpeedPct=1:
-  # without it the current baseline captured after ~15 kills, before spray
-  # and grenade coverage could develop. Seed 907 survived through GV45, but
-  # five GV46 recordings of the corrected no-capture recipe had no grenade
-  # kill; the adjacent scan moved the fixture to 908.
-  # THE SEED ALONE DOES NOT PIN
+  # CURRENT gameplay rules (GameVersion 52, seed 907, lives 9:
+  #   record_fixture.sh tests/replays/ctf.bitreplay 907 10000 '{"lives":9}')
+  # The GV52 take kept all three weapon kills
+  # (gun 78 / grenade 4 / spray 20, no captures, twelve steals, thirteen heals).
+  # Seed 907 survives the GV42 heart rule, but the SEED ALONE DOES NOT PIN
   # THE KILL MIX: the bots are separate processes, so two recordings of one
   # seed differ, and the grenade kill in particular is rare (5 of 105 kills
   # here). The first GV42 take of this very seed came back gun+spray only.
-  # Re-record until `tools/scan_event_seeds.sh 908` prints ALL THREE — it
+  # Re-record until `tools/scan_event_seeds.sh 907` prints ALL THREE — it
   # reports the mix per run and leaves its recording in .scan/, which is
   # cheaper than guessing, and do NOT move the seed on the first miss.
   # — kills across ALL THREE weapons, steals and heals, ending at the time

@@ -629,8 +629,6 @@ const
   SpritePlayerWeaponObjectId = 5021
   SpritePlayerOwnAimSpriteId = 5022  ## invisible own-aim readback marker
   SpritePlayerOwnAimObjectId = 5023  ## ("own aim <brads>", player stream only).
-  SpritePlayerFoodCarrySpriteId = 5024 ## invisible own carrying-state marker
-  SpritePlayerFoodCarryObjectId = 5025 ## (Emerg-ant player stream only).
   SpritePlayerSelfSpriteBase = 5100  ## white-outlined self soldiers, keyed by
                                      ## skin×rotation: default 5100..5115,
                                      ## crown 5116..5131.
@@ -763,7 +761,7 @@ const
     ("map bands", MapBandObjectBase, 960),
     ("players (POV view)", PlayerObjectBase, MaxPlayers),
     ("replay UI", ReplayTickObjectId, 5),
-    ("player HUD", SpritePlayerInterstitialObjectId, 20),
+    ("player HUD", SpritePlayerInterstitialObjectId, 16),
     ("flags", FlagObjectBase, 4),
     ("player names", PlayerNameObjectBase, MaxPlayers),
     ("protocol text", ProtocolTextObjectBase, 100),
@@ -898,7 +896,7 @@ const
     ("endzone fades", EndzoneFadeSpriteBase,
       4 * GlowFadeStages * MaxEndzoneFadeBands),
     ("identity badges", IdentityBadgeSpriteBase, 4 * 32),
-    ("player HUD", SpritePlayerFireSpriteId, 26),
+    ("player HUD", SpritePlayerFireSpriteId, 23),
     ("self soldiers", SpritePlayerSelfSpriteBase, 2 * SoldierRotations),
     ("selected soldiers", int(SelectedPlayerSpriteBase),
       2 * 4 * SoldierRotations),
@@ -4183,16 +4181,16 @@ proc buildFlagBannerSprite(team: Team): seq[uint8] {.measure.} =
   ## Rasterized from the ~450px painted master at scale× the carried footprint.
   loadHeartSprite(team, FlagBannerW * boardScale)
 
-proc buildFoodSprite(logicalW, logicalH: int): seq[uint8] =
-  ## A neutral seed/nectar cluster used for both the center-field patch and
-  ## carried food in Emerg-ant mode. No team rim: either colony can harvest
-  ## either finite patch.
+proc buildFoodSprite(team: Team, logicalW, logicalH: int): seq[uint8] =
+  ## A bright seed/nectar cluster used for both the nest cache and carried
+  ## food in Emerg-ant mode. The team rim says which colony owns the cache;
+  ## the gold center reads as a neutral resource at game scale.
   let
     w = logicalW * boardScale
     h = logicalH * boardScale
     cx = float(w - 1) / 2.0
     cy = float(h - 1) / 2.0
-    husk = rgba(151, 105, 48, 255)
+    teamInk = antTeamRgba(team)
     dark = rgba(63, 45, 25, 255)
     gold = rgba(245, 188, 54, 255)
     pale = rgba(255, 235, 132, 255)
@@ -4217,7 +4215,7 @@ proc buildFoodSprite(logicalW, logicalH: int): seq[uint8] =
       if best <= 1.0:
         let color =
           if best > 0.82: dark
-          elif best > 0.68: husk
+          elif best > 0.68: teamInk
           elif float(x) < cx and float(y) < cy: pale
           else: gold
         result.putRawRgbaPixel(pixel, color.r, color.g, color.b, color.a)
@@ -4264,7 +4262,7 @@ proc buildPlantedFlagSprite(team: Team): seq[uint8] {.measure.} =
   result = newSeq[uint8](gemSize * PlantedFlagCanvasH * boardScale * 4)
   copyMem(result[0].addr, gem[0].addr, gem.len)
 
-proc buildFlagAuraSprite(team: Team, foodMode = false): seq[uint8] {.measure.} =
+proc buildFlagAuraSprite(team: Team): seq[uint8] {.measure.} =
   ## Builds the soft carrier halo in the FLAG's team color: a feathered disc
   ## drawn UNDER the carrier so the flag-runner is the brightest, most-tracked
   ## figure on the board (TagPro / TF2 carrier-glow convention). A blue player
@@ -4273,9 +4271,7 @@ proc buildFlagAuraSprite(team: Team, foodMode = false): seq[uint8] {.measure.} =
   let outSize = FlagAuraSize * boardScale
   result = newRgbaPixels(outSize, outSize)
   let
-    base =
-      if foodMode: rgba(245, 188, 54, 255)
-      else: Palette[teamColor(team) and 0x0f]
+    base = Palette[teamColor(team) and 0x0f]
     c = float(outSize - boardScale) / 2
   for y in 0 ..< outSize:
     for x in 0 ..< outSize:
@@ -4316,10 +4312,10 @@ proc addFlagSprites(
       FlagBannerW,
       FlagBannerH,
       if foodMode:
-        buildFoodSprite(FlagBannerW, FlagBannerH)
+        buildFoodSprite(team, FlagBannerW, FlagBannerH)
       else:
         buildFlagBannerSprite(team),
-      if foodMode: "neutral food carried" else: flagLabel(team),
+      if foodMode: "food " & teamText(team) & " carried" else: flagLabel(team),
       native = boardScale
     )
     packet.addBoardSpriteChanged(
@@ -4328,10 +4324,10 @@ proc addFlagSprites(
       PlantedFlagW,
       PlantedFlagCanvasH,
       if foodMode:
-        buildFoodSprite(PlantedFlagW, PlantedFlagCanvasH)
+        buildFoodSprite(team, PlantedFlagW, PlantedFlagCanvasH)
       else:
         buildPlantedFlagSprite(team),
-      if foodMode: "neutral food patch"
+      if foodMode: "food " & teamText(team) & " cache"
       else: labelFlagPlanted(teamText(team)),
       native = boardScale
     )
@@ -4340,9 +4336,8 @@ proc addFlagSprites(
       FlagAuraSpriteBase + ord(team),
       FlagAuraSize,
       FlagAuraSize,
-      buildFlagAuraSprite(team, foodMode),
-      if foodMode: "neutral food carrier glow"
-      else: flagLabel(team) & " carrier glow",
+      buildFlagAuraSprite(team),
+      flagLabel(team) & " carrier glow",
       native = boardScale
     )
   # The carried heart is baked PER AIM STEP (team×16) so it rotates with the cog;
@@ -4473,29 +4468,15 @@ proc antRotPixels(team: Team, skin: Skin, rot, renderScale: int): seq[uint8] =
         if segmentDistance(rx, ry, ax, ay, bx, by) <= 0.7:
           leg = true
       let
-        abdomen =
-          if skin == CrownSkin:
-            ((along + 7.0) / 9.0) ^ 2 + (side / 7.0) ^ 2 <= 1.0
-          else:
-            ((along + 8.0) / 7.0) ^ 2 + (side / 5.5) ^ 2 <= 1.0
+        abdomen = ((along + 8.0) / 7.0) ^ 2 + (side / 5.5) ^ 2 <= 1.0
         thorax = (along / 5.0) ^ 2 + (side / 4.5) ^ 2 <= 1.0
         head = ((along - 8.0) / 5.0) ^ 2 + (side / 4.8) ^ 2 <= 1.0
         solid = abdomen or thorax or head
-        wing = skin == CrownSkin and
-          ((along + 1.0) / 8.0) ^ 2 + ((abs(side) - 7.0) / 4.5) ^ 2 <= 1.0
         edge = solid and (
-          (if skin == CrownSkin:
-            ((along + 7.0) / 8.2) ^ 2 + (side / 6.2) ^ 2 > 1.0 and abdomen
-           else:
-            ((along + 8.0) / 6.2) ^ 2 + (side / 4.7) ^ 2 > 1.0 and abdomen) or
+          ((along + 8.0) / 6.2) ^ 2 + (side / 4.7) ^ 2 > 1.0 and abdomen or
           (along / 4.3) ^ 2 + (side / 3.8) ^ 2 > 1.0 and thorax or
           ((along - 8.0) / 4.3) ^ 2 + (side / 4.1) ^ 2 > 1.0 and head)
         pixel = y * canvas + x
-      if wing:
-        # Queens read as biological queens at board scale: a broad reproductive
-        # abdomen plus two pale wings. Wings are visual caste markers outside
-        # the solid contact body, so the bite radius remains truthful.
-        result.putRawRgbaPixel(pixel, 244, 224, 170, 118)
       if leg or edge:
         result.putRawRgbaPixel(pixel, ink.r, ink.g, ink.b, ink.a)
       elif solid:
@@ -4503,9 +4484,7 @@ proc antRotPixels(team: Team, skin: Skin, rot, renderScale: int): seq[uint8] =
       if solid and side < -1.0 and along > 4.0 and
           ((along - 8.0) / 2.5) ^ 2 + ((side + 2.0) / 1.4) ^ 2 <= 1.0:
         result.putRawRgbaPixel(pixel, shine.r, shine.g, shine.b, 210)
-      if skin == CrownSkin and solid and
-          ((abs(along + 4.0) < 1.2 and abs(side) < 5.5) or
-           (along > 10.0 and abs(side) < 2.0)):
+      if skin == CrownSkin and solid and along > 10.0 and abs(side) < 2.0:
         result.putRawRgbaPixel(pixel, 255, 219, 74, 255)
 
 proc addPlayerActorSprites(
@@ -4518,8 +4497,7 @@ proc addPlayerActorSprites(
   ## SoldierRotations-step set per team, plus selected outlines for the map.
   let usedSkins = sim.config.usedSkins()
   for skin in Skin:
-    if skin notin usedSkins and
-        not (sim.config.isEmergAnt() and skin == CrownSkin):
+    if skin notin usedSkins:
       continue
     for team in sim.teams():
       let color = teamText(team)
@@ -4543,10 +4521,7 @@ proc addPlayerActorSprites(
           SoldierCanvas,
           SoldierCanvas,
           pixels,
-          if sim.config.isEmergAnt() and skin == CrownSkin:
-            labelQueen(color, side)
-          else:
-            labelPlayer(color, side),
+          labelPlayer(color, side),
           native = boardScale
         )
         # Corpse and selection variants derive from the same rendered pixels.
@@ -4556,10 +4531,7 @@ proc addPlayerActorSprites(
           SoldierCanvas,
           SoldierCanvas,
           soldierCorpse(pixels),
-          if sim.config.isEmergAnt() and skin == CrownSkin:
-            labelQueenCorpse(color, side)
-          else:
-            labelCorpse(color, side),
+          labelCorpse(color, side),
           native = boardScale
         )
         if selected:
@@ -4656,7 +4628,7 @@ proc buildSpriteProtocolPlayerInit(
     sim.flagSprite.width,
     sim.flagSprite.height,
     buildSpriteProtocolRawSprite(sim.flagSprite),
-    if sim.config.isEmergAnt(): "bite ready" else: LabelFireIcon
+    LabelFireIcon
   )
   result.addSpriteChanged(
     spriteDefs,
@@ -4664,7 +4636,7 @@ proc buildSpriteProtocolPlayerInit(
     sim.flagSprite.width,
     sim.flagSprite.height,
     buildSpriteProtocolShadowSprite(sim.flagSprite),
-    if sim.config.isEmergAnt(): "bite cooldown" else: LabelFireIconCooldown
+    LabelFireIconCooldown
   )
   sim.addSpriteProtocolInterstitialSprites(spriteDefs, result)
   sim.addPlayerActorSprites(spriteDefs, result, selected = false)
@@ -4871,21 +4843,6 @@ proc blitNameFlag(
         if solid(x - 1, y) or solid(x + 1, y) or solid(x, y - 1) or solid(x, y + 1):
           target.putTextSpritePixel(targetWidth, targetHeight, px, py, OutlineColor)
 
-proc blitNameFood(
-  target: var seq[uint8],
-  targetWidth, targetHeight, baseX, baseY: int
-) =
-  ## Blits a tiny neutral gold seed cluster beside an Emerg-ant carrier's name.
-  ## This occupies the legacy flag chip's footprint but never implies that the
-  ## carried resource belongs to either colony.
-  const Seeds = [(1, 3), (3, 3), (2, 1), (2, 5)]
-  for (sx, sy) in Seeds:
-    for y in sy .. sy + 1:
-      for x in sx .. sx + 1:
-        if x >= 0 and x < NameFlagW and y >= 0 and y < TextLineHeight:
-          target.putTextSpritePixel(
-            targetWidth, targetHeight, baseX + x, baseY + y, 9'u8)
-
 proc buildCarrierNameSprite(
   sim: SimServer,
   player: Player,
@@ -4911,10 +4868,7 @@ proc buildCarrierNameSprite(
     result.pixels.blitRgbaBuffer(result.width * k, result.height * k,
       nameSpr.pixels, nameSpr.width * k, nameSpr.height * k, 0, 0)
     var chip = newRgbaPixels(NameFlagW, TextLineHeight)
-    if sim.config.isEmergAnt():
-      chip.blitNameFood(NameFlagW, TextLineHeight, 0, 0)
-    else:
-      chip.blitNameFlag(NameFlagW, TextLineHeight, 0, 0, Team(flagTeamOrd))
+    chip.blitNameFlag(NameFlagW, TextLineHeight, 0, 0, Team(flagTeamOrd))
     result.pixels.blitRgbaBuffer(result.width * k, result.height * k,
       scaleSpritePixels(chip, NameFlagW, TextLineHeight, k),
       NameFlagW * k, TextLineHeight * k, (nameSpr.width + gap) * k, 0)
@@ -4925,11 +4879,8 @@ proc buildCarrierNameSprite(
   result.pixels = newRgbaPixels(result.width, result.height)
   sim.blitSmallText(result.pixels, result.width, result.height, name, 0, 0,
     PlayerNameColor)
-  if sim.config.isEmergAnt():
-    result.pixels.blitNameFood(result.width, result.height, nameW + gap, 0)
-  else:
-    result.pixels.blitNameFlag(result.width, result.height, nameW + gap, 0,
-      Team(flagTeamOrd))
+  result.pixels.blitNameFlag(result.width, result.height, nameW + gap, 0,
+    Team(flagTeamOrd))
 
 proc spritePlayerX(player: Player): int =
   ## Returns the global viewer x position for a player sprite: the soldier
@@ -5293,8 +5244,6 @@ proc addPlasmaArcs(
   viewerIndex = -1
 ) {.measure.} =
   ## Places side-center spray can pickups and carried markers.
-  if sim.config.isEmergAnt():
-    return
   for i in 0 ..< sim.plasmaArcSpawns.len:
     let spawn = sim.plasmaArcSpawns[i]
     if not spawn.present:
@@ -5385,8 +5334,6 @@ proc addPlasmaArcFlashes(
   ## along the attacker's aim, each sized to the local cone width. Every snapshot
   ## of one burst is drawn along that burst's newest pose (plasmaArcRenderPose),
   ## so a burst that turns mid-window stays one coherent plume.
-  if sim.config.isEmergAnt():
-    return
   for i in 0 ..< min(sim.plasmaArcFlashes.len, PlasmaArcMaxFlashes):
     let
       flash = sim.plasmaArcFlashes[i]
@@ -5453,8 +5400,6 @@ proc addMedKits(
   ## Places the two center-field med kit pickups, fog-gated by map position
   ## like the grenade pickups. The map/replay view passes no viewer and shows
   ## both. The sprite is defined lazily on first need per connection.
-  if sim.config.isEmergAnt():
-    return
   for i in 0 ..< sim.medKitSpawns.len:
     let spawn = sim.medKitSpawns[i]
     if not spawn.present:
@@ -5490,8 +5435,6 @@ proc addShields(
   ## carrier while the shield layer holds (it pops when shieldHp hits 0).
   ## The map/replay view passes no viewer and shows all. Sprites are defined
   ## lazily on first need per connection.
-  if sim.config.isEmergAnt():
-    return
   for i in 0 ..< sim.shieldSpawns.len:
     let spawn = sim.shieldSpawns[i]
     if not spawn.present:
@@ -5610,8 +5553,6 @@ proc addGrenades(
   ## like the aim line). The map/replay view passes no viewer and shows all.
   ## Sprites are defined lazily so an all-quiet frame registers nothing. A
   ## landing the viewer could NOT see still leaves a "grenade sound" ring.
-  if sim.config.isEmergAnt():
-    return
   let viewer = viewerIndex
   template mapVisible(mx, my: int): bool =
     viewer < 0 or sim.fovVisibleAt(viewer, mx, my)
@@ -5877,8 +5818,6 @@ proc addBarriers(
   ## standing half-hexes fog-gated by map position, the carried marker gated
   ## by seeing that player — the same contract as addGrenades. All-quiet on
   ## default configs: no spawns, no carriers, no placements, nothing emitted.
-  if sim.config.isEmergAnt():
-    return
   let viewer = viewerIndex
   template mapVisible(mx, my: int): bool =
     viewer < 0 or sim.fovVisibleAt(viewer, mx, my)
@@ -6465,11 +6404,11 @@ proc addPheromones(
   sim: SimServer,
   spriteDefs: var seq[SpriteDefinition],
   currentIds: var seq[int],
-  packet: var seq[uint8],
-  viewerIndex = -1
+  packet: var seq[uint8]
 ) =
-  ## Pheromone is environmental memory. The broadcast sees the whole field;
-  ## each living ant receives only marks inside its local sensing radius.
+  ## Pheromone is public environmental memory, deliberately visible through
+  ## fog to every policy. Unlike spectator-only paint stains, these objects
+  ## are part of the competitive observation contract.
   if not sim.config.isEmergAnt():
     return
   for team in sim.teams():
@@ -6490,8 +6429,6 @@ proc addPheromones(
   for i, mark in sim.pheromones:
     if i >= MaxPheromoneMarks:
       break
-    if not sim.pheromoneVisibleTo(viewerIndex, mark):
-      continue
     let
       size = if mark.food: PheromoneFoodSize else: PheromoneScoutSize
       objectId = PheromoneObjectBase + i
@@ -6734,7 +6671,7 @@ proc buildSpriteProtocolPlayerUpdates*(
             PlantedFlagSpriteBase + ord(team)
           )
 
-    sim.addPheromones(nextState.spriteDefs, currentIds, result, playerIndex)
+    sim.addPheromones(nextState.spriteDefs, currentIds, result)
 
     # Players: yourself (a distinct outlined self marker) is always visible;
     # everyone else — teammates included — only inside your vision; corpses
@@ -6780,14 +6717,9 @@ proc buildSpriteProtocolPlayerUpdates*(
           ),
           # Documented self marker (RULES.md): `self <color> <side>`, only drawn
           # while alive. Side follows the aim exactly as the sim's flipH does.
-          if sim.config.isEmergAnt() and sim.isQueen(i):
-            labelQueenSelf(
-              teamText(other.team),
-              if soldierFacingRight(rot): LabelSideRight else: LabelSideLeft)
-          else:
-            labelSelf(
-              teamText(other.team),
-              if soldierFacingRight(rot): LabelSideRight else: LabelSideLeft)
+          labelSelf(
+            teamText(other.team),
+            if soldierFacingRight(rot): LabelSideRight else: LabelSideLeft)
         )
       let objectId = other.spriteObjectId()
       currentIds.add(objectId)
@@ -6972,29 +6904,6 @@ proc buildSpriteProtocolPlayerUpdates*(
       HudTopRightLayerId,
       SpritePlayerOwnAimSpriteId
     )
-
-    # Carrying food is proprioception, like own aim: expose it explicitly on
-    # the carrier's private stream. Inferring the state from a small carried
-    # fruit sprite is brittle (aim offsets and delta timing can make a bot miss
-    # it), and a carrier that misses the edge never knows to return home.
-    if sim.config.isEmergAnt() and player.carryingFlag:
-      currentIds.add(SpritePlayerFoodCarryObjectId)
-      result.addSpriteChanged(
-        nextState.spriteDefs,
-        SpritePlayerFoodCarrySpriteId,
-        1,
-        1,
-        newRgbaPixels(1, 1),
-        LabelCarryingFood
-      )
-      result.addBoardObject(
-        SpritePlayerFoodCarryObjectId,
-        0,
-        0,
-        0,
-        HudTopRightLayerId,
-        SpritePlayerFoodCarrySpriteId
-      )
 
   sim.addTeamScoreboard(nextState.spriteDefs, currentIds, result)
 
@@ -7832,8 +7741,7 @@ proc buildSpriteProtocolUpdates*(
         # flag marker changes. Skip rebuild + wire when the key already matches.
         labelKey =
           if flagTeamOrd >= 0:
-            "name " & playerLabelText(player) &
-              (if sim.config.isEmergAnt(): " food" else: " flag " & $flagTeamOrd)
+            "name " & playerLabelText(player) & " flag " & $flagTeamOrd
           else:
             "name " & playerLabelText(player)
         defIndex = nextState.spriteDefs.spriteDefinitionIndex(labelSpriteId)
@@ -7921,11 +7829,11 @@ proc buildSpriteProtocolUpdates*(
         result.addBoardSpriteChanged(
           nextState.spriteDefs, heartSpriteId, FlagBannerW, FlagBannerH,
           if sim.config.isEmergAnt():
-            buildFoodSprite(FlagBannerW, FlagBannerH)
+            buildFoodSprite(team, FlagBannerW, FlagBannerH)
           else:
             buildCarryHeartSprite(team, aimStep),
           if sim.config.isEmergAnt():
-            "neutral food carried"
+            "food " & teamText(team) & " carried"
           else:
             flagLabel(team) & " carried",
           native = boardScale)

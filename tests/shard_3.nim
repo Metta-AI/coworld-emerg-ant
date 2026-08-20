@@ -10,7 +10,6 @@ import
   test_first_person_pip,
   test_lull_spans,
   test_mapgen,
-  test_neural_ant_policy,
   test_player_collision,
   test_player_fog,
   test_quad_mirror,

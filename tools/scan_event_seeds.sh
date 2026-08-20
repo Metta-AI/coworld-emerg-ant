@@ -13,7 +13,7 @@ for SEED in "$@"; do
   REL=".scan/seed$SEED.bitreplay"
   OUT="$PWD/$REL"
   PORT=$((21000 + SEED % 500)) tools/record_fixture.sh \
-    "$REL" "$SEED" 10000 '{"lives":9,"carrierSpeedPct":1}' >/dev/null 2>&1
+    "$REL" "$SEED" 10000 '{"lives":9}' >/dev/null 2>&1
   [ -s "$OUT" ] || { echo "seed $SEED: RECORD FAILED"; continue; }
   "$EXTRACTOR" "$OUT" --out "/tmp/ctf-events-seed$SEED.jsonl" \
     >/dev/null 2>&1 || { echo "seed $SEED: EXTRACT FAILED"; continue; }

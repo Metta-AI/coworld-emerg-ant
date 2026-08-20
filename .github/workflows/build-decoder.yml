@@ -87,7 +87,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd /workspace/coworld-emerg-ant
-          GV="$(grep -oP 'GameVersion\* = "\K[0-9]+' src/ctf/sim_types.nim)"
+          GV="$(grep -oP 'GameVersion\* = "\K[0-9]+' src/ctf/sim.nim)"
           FULL_SHA="$(git rev-parse HEAD)"
           TAG="decoder-gv${GV}-$(git rev-parse --short HEAD)"
           cd "$RUNNER_TEMP"

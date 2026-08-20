@@ -1,22 +1,6 @@
-# baseline — learned Emerg-ant colony policy
+# baseline — Coworld CTF bot (8v8, fog-of-war)
 
-The default path is `decideAntNeural` in `baseline.nim`: the same trained MLP is
-replicated across 16 ants per colony. `baseline/neural_ant.nim` owns inference;
-`players/neural/train.py` owns training and emits the checked-in checkpoint.
-Every input is local and egocentric except displacement from the ant's own wake
-point, following NAnts. Learned movement distributions are decoded as expected
-steering; scout/food marks and contact bites come from the other two heads.
-Wake-seeded correlated exploration and local collision escape stop identical
-replicas or carriers from diffusing in place, without introducing slot identity.
-
-Set `EMERG_ANT_POLICY=heuristic` to run the old v0.2 scripted controller as an
-ablation. It is retained for comparisons and is not the published default.
-
-The remainder of this document describes the larger capture-the-flag policy
-whose protocol, navigation grid, and fog model the ant branch reuses. Those gun,
-heart, pickup, and turret behaviors run only under `gameMode: "ctf"`.
-
-A Sprite v1 reference bot whose inherited CTF branch uses a coordinated 8v8 game.
+A capture-the-flag reference bot that speaks the Bitworld Sprite v1 protocol.
 Its WebSocket disables Nagle buffering so separate input and chat messages
 arrive within the simulation tick that produced them.
 It keeps a persistent world model on top of the fog-of-war full-map view and

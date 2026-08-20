@@ -174,14 +174,7 @@ proc gameHash*(sim: SimServer): uint64 =
     result.mixHashInt(sim.flags[team].y)
     result.mixHashInt(sim.flags[team].carrier)
     result.mixHashBool(sim.flags[team].captured)
-    if sim.config.isEmergAnt():
-      result.mixHashInt(sim.flags[team].respawnAt)
-      result.mixHashInt(sim.flags[team].foodSite)
   if sim.config.isEmergAnt():
-    for team in sim.teams():
-      result.mixHashInt(sim.colonyFood[team])
-      result.mixHashInt(sim.queenFeedAt[team])
-      result.mixHashInt(sim.queenSlot[team])
     result.mixHashInt(sim.pheromones.len)
     for mark in sim.pheromones:
       result.mixHashInt(mark.x)
@@ -293,29 +286,6 @@ proc nearestWalkable*(sim: SimServer, x, y: int): tuple[x, y: int] =
           return (nx, ny)
   (x, y)
 
-proc foodSpawnSites*(sim: SimServer): seq[tuple[x, y: int]] =
-  ## Eight interior fruit sites, ordered as four rot180 pairs. Two patches
-  ## begin half a cycle apart and advance after every harvest, so forage
-  ## moves through upper, lower, left, right, and center-field neighborhoods
-  ## instead of teaching one hard-coded run down the center line. Every raw
-  ## point is nudged through the real collision mask for generated maps.
-  let
-    w = sim.gameMap.width
-    h = sim.gameMap.height
-    raw = [
-      (3 * w div 8, h div 4),
-      (w div 2, h div 3),
-      (5 * w div 8, h div 4),
-      (2 * w div 3, h div 2),
-      (5 * w div 8, 3 * h div 4),
-      (w div 2, 2 * h div 3),
-      (3 * w div 8, 3 * h div 4),
-      (w div 3, h div 2),
-    ]
-  for point in raw:
-    result.add sim.nearestWalkable(point[0], point[1])
-  doAssert result.len == FoodSiteCount
-
 proc spawnPosition*(sim: SimServer, team: Team, order: int): tuple[x, y: int] =
   ## Returns a deterministic spawn position just inside a team's home edge:
   ## players stagger along the edge, perpendicular to their home axis (down
@@ -323,20 +293,6 @@ proc spawnPosition*(sim: SimServer, team: Team, order: int): tuple[x, y: int] =
   ## arms).
   let
     anchor = sim.gameMap.teamAnchor(team)
-  if sim.config.isEmergAnt():
-    # A wake point is the controller's only home coordinate, like NAnts, so
-    # every body must genuinely wake inside the nest. A 2x8 lattice fits all
-    # 16 bodies inside both the classic 40px-wide capture column and the
-    # smallest compact endzone (radius 90). It is symmetric between colonies
-    # and keeps the solid 12px bodies from overlapping.
-    let
-      lattice = order mod 16
-      col = lattice mod 2
-      row = lattice div 2
-      x = anchor.x + col * 12 - 12
-      y = anchor.y + row * 18 - 63
-    return sim.nearestWalkable(x, y)
-  let
     strip = order div 2          ## stagger players down the edge.
     spread = 36
     stepMajor = (strip - 1) * spread
@@ -535,8 +491,7 @@ proc emitPickup*(
   )
 
 proc resetFlag*(sim: var SimServer, team: Team) =
-  ## Returns one team's flag to its home pedestal, or pops one of the two
-  ## neutral Emerg-ant fruit patches onto a replay-deterministic random site.
+  ## Returns one team's flag to its home pedestal.
   # A flag leaving an enemy's back mid-game (death, disconnect — any reason
   # other than capture) is a FlagReturn analysis event; the pedestal resets
   # at game boundaries are not (phase guard).
@@ -547,41 +502,15 @@ proc resetFlag*(sim: var SimServer, team: Team) =
       x = float(sim.flags[team].x),
       y = float(sim.flags[team].y)
     )
-  var foodSite = -1
-  let home =
-    if sim.config.isEmergAnt():
-      let sites = sim.foodSpawnSites()
-      let oldSite = sim.flags[team].foodSite
-      if oldSite < 0 and team == Blue and sim.flags[Red].foodSite >= 0:
-        # The opening draw is a rot180 pair: random, but exactly fair.
-        foodSite = (sim.flags[Red].foodSite + FoodSitePairOffset) mod sites.len
-      else:
-        var choices: seq[int]
-        var occupied = -1
-        for other in sim.teams():
-          if other != team and not sim.flags[other].captured:
-            occupied = sim.flags[other].foodSite
-        for candidate in 0 ..< sites.len:
-          if candidate != oldSite and candidate != occupied:
-            choices.add(candidate)
-        doAssert choices.len > 0
-        foodSite = choices[sim.rng.rand(choices.high)]
-      sites[foodSite]
-    else:
-      let flagHome = sim.gameMap.flagHome(team)
-      (x: flagHome.x, y: flagHome.y)
-  sim.flags[team] = FlagState(
-    x: home.x, y: home.y, carrier: -1, captured: false, respawnAt: 0,
-    foodSite: foodSite)
+  let home = sim.gameMap.flagHome(team)
+  sim.flags[team] = FlagState(x: home.x, y: home.y, carrier: -1)
 
 proc resetFlags*(sim: var SimServer) =
   ## Returns every active team's flag to its home pedestal. Inactive slots
   ## hold an explicit no-carrier state so nothing can misread the array's
   ## zero value (carrier 0 would mean "player 0 carries it").
   for team in Team:
-    sim.flags[team] = FlagState(carrier: -1, foodSite: -1)
-  for team in Team:
     if team in sim.teams():
       sim.resetFlag(team)
     else:
-      sim.flags[team] = FlagState(x: 0, y: 0, carrier: -1, foodSite: -1)
+      sim.flags[team] = FlagState(x: 0, y: 0, carrier: -1)
