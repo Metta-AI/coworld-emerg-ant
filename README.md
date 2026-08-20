@@ -41,12 +41,12 @@ observation labels.
 
 ## Published Coworld
 
-- Version: `emerg-ant:0.8.0`
-- Coworld ID: [`cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8`](https://softmax.com/observatory/v2/coworlds/cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8)
+- Version: `emerg-ant:0.8.1`
+- Coworld ID: [`cow_069bca43-0631-413e-af25-867d2febb6e4`](https://softmax.com/observatory/v2/coworlds/cow_069bca43-0631-413e-af25-867d2febb6e4)
 - Status: canonical and hosted-smoke certified
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
-- Ladder replay: [watch the first 0.8.0 round produce a clear winner](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8/sha256%3Afec79a0c3a6d3d254e06cf27ceed961fe0cf437842d22e73379c39cba0a7c453/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Fe6da2e50-ae8b-4175-ab7b-58c868f598b7.replay&v=2)
-- Hatch replay: [watch food return at tick 226 activate a ninth ant](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8/sha256%3Afec79a0c3a6d3d254e06cf27ceed961fe0cf437842d22e73379c39cba0a7c453/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1437f9f0-68cd-4e82-8799-3510d6935dcc.replay&v=2)
+- Ladder replay: [watch GV55 end immediately when Blue loses its last worker at tick 820](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_069bca43-0631-413e-af25-867d2febb6e4/sha256%3A6361a27bb83995d0fca4b368e6e95682fb46ce79fae818476fe801ef91db68d7/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Fd06c6d53-14ac-4bdd-a509-6e3d3251915e.replay&v=2)
+- Previous hatch replay: [watch food return at tick 226 activate a ninth ant](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8/sha256%3Afec79a0c3a6d3d254e06cf27ceed961fe0cf437842d22e73379c39cba0a7c453/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1437f9f0-68cd-4e82-8799-3510d6935dcc.replay&v=2)
 
 ## Competition league
 
@@ -90,7 +90,7 @@ reference player image used by hosted certification.
 
 ```bash
 uvx --from "coworld[auth]==0.1.34" coworld build \
-  --version 0.8.0 \
+  --version 0.8.1 \
   --project . \
   --compose compose.yaml \
   --template coworld_manifest.json \
