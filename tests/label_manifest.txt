@@ -63,8 +63,11 @@ paint stain <color> variant <n>
 perks <color> -
 perks <color> armor,scope mods hp <n> aim <n> nade <n> spd <n> luck <n> dmg <n>
 perks <color> grenade thruster,luck mods hp <n> aim <n> nade <n> spd <n> luck <n> dmg <n>
-pheromone <color> food
-pheromone <color> scout
+pheromone <color> danger rate <n>
+pheromone <color> food rate <n>
+pheromone <color> home rate <n>
+pheromone <color> scout rate <n>
+pheromone control scout rate <n>
 player <color>
 player <color> <side>
 puddle <n>,<n> <n>,<n>
@@ -86,10 +89,10 @@ spray can
 spray can carried
 spray paint puff
 team score BLUE <n>/1
-team score BLUE FOOD <n>/5
+team score BLUE FOOD <n>/16
 team score GREEN <n>/0
 team score RED <n>/0
-team score RED FOOD <n>/5
+team score RED FOOD <n>/16
 team score YELLOW <n>/0
 throw target
 trench <n>,<n> <n>,<n>

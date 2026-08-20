@@ -1,7 +1,7 @@
 {
   "maxGames": 1,
   "gameMode": "emerg-ant",
-  "forageGoal": 5,
+  "forageGoal": 16,
   "startingAntsPerColony": 8,
   "hitPoints": 3,
   "fireCooldownTicks": 18,

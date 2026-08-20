@@ -373,6 +373,9 @@ type
     scanHigh: bool            # scan sweep currently heading to the high end
     lastPos: Vec
     stuckTicks: int
+    antPheromoneKind: int     # 0 scout, 1 food, 2 danger, 3 home
+    antPheromoneRate: int     # server-side 0..3 emission scale
+    antPheromoneRelease: bool # force one C-up frame between commands
     jinkUntil: int
     jinkBits: uint8
     nadeCharge: int           # ticks the C button has been held; 0 = idle
@@ -1402,6 +1405,9 @@ proc resetTransient(bot: Bot) =
   bot.wasDead = false
   bot.scanHigh = false
   bot.stuckTicks = 0
+  bot.antPheromoneKind = 0
+  bot.antPheromoneRate = 2
+  bot.antPheromoneRelease = false
   bot.jinkUntil = 0
   bot.behindLines = false
   bot.navGoal = -1
@@ -1513,9 +1519,14 @@ proc decideEmergAnt(
     client.spriteObjectsWithLabel(labelQueenSelf(myColor, "left")).len > 0 or
     client.spriteObjectsWithLabel(labelQueenSelf(myColor, "right")).len > 0
 
-  var target: Vec
+  var
+    target: Vec
+    desiredPheromoneKind = if queen: 3 else: 0
+    desiredPheromoneRate = if queen: 1 else: 2
   if carrying:
     target = flagHome(bot.team)
+    desiredPheromoneKind = 1
+    desiredPheromoneRate = 3
   else:
     let foods = client.spriteObjectsWithLabel(LabelFoodPatch)
     if foods.len > 0:
@@ -1559,6 +1570,17 @@ proc decideEmergAnt(
           if d <= 18.0:
             target = enemy.pos
             bite = true
+          if d <= 100.0:
+            desiredPheromoneKind = 2
+            desiredPheromoneRate = 3
+  elif not carrying:
+    for color in TeamColorNames:
+      if color == myColor:
+        continue
+      for enemy in client.actorsFor(color):
+        if dist(enemy.pos, me) <= 80.0:
+          desiredPheromoneKind = 2
+          desiredPheromoneRate = 3
 
   var steer = norm(bot.navSteer(client, me, target))
   # Nest traffic is expected while delivering.  Repulsion is useful for
@@ -1597,6 +1619,23 @@ proc decideEmergAnt(
   if bite:
     mask = mask or ButtonA
   bot.firedLast = bite
+  # Configure the persistent pheromone controller with edge-triggered C
+  # commands. The command tick intentionally pauses locomotion server-side;
+  # the next ordinary frame releases C before another command is sent.
+  if bot.antPheromoneRelease:
+    bot.antPheromoneRelease = false
+  elif bot.antPheromoneKind != desiredPheromoneKind:
+    bot.antPheromoneKind = desiredPheromoneKind
+    bot.antPheromoneRelease = true
+    case desiredPheromoneKind
+    of 0: return ButtonC or ButtonLeft
+    of 1: return ButtonC or ButtonUp
+    of 2: return ButtonC or ButtonRight
+    else: return ButtonC or ButtonDown
+  elif bot.antPheromoneRate != desiredPheromoneRate:
+    bot.antPheromoneRate = (bot.antPheromoneRate + 1) mod 4
+    bot.antPheromoneRelease = true
+    return ButtonC
   mask
 
 proc decide(bot: Bot, client: ProtocolClient): uint8 {.measure.} =

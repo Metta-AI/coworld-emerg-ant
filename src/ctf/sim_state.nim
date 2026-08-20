@@ -170,10 +170,11 @@ proc gameHash*(sim: SimServer): uint64 =
   result.mixHashBool(sim.needsReregister)
   result.mixHashInt(sim.nextJoinOrder)
   for slot in sim.objectiveSlots():
-    result.mixHashInt(sim.flags[slot].x)
-    result.mixHashInt(sim.flags[slot].y)
-    result.mixHashInt(sim.flags[slot].carrier)
-    result.mixHashBool(sim.flags[slot].captured)
+    let objective = sim.objectiveState(slot)
+    result.mixHashInt(objective.x)
+    result.mixHashInt(objective.y)
+    result.mixHashInt(objective.carrier)
+    result.mixHashBool(objective.captured)
   if sim.config.isEmergAnt():
     for team in sim.teams():
       result.mixHashInt(sim.colonyFood[team])
@@ -184,7 +185,8 @@ proc gameHash*(sim: SimServer): uint64 =
       result.mixHashInt(mark.y)
       result.mixHashInt(ord(mark.team))
       result.mixHashInt(mark.tick)
-      result.mixHashBool(mark.food)
+      result.mixHashInt(ord(mark.kind))
+      result.mixHashInt(int(mark.rate))
   result.mixHashInt(sim.players.len)
   for player in sim.players:
     result.mixHashInt(player.x)
@@ -227,6 +229,9 @@ proc gameHash*(sim: SimServer): uint64 =
     result.mixHashInt(player.kills)
     result.mixHashInt(player.deaths)
     result.mixHashInt(player.captures)
+    if sim.config.isEmergAnt():
+      result.mixHashInt(ord(player.pheromoneKind))
+      result.mixHashInt(int(player.pheromoneRate))
   for spawn in sim.grenadeSpawns:
     result.mixHashBool(spawn.present)
     result.mixHashInt(spawn.respawnAt)
@@ -522,7 +527,7 @@ proc emitPickup*(
     item = item
   )
 
-proc foragePositionClear(sim: SimServer, x, y: int, slot: Team): bool =
+proc foragePositionClear(sim: SimServer, x, y: int, slot: int): bool =
   ## Whether a neutral Emerg-ant food patch may appear at this point. Food is
   ## field state, never a nest fixture: it must fit an ant footprint on floor,
   ## stay outside every capture zone and nest halo, and not overlap another
@@ -539,7 +544,7 @@ proc foragePositionClear(sim: SimServer, x, y: int, slot: Team): bool =
   for otherSlot in sim.objectiveSlots():
     if otherSlot == slot:
       continue
-    let other = sim.flags[otherSlot]
+    let other = sim.objectiveState(otherSlot)
     if other.carrier < 0 and not other.captured and
         distSq(x, y, other.x, other.y) <
           FoodSpawnSeparation * FoodSpawnSeparation:
@@ -551,7 +556,7 @@ proc foragePositionClear(sim: SimServer, x, y: int, slot: Team): bool =
       return false
   true
 
-proc randomForagePosition*(sim: var SimServer, slot: Team): tuple[x, y: int] =
+proc randomForagePosition*(sim: var SimServer, slot: int): tuple[x, y: int] =
   ## Draws a deterministic random field position for one food slot. The slots
   ## are implementation identities only: every patch is neutral and either
   ## colony may collect it. A complete scan fallback makes placement total on
@@ -570,7 +575,7 @@ proc randomForagePosition*(sim: var SimServer, slot: Team): tuple[x, y: int] =
   # Team ordinal rotates the deterministic scan start so multiple fallback
   # slots do not all ask for the same first cell.
   let span = max(1, (xHi - xLo + 1) * (yHi - yLo + 1))
-  let start = ord(slot) * 104729 mod span
+  let start = slot * 104729 mod span
   for offset in 0 ..< span:
     let
       flat = (start + offset) mod span
@@ -582,33 +587,45 @@ proc randomForagePosition*(sim: var SimServer, slot: Team): tuple[x, y: int] =
   # for malformed test maps without inventing an out-of-bounds position.
   sim.nearestWalkable(sim.gameMap.center.x, sim.gameMap.center.y)
 
-proc resetFlag*(sim: var SimServer, team: Team) =
+proc resetObjective*(sim: var SimServer, slot: int) =
   ## Returns one CTF flag home, or respawns one neutral Emerg-ant food patch
   ## at a fresh field position.
   # A flag leaving an enemy's back mid-game (death, disconnect — any reason
   # other than capture) is a FlagReturn analysis event; the pedestal resets
   # at game boundaries are not (phase guard).
-  if sim.collectEvents and sim.phase == Playing and sim.flags[team].carrier >= 0:
+  let prior = sim.objectiveState(slot)
+  if sim.collectEvents and sim.phase == Playing and prior.carrier >= 0:
     sim.emitEvent(
       FlagReturn,
-      source = sim.flags[team].carrier,
-      x = float(sim.flags[team].x),
-      y = float(sim.flags[team].y)
+      source = prior.carrier,
+      x = float(prior.x),
+      y = float(prior.y)
     )
   if sim.config.isEmergAnt():
-    let food = sim.randomForagePosition(team)
-    sim.flags[team] = FlagState(x: food.x, y: food.y, carrier: -1)
+    let food = sim.randomForagePosition(slot)
+    sim.objectiveState(slot) = FlagState(x: food.x, y: food.y, carrier: -1)
   else:
+    let team = Team(slot)
     let home = sim.gameMap.flagHome(team)
     sim.flags[team] = FlagState(x: home.x, y: home.y, carrier: -1)
+
+proc resetFlag*(sim: var SimServer, team: Team) =
+  ## Compatibility wrapper for team-owned CTF call sites.
+  sim.resetObjective(ord(team))
 
 proc resetFlags*(sim: var SimServer) =
   ## Resets every active objective. CTF uses one slot per active team;
   ## Emerg-ant uses all four slots as neutral food. Inactive CTF slots hold an
   ## explicit no-carrier state so nothing can misread the array's zero value
   ## (carrier 0 would mean "player 0 carries it").
-  for team in Team:
-    if sim.config.isEmergAnt() or team in sim.teams():
-      sim.resetFlag(team)
-    else:
-      sim.flags[team] = FlagState(x: 0, y: 0, carrier: -1)
+  if sim.config.isEmergAnt():
+    for slot in sim.objectiveSlots():
+      sim.resetObjective(slot)
+  else:
+    for team in Team:
+      if team in sim.teams():
+        sim.resetFlag(team)
+      else:
+        sim.flags[team] = FlagState(x: 0, y: 0, carrier: -1)
+    for i in 0 ..< ExtraFoodPatchCount:
+      sim.extraFoodPatches[i] = FlagState(x: 0, y: 0, carrier: -1)

@@ -13,7 +13,7 @@
     "replay_viewer": {
       "bundle": "static-replay-viewer"
     },
-    "description": "Emerg-ant is a 1v1 artificial-life colony duel. Each submitted policy controls a colony of connected copies: a fixed winged queen and seven workers start alive by default, with eight more copies waiting as brood. Every ant smells four randomly replenishing neutral fruit patches, and each delivery to the queen hatches another copy. Public pheromones provide shared environmental memory. There are no guns or items: rivals fight only by physical contact, and killing a queen collapses her colony.",
+    "description": "Emerg-ant is a 1v1 artificial-life colony duel. Each submitted policy controls a colony of connected copies: a fixed winged queen and seven workers start alive by default, with eight more copies waiting as brood. Every ant smells eight randomly replenishing neutral fruit patches, and each delivery to the queen hatches another copy. Ants select scout, food, danger, or home pheromones and an emission rate from off through urgent. There are no guns or items: rivals fight only by physical contact, and killing a queen collapses her colony.",
     "owner": "treeform@softmax.com",
     "runnable": {
       "type": "game",
@@ -277,7 +277,7 @@
           "default": "classic"
         },
         "gameMode": {
-          "description": "Objective ruleset. ctf is single-capture elimination. emerg-ant is a 1v1 colony duel with four globally scented random fruit patches, one fixed queen plus a configurable number of starting ants, one hatched reserve per delivery, queen-death collapse, public erasable pheromones, no items or ranged attacks, and touch-only combat.",
+          "description": "Objective ruleset. ctf is single-capture elimination. emerg-ant is a 1v1 colony duel with eight globally scented random fruit patches, one fixed queen plus a configurable number of starting ants, one hatched reserve per delivery, queen-death collapse, typed rate-controlled public pheromones, no items or ranged attacks, and touch-only combat.",
           "type": "string",
           "enum": [
             "ctf",
@@ -289,7 +289,7 @@
           "description": "Emerg-ant food deliveries needed for a colony win. Every round has one winner; tied finishes compare food, living ants, colony health, contact kills, then replay-seed parity.",
           "type": "integer",
           "minimum": 1,
-          "default": 5
+          "default": 16
         },
         "startingAntsPerColony": {
           "description": "Emerg-ant policy copies alive per colony when play starts, including the fixed queen. Additional connected copies remain dormant brood and one hatches for each food delivery.",
@@ -593,7 +593,7 @@
     {
       "id": "emerg-ant",
       "name": "Emerg-ant Foraging",
-      "description": "One submitted policy faces one submitted policy. Each gets 16 connected copies: a winged queen and seven workers begin alive by default, while eight copies wait as brood. Every ant smells randomly replenishing food; each delivery hatches one reserve. Rival ants fight only by touching, and queen death collapses the colony. Every round has one winner; tied finishes use food, living ants, health, kills, then replay-seed parity.",
+      "description": "One submitted policy faces one submitted policy. Each gets 16 connected copies: a winged queen and seven workers begin alive by default, while eight copies wait as brood. Eight fruit patches replenish randomly; each delivery hatches one reserve. Ants communicate with scout, food, danger, and home pheromones at a selectable 0..3 rate. Rival ants fight only by touching, and queen death collapses the colony. Every round has one winner; tied finishes use food, living ants, health, kills, then replay-seed parity.",
       "game_config": {
         "players": [
           {
@@ -696,7 +696,7 @@
         "num_agents": 32,
         "minPlayers": 32,
         "gameMode": "emerg-ant",
-        "forageGoal": 5,
+        "forageGoal": 16,
         "startingAntsPerColony": 8,
         "hitPoints": 3,
         "fireCooldownTicks": 18,

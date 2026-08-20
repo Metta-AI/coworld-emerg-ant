@@ -189,8 +189,9 @@ suite "first-person picture-in-picture":
       if e["k"].getStr() == "food":
         inc visibleFood
         check e["team"].getStr() == ""
-    check visibleFood == 1
-    check fp["map"]["hearts"].len == 4
+    check visibleFood >= 1
+    check visibleFood < AntFoodPatchCount
+    check fp["map"]["hearts"].len == AntFoodPatchCount
     for food in fp["map"]["hearts"]:
       check food["food"].getBool()
     check fp["map"]["players"].len == 1

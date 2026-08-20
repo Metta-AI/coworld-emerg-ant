@@ -159,7 +159,7 @@ const
                                ## (PlantedFlagW div 2), which is the honest
                                ## "pixels under your feet" figure — the pedestal
                                ## disc, not the gem, is what a player stands on.
-  PlantedFlagSpriteBase = 708  ## scaled home-heart sprites: 708..711 by team.
+  PlantedFlagSpriteBase = 708  ## scaled home-heart/food sprites: 708..711 by tint.
   GameOverIconSpriteBase = 712 ## compact roster-chip soldiers: 712..715 by team.
   GameOverIconSize = 14        ## roster chip footprint (fits the game-over row).
   CarryHeartSpriteBase = 600   ## carried-heart sprites, baked per team×aim so the
@@ -518,10 +518,12 @@ const
   ## policy reads the escalation without inferring it from shell traffic.
   BarrageMarkerSpriteId* = 35200 ## in the stain/diamond-paint gap.
   BarrageMarkerObjectId* = 36300 ## in the trench-marker/damage-pop gap.
-  PheromoneSpriteBase = 35210 ## team x (scout/food-carrier), 35210..35217.
+  PheromoneSpriteBase = 35210 ## team x kind x rate, 35210..35257.
   PheromoneObjectBase = 35450 ## fixed live trail pool, 35450..35961.
   PheromoneScoutSize = 7
   PheromoneFoodSize = 11
+  PheromoneDangerSize = 13
+  PheromoneHomeSize = 9
   PheromoneZ = low(int16) + 3
   DamagePopSpriteBase = 31000  ## floating "-N" damage-number sprites keyed
                                ## color×bucket×stage: 31000..31255 (above tracers).
@@ -606,13 +608,13 @@ const
   TransportX = 2
   TransportY = 1
   ## Sprite/object id pools (sprites and objects are separate namespaces).
-  ## Sprites: team flags 700..703 (FlagSpriteBase), hp pips 720+, tracer
+  ## Sprites: team flags/food tints 700..703 (FlagSpriteBase), hp pips 720+, tracer
   ## dots 900..963 (color×fade-stage), muzzle blooms 964..967 (stage), tracer
   ## heads 968..1031 (color×stage), aim dots 780..795, identity badges
   ## 4200..4231 (team×identity), self markers 5100..5131, team score text
   ## 12100..12103, splatters 16000..16063, fog runs 21000..21155
-  ## (one per run width in cells), map markers 20000. Objects: flags 6500..6503
-  ## (map view) / 5009..5012 (player view), team score text 9600..9603,
+  ## (one per run width in cells), map markers 20000. Objects: objectives
+  ## 6500..6507 (map view) / 5009..5016 (player view), team score text 9600..9603,
   ## muzzle blooms 16800..16831, tracer heads 16840..16871, hit flashes
   ## 16880..16911, splatters 17000..17063, identity badges 19040..19071,
   ## map markers 20000, fog runs 21000..23047, tracer dots 24000..35327.
@@ -626,11 +628,13 @@ const
   SpritePlayerWalkabilitySpriteId = 5007
   SpritePlayerInterstitialObjectId = 5006
   SpritePlayerRemainingObjectId = 5008
-  SpritePlayerFlagObjectBase = 5009  ## 5009..5012 by team.
+  SpritePlayerFlagObjectBase = 5009  ## 5009..5016 flags or eight food patches.
   SpritePlayerWeaponSpriteId = 5020  ## own-weapon HUD text ("weapon gun|arc").
   SpritePlayerWeaponObjectId = 5021
   SpritePlayerOwnAimSpriteId = 5022  ## invisible own-aim readback marker
   SpritePlayerOwnAimObjectId = 5023  ## ("own aim <brads>", player stream only).
+  SpritePlayerPheromoneSpriteId = 5024 ## invisible signal/rate readback.
+  SpritePlayerPheromoneObjectId = 5025
   SpritePlayerSelfSpriteBase = 5100  ## white-outlined self soldiers, keyed by
                                      ## skin×rotation: default 5100..5115,
                                      ## crown 5116..5131.
@@ -640,7 +644,7 @@ const
                                ## live soldier for a label-scanning ghost
                                ## viewer. Moved off 850: that range overlapped
                                ## the blue paint-blast sprites (868..871).
-  FlagObjectBase = 6500        ## 6500..6503 by team.
+  FlagObjectBase = 6500        ## 6500..6507 by objective slot.
   ## Per-viewer fog of war: a second zoomable map-sized layer of translucent
   ## dark row-run sprites over the unseen 8px visibility cells. It draws over
   ## the map layer and alpha-blends, dimming everything outside the viewer's
@@ -763,8 +767,8 @@ const
     ("map bands", MapBandObjectBase, 960),
     ("players (POV view)", PlayerObjectBase, MaxPlayers),
     ("replay UI", ReplayTickObjectId, 5),
-    ("player HUD", SpritePlayerInterstitialObjectId, 16),
-    ("flags", FlagObjectBase, 4),
+    ("player HUD", SpritePlayerInterstitialObjectId, 20),
+    ("flags", FlagObjectBase, AntFoodPatchCount),
     ("player names", PlayerNameObjectBase, MaxPlayers),
     ("protocol text", ProtocolTextObjectBase, 100),
     ("team score", TeamScoreObjectBase, 4),
@@ -4305,13 +4309,19 @@ proc addFlagSprites(
   packet: var seq[uint8]
 ) {.measure.} =
   ## Adds every active team's banner sprites (carried + big planted) plus
-  ## carrier halos. The builders raster at the emission scale, so pass
-  ## native = boardScale.
-  for team in sim.objectiveSlots():
-    let foodMode = sim.config.isEmergAnt()
+  ## carrier halos. Emerg-ant's eight independently tracked patches reuse four
+  ## visual tints, keeping this legacy sprite block collision-free. Objects,
+  ## labels, positions, and hashes remain unique per patch.
+  ## The builders raster at the emission scale, so pass native = boardScale.
+  let foodMode = sim.config.isEmergAnt()
+  for team in Team:
+    if not foodMode and team notin sim.teams():
+      continue
+    let
+      slot = ord(team)
     packet.addBoardSpriteChanged(
       spriteDefs,
-      FlagSpriteBase + ord(team),
+      FlagSpriteBase + slot,
       FlagBannerW,
       FlagBannerH,
       if foodMode:
@@ -4323,7 +4333,7 @@ proc addFlagSprites(
     )
     packet.addBoardSpriteChanged(
       spriteDefs,
-      PlantedFlagSpriteBase + ord(team),
+      PlantedFlagSpriteBase + slot,
       if foodMode: FoodPatchSize else: PlantedFlagW,
       if foodMode: FoodPatchSize else: PlantedFlagCanvasH,
       if foodMode:
@@ -4334,15 +4344,16 @@ proc addFlagSprites(
       else: labelFlagPlanted(teamText(team)),
       native = boardScale
     )
-    packet.addBoardSpriteChanged(
-      spriteDefs,
-      FlagAuraSpriteBase + ord(team),
-      FlagAuraSize,
-      FlagAuraSize,
-      buildFlagAuraSprite(team),
-      flagLabel(team) & " carrier glow",
-      native = boardScale
-    )
+    if not foodMode:
+      packet.addBoardSpriteChanged(
+        spriteDefs,
+        FlagAuraSpriteBase + slot,
+        FlagAuraSize,
+        FlagAuraSize,
+        buildFlagAuraSprite(team),
+        flagLabel(team) & " carrier glow",
+        native = boardScale
+      )
   # The carried heart is baked PER AIM STEP (team×16) so it rotates with the cog;
   # defined lazily in the board flag loop (only the carrier's current aim is drawn).
 
@@ -4823,8 +4834,8 @@ proc carriedFlagTeam(sim: SimServer, playerIndex: int): int =
   ## player carries no flag. (A carrier runs the ENEMY team's flag, so the glyph
   ## is colored for the flag it holds — not the carrier's own team.)
   for slot in sim.objectiveSlots():
-    if sim.flags[slot].carrier == playerIndex:
-      return ord(slot)
+    if sim.objectiveState(slot).carrier == playerIndex:
+      return if sim.config.isEmergAnt(): ord(sim.players[playerIndex].team) else: slot
   -1
 
 const
@@ -6405,11 +6416,25 @@ proc addPaintStains(
     )
     inc state.stainsSent
 
-proc buildPheromoneSprite(team: Team, food: bool): seq[uint8] =
-  ## A translucent stigmergy dot. Food-carrier deposits are larger and carry
-  ## a bright center, making the high-value return route directly legible.
+proc pheromoneSize(kind: PheromoneKind, rate: uint8): int =
+  let base =
+    case kind
+    of PheromoneScout: PheromoneScoutSize
+    of PheromoneFood: PheromoneFoodSize
+    of PheromoneDanger: PheromoneDangerSize
+    of PheromoneHome: PheromoneHomeSize
+  base + (int(rate) - 1) * 2
+
+proc pheromoneSpriteId(team: Team, kind: PheromoneKind, rate: uint8): int =
+  PheromoneSpriteBase + ord(team) * 12 + ord(kind) * 3 + int(rate) - 1
+
+proc buildPheromoneSprite(
+  team: Team, kind: PheromoneKind, rate: uint8
+): seq[uint8] =
+  ## Semantic glyphs: scout dot, food center, danger cross, and home ring.
+  ## Higher emission-rate settings are larger and more opaque.
   let
-    logicalSize = if food: PheromoneFoodSize else: PheromoneScoutSize
+    logicalSize = pheromoneSize(kind, rate)
     size = logicalSize * boardScale
     center = float(size - 1) / 2.0
     radius = center
@@ -6421,13 +6446,22 @@ proc buildPheromoneSprite(team: Team, food: bool): seq[uint8] =
       if d > radius:
         continue
       let
-        alpha = uint8(clamp(int(185.0 * (1.0 - d / max(1.0, radius)) + 35.0),
-          0, 220))
-        bright = food and d < radius * 0.34
+        dx = abs(float(x) - center)
+        dy = abs(float(y) - center)
+        visible =
+          case kind
+          of PheromoneScout, PheromoneFood: true
+          of PheromoneDanger: dx < radius * 0.30 or dy < radius * 0.30
+          of PheromoneHome: d > radius * 0.48
+        alpha = uint8(clamp(
+          int((125.0 + 30.0 * float(rate)) *
+            (1.0 - d / max(1.0, radius)) + 45.0), 0, 235))
+        bright = kind == PheromoneFood and d < radius * 0.34
         r = if bright: uint8((base.r.int + 255) div 2) else: base.r
         g = if bright: uint8((base.g.int + 255) div 2) else: base.g
         b = if bright: uint8((base.b.int + 255) div 2) else: base.b
-      result.putRawRgbaPixel(y * size + x, r, g, b, alpha)
+      if visible:
+        result.putRawRgbaPixel(y * size + x, r, g, b, alpha)
 
 proc addPheromones(
   sim: SimServer,
@@ -6441,27 +6475,27 @@ proc addPheromones(
   if not sim.config.isEmergAnt():
     return
   for team in sim.teams():
-    for food in [false, true]:
-      let
-        spriteId = PheromoneSpriteBase + ord(team) * 2 + ord(food)
-        size = if food: PheromoneFoodSize else: PheromoneScoutSize
-        kind = if food: "food" else: "scout"
-      packet.addBoardSpriteChanged(
-        spriteDefs,
-        spriteId,
-        size,
-        size,
-        buildPheromoneSprite(team, food),
-        "pheromone " & teamText(team) & " " & kind,
-        native = boardScale
-      )
+    for kind in PheromoneKind:
+      for rate in 1'u8 .. MaxPheromoneRate:
+        let
+          spriteId = pheromoneSpriteId(team, kind, rate)
+          size = pheromoneSize(kind, rate)
+        packet.addBoardSpriteChanged(
+          spriteDefs,
+          spriteId,
+          size,
+          size,
+          buildPheromoneSprite(team, kind, rate),
+          labelPheromone(teamText(team), pheromoneKindText(kind), int(rate)),
+          native = boardScale
+        )
   for i, mark in sim.pheromones:
     if i >= MaxPheromoneMarks:
       break
     let
-      size = if mark.food: PheromoneFoodSize else: PheromoneScoutSize
+      size = pheromoneSize(mark.kind, mark.rate)
       objectId = PheromoneObjectBase + i
-      spriteId = PheromoneSpriteBase + ord(mark.team) * 2 + ord(mark.food)
+      spriteId = pheromoneSpriteId(mark.team, mark.kind, mark.rate)
     currentIds.add(objectId)
     packet.addBoardObject(
       objectId,
@@ -6649,15 +6683,17 @@ proc buildSpriteProtocolPlayerUpdates*(
     # pedestal means the own flag is stolen); a carried flag rides its
     # carrier and is exactly as visible as that carrier. A retired heart
     # (GV32 capture or GV33 dead team) is out of play and never drawn.
-    for team in sim.objectiveSlots():
-      let flag = sim.flags[team]
+    for slot in sim.objectiveSlots():
+      let
+        flag = sim.objectiveState(slot)
+        spriteSlot = if sim.config.isEmergAnt(): slot mod 4 else: slot
       if flag.captured:
         continue
-      if viewerIsGhost or sim.flagVisibleTo(playerIndex, team):
+      if viewerIsGhost or sim.flagVisibleTo(playerIndex, slot):
         # A carried flag glows: the halo rides UNDER the carrier so the runner
         # is the brightest figure on the board.
         if flag.carrier >= 0 and not sim.config.isEmergAnt():
-          let auraId = FlagAuraObjectBase + ord(team)
+          let auraId = FlagAuraObjectBase + slot
           currentIds.add(auraId)
           result.addBoardObject(
             auraId,
@@ -6665,9 +6701,9 @@ proc buildSpriteProtocolPlayerUpdates*(
             flag.y - FlagAuraSize div 2,
             flag.y - 1,
             MapLayerId,
-            FlagAuraSpriteBase + ord(team)
+            FlagAuraSpriteBase + slot
           )
-        let objectId = SpritePlayerFlagObjectBase + ord(team)
+        let objectId = SpritePlayerFlagObjectBase + slot
         currentIds.add(objectId)
         if flag.carrier >= 0:
           # Carried: the heart rides BEHIND the carrier (z below the player), so
@@ -6680,7 +6716,7 @@ proc buildSpriteProtocolPlayerUpdates*(
             flag.y - FlagBannerH div 2,
             flag.y - 1,
             MapLayerId,
-            FlagSpriteBase + ord(team)
+            FlagSpriteBase + spriteSlot
           )
         else:
           # Loose objective: CTF uses the BIG planted banner; Emerg-ant uses a
@@ -6699,7 +6735,7 @@ proc buildSpriteProtocolPlayerUpdates*(
             flag.y - (if sim.config.isEmergAnt(): FoodPatchSize else: PlantedFlagCanvasH) div 2,
             flag.y + 1,
             MapLayerId,
-            PlantedFlagSpriteBase + ord(team)
+            PlantedFlagSpriteBase + spriteSlot
           )
 
     sim.addPheromones(nextState.spriteDefs, currentIds, result)
@@ -6943,6 +6979,26 @@ proc buildSpriteProtocolPlayerUpdates*(
       HudTopRightLayerId,
       SpritePlayerOwnAimSpriteId
     )
+
+    if sim.config.isEmergAnt():
+      currentIds.add(SpritePlayerPheromoneObjectId)
+      result.addSpriteChanged(
+        nextState.spriteDefs,
+        SpritePlayerPheromoneSpriteId,
+        1,
+        1,
+        newRgbaPixels(1, 1),
+        labelPheromoneControl(
+          pheromoneKindText(player.pheromoneKind), int(player.pheromoneRate))
+      )
+      result.addBoardObject(
+        SpritePlayerPheromoneObjectId,
+        0,
+        0,
+        0,
+        HudTopRightLayerId,
+        SpritePlayerPheromoneSpriteId
+      )
 
   sim.addTeamScoreboard(nextState.spriteDefs, currentIds, result)
 
@@ -7832,14 +7888,16 @@ proc buildSpriteProtocolUpdates*(
   # carrier, with a floor-glow halo under any carrier so the flag-runner reads
   # as the brightest figure on the board. A retired heart (GV32 capture or
   # GV33 dead team) is out of play and never drawn.
-  for team in sim.objectiveSlots():
+  for slot in sim.objectiveSlots():
     let
-      flag = sim.flags[team]
-      objectId = FlagObjectBase + ord(team)
+      flag = sim.objectiveState(slot)
+      team = Team(slot mod 4)
+      spriteSlot = if sim.config.isEmergAnt(): slot mod 4 else: slot
+      objectId = FlagObjectBase + slot
     if flag.captured:
       continue
     if flag.carrier >= 0 and not sim.config.isEmergAnt():
-      let auraId = FlagAuraObjectBase + ord(team)
+      let auraId = FlagAuraObjectBase + slot
       currentIds.add(auraId)
       result.addBoardObject(
         auraId,
@@ -7847,7 +7905,7 @@ proc buildSpriteProtocolUpdates*(
         flag.y - FlagAuraSize div 2,
         flag.y - 1,
         MapLayerId,
-        FlagAuraSpriteBase + ord(team)
+        FlagAuraSpriteBase + slot
       )
     currentIds.add(objectId)
     if flag.carrier >= 0:
@@ -7863,12 +7921,13 @@ proc buildSpriteProtocolUpdates*(
         aim = aimVector(carrier.aimBrads)
         hx = flag.x + int(round(aim.x * float(CarryHeartFwdPx)))
         hy = flag.y + int(round(aim.y * float(CarryHeartFwdPx)))
-        heartSpriteId = carryHeartSpriteId(team, aimStep)
+        foodTeam = if sim.config.isEmergAnt(): carrier.team else: team
+        heartSpriteId = carryHeartSpriteId(foodTeam, aimStep)
       if nextState.spriteDefs.spriteDefinitionIndex(heartSpriteId) < 0:
         result.addBoardSpriteChanged(
           nextState.spriteDefs, heartSpriteId, FlagBannerW, FlagBannerH,
           if sim.config.isEmergAnt():
-            buildFoodSprite(team, FlagBannerW, FlagBannerH)
+            buildFoodSprite(foodTeam, FlagBannerW, FlagBannerH)
           else:
             buildCarryHeartSprite(team, aimStep),
           if sim.config.isEmergAnt():
@@ -7895,7 +7954,7 @@ proc buildSpriteProtocolUpdates*(
         flag.y - (if sim.config.isEmergAnt(): FoodPatchSize else: PlantedFlagCanvasH) div 2,
         flag.y + 1,
         MapLayerId,
-        PlantedFlagSpriteBase + ord(team)
+        PlantedFlagSpriteBase + spriteSlot
       )
 
   if sim.hasInterstitialFrame():

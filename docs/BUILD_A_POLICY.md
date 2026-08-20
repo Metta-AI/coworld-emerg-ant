@@ -19,7 +19,7 @@ The match is always one policy versus one policy, with 16 connected copies of
 each policy forming a colony. By default a colony starts with one immobile queen
 and seven workers; every food returned to the queen activates one of eight
 dormant copies. All living
-ants smell the positions of four loose food patches, but must navigate around
+ants smell the positions of eight loose food patches, but must navigate around
 walls to reach them. Food then reappears elsewhere. The queen can bite but cannot move, and the
 whole colony dies if she is killed. There are no guns or items: damage happens
 only when enemy ants physically touch and A is held.
@@ -27,8 +27,8 @@ only when enemy ants physically touch and A is held.
 Implement a deterministic policy that (1) identifies queen versus worker from
 the documented labels, (2) sends workers to sensed food using walkability-aware
 navigation and a stuck-recovery fallback, (3) returns carried food to the own
-queen, (4) uses public scout/food pheromones without blindly following stale
-trails, and (5) physically defends or attacks queens when worthwhile. Ensure
+queen, (4) intentionally selects scout/food/danger/home pheromones and a 0..3
+emission rate without blindly following stale trails, and (5) physically defends or attacks queens when worthwhile. Ensure
 newly hatched copies can choose useful roles without private communication.
 
 Put the policy in a new players/<policy-name>/ directory with its own Dockerfile
@@ -59,10 +59,11 @@ The policy-visible labels specific to this mode are:
 food patch
 food carried
 weapon mandibles
-pheromone red scout
-pheromone blue scout
-pheromone red food
-pheromone blue food
+pheromone red scout rate 2
+pheromone blue scout rate 2
+pheromone red food rate 3
+pheromone blue danger rate 3
+pheromone control scout rate 2
 queen red left
 queen red right
 self queen red left
@@ -85,7 +86,7 @@ no private colony channel, so role allocation must work from public state and
 deterministic identity.
 
 Treat `food patch` as a scent target: it gives the current location, not a free
-path through walls. Treat a bright `pheromone <team> food` trail as evidence of
+path through walls. Treat a bright `pheromone <team> food rate <n>` trail as evidence of
 a recent carrier, not a guaranteed current route. Enemy deposits can cancel it.
 Keep navigation fallbacks for stale, erased, blocked, or deceptive trails.
 

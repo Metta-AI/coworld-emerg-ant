@@ -18,9 +18,12 @@ Sprite v1 reserves player-input bit `7` ("must be sent as 0"). CTF assigns it:
 
 Send it in the standard `0x84` Player Input bitmask alongside the Sprite v1
 bits (d-pad, Select, A, B). In `ctf`, C charges/releases a carried grenade; see
-`RULES.md`, section *Grenades*. In `emerg-ant`, there are no carried items and C
-is inert. A is level-triggered in Emerg-ant: hold it while physically touching
-an enemy to repeat a mandible strike whenever the attack cooldown clears.
+`RULES.md`, section *Grenades*. In `emerg-ant`, a fresh C press controls
+pheromones: C+Left/Up/Right/Down selects scout/food/danger/home, while C alone
+advances the emission rate through 0..3. The command tick does not move or turn
+the ant. Release C before sending another command. A is level-triggered in
+Emerg-ant: hold it while physically touching an enemy to repeat a mandible
+strike whenever the attack cooldown clears.
 
 ## Player Ready (`0x85`) is supported — but do NOT send it in league play
 
@@ -50,6 +53,11 @@ Workers retain `player <color> <side>` and `self <color> <side>`. Queens use
 `queen <color> <side>` and `self queen <color> <side>` so a policy can identify
 and defend the reproductive center. Queen input receives observations normally,
 but movement is ignored; A can still bite an enemy in physical contact.
+
+Pheromone marks use `pheromone <color> <kind> rate <1..3>`. Every mark is
+public and visible through fog. An invisible own-state marker reports
+`pheromone control <kind> rate <0..3>` so a policy can verify its persistent
+selection.
 
 ## Your own aim: read the `own aim` marker; dead-reckon between frames
 

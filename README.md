@@ -5,7 +5,7 @@ Emerg-ant hackathon. It is always a 1v1 policy duel: Softmax connects 16 copies
 of each submitted policy as one red or blue colony. By default each colony
 begins with a winged queen and seven workers; eight copies wait as dormant brood.
 
-> **Version note:** `main` contains the current GV56 abundant-forage rules on the
+> **Version note:** `main` contains the current GV57 typed-pheromone rules on the
 > restored pre-NAnts engine. The
 > NAnts-style v0.6 game remains available on the
 > [`nants-v0.6`](https://github.com/Metta-AI/coworld-emerg-ant/tree/nants-v0.6)
@@ -13,12 +13,14 @@ begins with a winged queen and seven workers; eight copies wait as dormant brood
 > [`v0.6.0-nants`](https://github.com/Metta-AI/coworld-emerg-ant/tree/v0.6.0-nants)
 > tag.
 
-Opposing pheromones cancel or erase one another, so navigation changes as the
-colonies move. Guns and items are removed; rivals can fight only by touching
+Ants choose scout, food, danger, or home pheromones and an emission rate from
+off through urgent. Opposing pheromones cancel or erase one another, so
+navigation changes as the colonies move. Guns and items are removed; rivals can fight only by touching
 and biting. Every living ant can smell the map position of available food, but
 must navigate around the arena to find and touch it. Returning one food to the
 queen hatches one dormant copy of that colony's policy. Kill the queen and her
-colony collapses. The first colony to five deliveries wins; at the clock, a
+colony collapses. Eight fruit patches remain live at random field positions,
+and the first colony to sixteen deliveries wins; at the clock, a
 unique score leader wins. Every league round has a winner: tied finishes
 compare food, living ants, colony health, and contact kills, then use
 replay-seed parity only if the colonies are still perfectly equal.

@@ -33,14 +33,14 @@ type
     kills: seq[int]
     deaths: seq[int]
     captures: seq[int]
-    carriers: array[Team, int]
-    captured: array[Team, bool]
+    carriers: array[AntFoodPatchCount, int]
+    captured: array[AntFoodPatchCount, bool]
 
 proc initBroadcastTracker*(): BroadcastTracker =
   ## Returns a fresh, unsynced broadcast tracker.
   result.prevPhase = Lobby
-  for team in Team:
-    result.carriers[team] = -1
+  for slot in 0 ..< AntFoodPatchCount:
+    result.carriers[slot] = -1
 
 # policyName moved to sim_types.nim (the join path needs it to resolve perk
 # groups); re-exported through `import sim`, so every consumer still sees it.
@@ -63,8 +63,8 @@ proc snapshot(tracker: var BroadcastTracker, sim: SimServer) =
     tracker.deaths[i] = p.deaths
     tracker.captures[i] = p.captures
   for slot in sim.objectiveSlots():
-    tracker.carriers[slot] = sim.flags[slot].carrier
-    tracker.captured[slot] = sim.flags[slot].captured
+    tracker.carriers[slot] = sim.objectiveState(slot).carrier
+    tracker.captured[slot] = sim.objectiveState(slot).captured
   tracker.prevTick = sim.tickCount
   tracker.prevPhase = sim.phase
   tracker.initialized = true
@@ -165,20 +165,21 @@ proc stepEvents*(
   # heart retired by a capture (GV32) is not a return — the capture beat
   # below is that story.
   for slot in sim.objectiveSlots():
-    let carrier = sim.flags[slot].carrier
+    let objective = sim.objectiveState(slot)
+    let carrier = objective.carrier
     if carrier == tracker.carriers[slot]:
       continue
-    if tracker.carriers[slot] >= 0 and not sim.flags[slot].captured:
+    if tracker.carriers[slot] >= 0 and not objective.captured:
       events.add(%*{
         "t": tick,
         "k": "return",
-        "flag": (if sim.config.isEmergAnt(): "food" else: teamText(slot))
+        "flag": (if sim.config.isEmergAnt(): "food" else: teamText(Team(slot)))
       })
     if carrier >= 0:
       events.add(%*{
         "t": tick,
         "k": "steal",
-        "flag": (if sim.config.isEmergAnt(): "food" else: teamText(slot)),
+        "flag": (if sim.config.isEmergAnt(): "food" else: teamText(Team(slot))),
         "by": sim.slotOf(carrier)
       })
 
@@ -199,8 +200,8 @@ proc stepEvents*(
         captured = "food"
       else:
         for team in sim.teams():
-          if sim.flags[team].captured and not tracker.captured[team] and
-              tracker.carriers[team] == i:
+          if sim.flags[team].captured and not tracker.captured[ord(team)] and
+              tracker.carriers[ord(team)] == i:
             captured = teamText(team)
         doAssert captured.len > 0, "capture event with no captured flag"
       events.add(%*{
@@ -488,11 +489,12 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
     # food patches rather than team-owned hearts; a carried patch rides its ant
     # (already drawn as that player, tagged carry), so skip it here.
     for slot in sim.objectiveSlots():
-      if sim.flags[slot].carrier >= 0 or sim.flags[slot].captured:
+      let objective = sim.objectiveState(slot)
+      if objective.carrier >= 0 or objective.captured:
         continue
       if not sim.flagVisibleTo(playerIndex, slot):
         continue
-      let f = sim.flags[slot]
+      let f = objective
       # Scent belongs on the tactical map / policy observation, not as an
       # x-ray 3D billboard through stone. The raycast view draws a food body
       # only when the ant can also see that point conventionally.
@@ -501,7 +503,7 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
         continue
       addEnt(
         (if sim.config.isEmergAnt(): "food" else: "heart"),
-        (if sim.config.isEmergAnt(): "" else: teamText(slot)),
+        (if sim.config.isEmergAnt(): "" else: teamText(Team(slot))),
         float(f.x), float(f.y), -1, false
       )
 
@@ -641,11 +643,11 @@ proc firstPersonJson(sim: SimServer, playerIndex: int): JsonNode =
     if sim.config.isEmergAnt() and not sim.flagVisibleTo(playerIndex, slot):
       continue
     mapHearts.add(%*{
-      "x": sim.flags[slot].x,
-      "y": sim.flags[slot].y,
-      "team": teamText(slot),
-      "carried": sim.flags[slot].carrier >= 0,
-      "captured": sim.flags[slot].captured,
+      "x": sim.objectiveState(slot).x,
+      "y": sim.objectiveState(slot).y,
+      "team": (if sim.config.isEmergAnt(): "" else: teamText(Team(slot))),
+      "carried": sim.objectiveState(slot).carrier >= 0,
+      "captured": sim.objectiveState(slot).captured,
       "food": sim.config.isEmergAnt()
     })
   var mapItems = newJArray()

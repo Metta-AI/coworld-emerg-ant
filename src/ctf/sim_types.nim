@@ -18,7 +18,17 @@ import
 
 const
   GameName* = "ctf"
-  GameVersion* = "56"  ## GV56 (abundant forage): FOUR SCENTS, FEWER FIGHTS.
+  GameVersion* = "57"  ## GV57 (stigmergic vocabulary): SAY WHAT MATTERS.
+    ## Emerg-ant ants now choose among scout, food, danger, and home pheromones
+    ## and independently select an emission rate from 0 (off) through 3
+    ## (urgent). Marks expose both choices to policies and spectators. The food
+    ## race now keeps eight random patches live and ends at sixteen deliveries,
+    ## rather than allowing the old five-point goal to finish after one short
+    ## route. All Emerg-ant observations, hashed state, outcomes, and fixtures
+    ## are obsolete. Claimed after scanning origin on 2026-08-20: main used
+    ## GV56 and no remote branch claimed GV57 or above.
+    ##
+    ## Previously GV56 (abundant forage): FOUR SCENTS, FEWER FIGHTS.
     ## Emerg-ant now keeps four neutral food patches loose on the field instead
     ## of tying food abundance to the two competing teams. This gives every
     ## worker several globally scented forage choices, reduces forced contests
@@ -530,7 +540,9 @@ const
                               ## split the forfeit (see potScoring below).
   CtfMode* = "ctf"
   EmergAntMode* = "emerg-ant"
-  DefaultForageGoal* = 5       ## returned enemy food caches needed to win.
+  DefaultForageGoal* = 16      ## neutral food deliveries needed to win.
+  AntFoodPatchCount* = 8       ## simultaneous random forage choices.
+  ExtraFoodPatchCount* = AntFoodPatchCount - 4
   FoodPickupRange* = 16        ## touch radius for a wild food patch. Derived
                                ## from the rendered 20px FoodPatchSize: its
                                ## 10px half-extent plus PlayerHalf means a
@@ -547,7 +559,11 @@ const
   DefaultStartingAntsPerColony* = 8
                                ## one fixed queen + seven founding foragers.
   BroodFoodCost* = 1           ## every delivered food hatches one reserve ant.
-  PheromoneStepTicks* = 24     ## a moving ant deposits at most once per second.
+  DefaultPheromoneRate* = 2'u8 ## steady: one mark per second.
+  MaxPheromoneRate* = 3'u8     ## urgent: three marks per second.
+  PheromoneSparseTicks* = 72   ## rate 1: one mark every three seconds.
+  PheromoneSteadyTicks* = 24   ## rate 2: one mark per second.
+  PheromoneUrgentTicks* = 8    ## rate 3: three marks per second.
   PheromoneLifetimeTicks* = 24 * 30  ## public trail memory lasts 30 seconds.
   PheromoneEraseRadius* = 18   ## opposing deposits this close neutralize.
   MaxPheromoneMarks* = 512     ## deterministic oldest-first trail cap.
@@ -858,6 +874,12 @@ var
   ShoutRange* = MapWidth div 5  ## audible within 20% of the screen width.
 
 type
+  PheromoneKind* = enum
+    PheromoneScout,
+    PheromoneFood,
+    PheromoneDanger,
+    PheromoneHome
+
   Team* = enum
     ## The first two members are the classic pair; a game's ACTIVE teams are
     ## always a prefix of this enum (`Red .. Team(teamCount - 1)`), so every
@@ -1373,6 +1395,8 @@ type
                                ## pre-barrier replay's hash chain (keyframe
                                ## scrub still restores it exactly via the
                                ## flatty sim snapshot — the puddleTicks rule).
+    pheromoneKind*: PheromoneKind ## selected Emerg-ant public signal.
+    pheromoneRate*: uint8      ## 0=off, 1=sparse, 2=steady, 3=urgent.
 
   PlayerFov* = object
     ## One player's cached fog-of-war visibility grid (FovGridW x FovGridH
@@ -1621,7 +1645,8 @@ type
     x*, y*: int
     team*: Team
     tick*: int
-    food*: bool                ## laid by an ant carrying stolen food.
+    kind*: PheromoneKind
+    rate*: uint8               ## sender's 1..3 emission-rate scale.
 
   FlagState* = object
     ## One team's flag: provably sitting on its home pedestal (carrier == -1),
@@ -1725,6 +1750,11 @@ type
                                ## empty and un-hashed in ordinary CTF.
     colonyFood*: array[Team, int] ## delivered food waiting when brood is full.
     queenSlot*: array[Team, int] ## stable queen join slot; -1 means queenless.
+    extraFoodPatches*: array[ExtraFoodPatchCount, FlagState]
+                               ## Emerg-ant patches 4..7; appended because
+                               ## SimServer keyframes are flatty-positional.
+                               ## The first four reuse `flags` so ordinary CTF
+                               ## storage stays untouched.
 
 
 # Team endzone display colors (shared by the map bake and the paint FX).
@@ -1792,16 +1822,44 @@ proc teams*(sim: SimServer): Slice[Team] =
   ## Returns the active teams in one game.
   sim.gameMap.teams()
 
-iterator objectiveSlots*(sim: SimServer): Team =
+iterator objectiveSlots*(sim: SimServer): int =
   ## Enumerates live objective storage slots. CTF owns one flag per active
-  ## team; Emerg-ant repurposes all four enum-backed slots as neutral food so
-  ## a 1v1 colony duel has four simultaneous forage choices.
+  ## team; Emerg-ant uses eight neutral food slots. Slots 0..3 reuse the flag
+  ## array and 4..7 live in `extraFoodPatches`.
   if sim.config.gameMode == EmergAntMode:
-    for slot in Team:
+    for slot in 0 ..< AntFoodPatchCount:
       yield slot
   else:
     for team in sim.teams():
-      yield team
+      yield ord(team)
+
+proc objectiveState*(sim: SimServer, slot: int): lent FlagState =
+  ## Read-only access to a CTF flag or Emerg-ant neutral food patch.
+  doAssert slot >= 0 and slot < AntFoodPatchCount
+  if slot < 4:
+    return sim.flags[Team(slot)]
+  return sim.extraFoodPatches[slot - 4]
+
+proc objectiveState*(sim: var SimServer, slot: int): var FlagState =
+  ## Mutable access to a CTF flag or Emerg-ant neutral food patch.
+  doAssert slot >= 0 and slot < AntFoodPatchCount
+  if slot < 4:
+    return sim.flags[Team(slot)]
+  return sim.extraFoodPatches[slot - 4]
+
+proc pheromoneKindText*(kind: PheromoneKind): string =
+  case kind
+  of PheromoneScout: "scout"
+  of PheromoneFood: "food"
+  of PheromoneDanger: "danger"
+  of PheromoneHome: "home"
+
+proc pheromoneIntervalTicks*(rate: uint8): int =
+  case rate
+  of 1: PheromoneSparseTicks
+  of 2: PheromoneSteadyTicks
+  of 3: PheromoneUrgentTicks
+  else: 0
 
 
 proc teamText*(team: Team): string =

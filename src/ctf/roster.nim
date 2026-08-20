@@ -450,14 +450,15 @@ proc removePlayerAt*(sim: var SimServer, playerIndex: int) =
   if playerIndex < 0 or playerIndex >= sim.players.len:
     return
   for slot in sim.objectiveSlots():
-    if sim.flags[slot].carrier == playerIndex:
+    let carrier = sim.objectiveState(slot).carrier
+    if carrier == playerIndex:
       sim.logGameEvent(
         if sim.config.isEmergAnt(): "dropped food scattered into the field"
-        else: teamText(slot) & " heart returned home"
+        else: teamText(Team(slot)) & " heart returned home"
       )
-      sim.resetFlag(slot)
-    elif sim.flags[slot].carrier > playerIndex:
-      dec sim.flags[slot].carrier
+      sim.resetObjective(slot)
+    elif carrier > playerIndex:
+      dec sim.objectiveState(slot).carrier
   sim.players.delete(playerIndex)
   if playerIndex < sim.fovCaches.len:
     sim.fovCaches.delete(playerIndex)
@@ -525,6 +526,8 @@ proc addPlayer*(
     skin: slot.skin,
     lastShoutTick: -1,
     paintHitTick: -1,
+    pheromoneKind: PheromoneScout,
+    pheromoneRate: DefaultPheromoneRate,
     reward: sim.rewardAccounts[accountIndex].reward
   )
   sim.fovCaches.add PlayerFov(

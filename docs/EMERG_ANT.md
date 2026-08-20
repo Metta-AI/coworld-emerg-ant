@@ -18,16 +18,16 @@ colony's fresh deposit erases opposing trail within 18 pixels.
   beginning—a queen and seven workers—and eight wait as dormant brood.
 - Each queen is a large, winged ant fixed at her glowing nest. She is alive,
   visible, and can bite enemies touching her, but cannot move.
-- Four neutral food patches begin at deterministic-random, walkable positions
+- Eight neutral food patches begin at deterministic-random, walkable positions
   outside every nest. They are not owned by either colony.
 - Every living ant smells every loose patch: its observation includes the
   patch's map position even outside visual range. Scent does not solve the path;
   the ant still has to search around walls and moving bodies to reach it.
-- Touch either patch to carry it. Return it to your own glowing nest to score one
+- Touch any patch to carry it. Return it to your own glowing nest to score one
   forage point, feed the queen, and hatch one dormant copy of your policy. The
   patch immediately reappears at a different field position, so a memorized
   route cannot solve the episode.
-- The first colony to five returns wins. Every round produces one winner. At a
+- The first colony to sixteen returns wins. Every round produces one winner. At a
   tied goal, mutual queen death, or the clock, the game compares food score,
   living ants, total colony health, and contact kills in that order. A still
   perfect tie uses replay-seed parity, which is deterministic and balanced
@@ -40,15 +40,20 @@ colony's fresh deposit erases opposing trail within 18 pixels.
   no guns, grenades, spray cans, shields, med kits, barriers, or bombardment: an
   ant can damage a rival only by holding A while their bodies physically touch.
 
-The top-center score reads `RED FOOD 2/5`, and `captures` in results/replays is
+The top-center score reads `RED FOOD 2/16`, and `captures` in results/replays is
 the per-ant food-return count.
 
 ## Stigmergy
 
-Every moving ant deposits one pheromone mark per second. Marks last 30 seconds:
+Each ant chooses a public signal and a rate from 0 through 3. Marks last 30
+seconds:
 
-- a small team-colored mark means an ordinary scouting trail;
-- a larger bright-centered mark means the ant was carrying food;
+- `scout` marks explored routes;
+- `food` marks a discovered or returning-food route;
+- `danger` marks enemies, combat, or a threatened queen;
+- `home` marks a nest or return route;
+- rate 0 is off, 1 is sparse (one mark every 3 seconds), 2 is steady (one per
+  second), and 3 is urgent (three per second);
 - new opposing marks within 18 pixels cancel simultaneously;
 - a surviving new mark erases older enemy trail in that radius;
 - all pheromones are public, including through fog of war.
@@ -60,8 +65,9 @@ or become bait.
 Player observations expose stable sprite labels:
 
 ```text
-pheromone red scout
-pheromone blue food
+pheromone red scout rate 2
+pheromone blue food rate 3
+pheromone control scout rate 2
 food patch
 food carried
 weapon mandibles
@@ -75,7 +81,9 @@ self queen red left
 - B / Select: rotate aim counter-clockwise / clockwise.
 - A: bite. A mandible strike lands only while touching a living enemy and deals
   one damage, then waits for the configured attack cooldown.
-- C: unused in Emerg-ant.
+- C + Left/Up/Right/Down: select `scout`/`food`/`danger`/`home`.
+- Tap C without a direction: advance the rate `0 → 1 → 2 → 3 → 0`.
+  The selected setting is reported as `pheromone control <kind> rate <n>`.
 
 Movement, fog, replay, and Sprite v1 details not replaced above follow
 [RULES.md](RULES.md) and [PROTOCOL.md](PROTOCOL.md). The original CTF weapon and
@@ -86,7 +94,7 @@ pickup rules remain available only when `gameMode` is `ctf`.
 ```json
 {
   "gameMode": "emerg-ant",
-  "forageGoal": 5,
+  "forageGoal": 16,
   "startingAntsPerColony": 8
 }
 ```

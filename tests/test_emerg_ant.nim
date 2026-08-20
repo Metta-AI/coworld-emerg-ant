@@ -246,13 +246,16 @@ suite "Emerg-ant foraging":
     var looseFood = 0
     for foodSlot in first.objectiveSlots():
       inc looseFood
-      check first.flags[foodSlot].x == second.flags[foodSlot].x
-      check first.flags[foodSlot].y == second.flags[foodSlot].y
-      check first.canOccupy(first.flags[foodSlot].x, first.flags[foodSlot].y)
+      let
+        a = first.objectiveState(foodSlot)
+        b = second.objectiveState(foodSlot)
+      check a.x == b.x
+      check a.y == b.y
+      check first.canOccupy(a.x, a.y)
       for nest in first.teams():
         check not first.captureZone(nest).inCaptureZone(
-          first.flags[foodSlot].x, first.flags[foodSlot].y)
-    check looseFood == 4
+          a.x, a.y)
+    check looseFood == AntFoodPatchCount
 
   test "every living ant smells loose food outside its field of view":
     var sim = antGame()
@@ -367,18 +370,20 @@ suite "Emerg-ant combat":
     check sim.winner in [Red, Blue]
 
 suite "Emerg-ant stigmergy":
-  test "moving ants deposit public scout and food trails":
+  test "ants deposit selected public signals with a machine-readable rate":
     var sim = antGame()
-    sim.tickCount = PheromoneStepTicks
+    sim.tickCount = PheromoneSteadyTicks
     sim.players[0].velX = sim.config.motionScale
     sim.players[1].velY = sim.config.motionScale
-    sim.players[1].carryingFlag = true
+    sim.players[1].pheromoneKind = PheromoneFood
     sim.updatePheromones()
     check sim.pheromones.len == 2
     check sim.pheromones[0].team == Red
-    check not sim.pheromones[0].food
+    check sim.pheromones[0].kind == PheromoneScout
+    check sim.pheromones[0].rate == 2
     check sim.pheromones[1].team == Blue
-    check sim.pheromones[1].food
+    check sim.pheromones[1].kind == PheromoneFood
+    check sim.pheromones[1].rate == 2
 
     var state: PlayerViewerState
     let messages = sim.buildPlayerMessages(0, state)
@@ -386,13 +391,46 @@ suite "Emerg-ant stigmergy":
     for message in messages:
       if message.kind == spkSprite:
         labels.add(message.sprite.label)
-    check "pheromone red scout" in labels
-    check "pheromone blue food" in labels
+    check "pheromone red scout rate 2" in labels
+    check "pheromone blue food rate 2" in labels
+    check "pheromone control scout rate 2" in labels
     check "food patch" in labels
     check "food carried" in labels
     check "weapon mandibles" in labels
     check "self queen red left" in labels or "self queen red right" in labels
     check "queen blue left" in labels or "queen blue right" in labels
+
+  test "C plus a direction selects the signal and C alone scales the rate":
+    var sim = antGame()
+    let worker = 2
+    var selectFood = sim.none()[worker]
+    selectFood.c = true
+    selectFood.up = true
+    sim.applyPheromoneInput(worker, selectFood, InputState())
+    check sim.players[worker].pheromoneKind == PheromoneFood
+    check sim.players[worker].pheromoneRate == DefaultPheromoneRate
+
+    var rateUp = sim.none()[worker]
+    rateUp.c = true
+    sim.applyPheromoneInput(worker, rateUp, InputState())
+    check sim.players[worker].pheromoneRate == 3
+    sim.applyPheromoneInput(worker, rateUp, rateUp)
+    check sim.players[worker].pheromoneRate == 3
+
+  test "the 0..3 scale changes emission cadence and supports silence":
+    var sim = antGame()
+    for i in 0 ..< sim.players.len:
+      sim.players[i].velX = 0
+      sim.players[i].velY = 0
+    sim.players[2].velX = sim.config.motionScale
+    sim.players[2].pheromoneRate = 3
+    sim.tickCount = PheromoneUrgentTicks
+    sim.updatePheromones()
+    check sim.pheromones.len == 1
+    sim.players[2].pheromoneRate = 0
+    sim.tickCount += PheromoneUrgentTicks
+    sim.updatePheromones()
+    check sim.pheromones.len == 1
 
   test "opposing deposits at one point cancel simultaneously":
     var sim = antGame()
@@ -400,7 +438,7 @@ suite "Emerg-ant stigmergy":
     for i in 0 .. 1:
       sim.players[i].placeAtCenter(p.x, p.y)
       sim.players[i].velX = sim.config.motionScale
-    sim.tickCount = PheromoneStepTicks
+    sim.tickCount = PheromoneSteadyTicks
     sim.updatePheromones()
     check sim.pheromones.len == 0
 
@@ -408,13 +446,15 @@ suite "Emerg-ant stigmergy":
     var sim = antGame()
     let p = sim.gameMap.center
     sim.pheromones = @[
-      PheromoneMark(x: p.x, y: p.y, team: Red, tick: 1, food: false)
+      PheromoneMark(
+        x: p.x, y: p.y, team: Red, tick: 1,
+        kind: PheromoneScout, rate: 2)
     ]
     sim.players[0].velX = 0
     sim.players[0].velY = 0
     sim.players[1].placeAtCenter(p.x, p.y)
     sim.players[1].velX = sim.config.motionScale
-    sim.tickCount = PheromoneStepTicks
+    sim.tickCount = PheromoneSteadyTicks
     sim.updatePheromones()
     check sim.pheromones.len == 1
     check sim.pheromones[0].team == Blue
@@ -427,10 +467,14 @@ suite "Emerg-ant stigmergy":
   test "pheromone enters the hash only in ant mode":
     var ant = antGame()
     let before = ant.gameHash()
-    ant.pheromones.add PheromoneMark(x: 10, y: 20, team: Red, tick: 1)
+    ant.pheromones.add PheromoneMark(
+      x: 10, y: 20, team: Red, tick: 1,
+      kind: PheromoneDanger, rate: 3)
     check ant.gameHash() != before
 
     var ctf = twoTeamGame()
     let plain = ctf.gameHash()
-    ctf.pheromones.add PheromoneMark(x: 10, y: 20, team: Red, tick: 1)
+    ctf.pheromones.add PheromoneMark(
+      x: 10, y: 20, team: Red, tick: 1,
+      kind: PheromoneDanger, rate: 3)
     check ctf.gameHash() == plain

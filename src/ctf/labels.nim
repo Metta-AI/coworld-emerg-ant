@@ -148,6 +148,10 @@ const
     ## docs/PROTOCOL.md, "Your own aim"). NOT named `self aim`: consumers
     ## prefix-match `self ` for the avatar, and a marker sharing that prefix
     ## would false-positive every such scan.
+  LabelPrefixPheromone* = "pheromone "
+    ## Public mark: `pheromone <color> <kind> rate <1..3>`.
+  LabelPrefixPheromoneControl* = "pheromone control "
+    ## Own invisible readback: `pheromone control <kind> rate <0..3>`.
   LabelPrefixEndzone* = "endzone "
     ## The per-team endzone marker,
     ## `endzone <color> <shape> <x0>,<y0> <x1>,<y1>`: an invisible 1x1 object
@@ -446,6 +450,14 @@ proc labelOwnAim*(brads: int): string =
   ## The own-aim marker label, `own aim <brads>`. A consumer matches
   ## LabelPrefixOwnAim and parses the tail as the integer aim angle.
   LabelPrefixOwnAim & $brads
+
+proc labelPheromone*(color, kind: string, rate: int): string =
+  ## One public stigmergic mark. Consumers parse the fixed `rate` token.
+  LabelPrefixPheromone & color & " " & kind & " rate " & $rate
+
+proc labelPheromoneControl*(kind: string, rate: int): string =
+  ## This viewer's selected signal and emission-rate scale.
+  LabelPrefixPheromoneControl & kind & " rate " & $rate
 
 proc labelWeapon*(token: string): string =
   ## The own-attack HUD label, `weapon <token>` — gun, spray, or mandibles.

@@ -16,7 +16,11 @@ All decision logic lives in `decide` in `baseline.nim`. In Emerg-ant mode,
 workers follow the globally visible food scent and switch to an unconditional
 return-to-queen route as soon as they are carrying. Carriers ignore nearby
 enemies and nest-traffic repulsion until delivery, because each returned food
-scores and hatches one dormant copy of the colony policy.
+scores and hatches one dormant copy of the colony policy. Workers emit steady
+scout pheromones, carriers switch to urgent food trails, queens emit sparse home
+beacons, and a visible nearby enemy switches the ant to an urgent danger mark.
+The controller uses the documented C-button commands and releases C between
+edge-triggered selections.
 
 ## View model (fog-of-war, full-map, map coordinates)
 
