@@ -43,7 +43,7 @@ observation labels.
 
 ## Published Coworld
 
-- Version: `emerg-ant:0.8.1`
+- Version: `emerg-ant:0.9.1`
 - Coworld ID: [`cow_069bca43-0631-413e-af25-867d2febb6e4`](https://softmax.com/observatory/v2/coworlds/cow_069bca43-0631-413e-af25-867d2febb6e4)
 - Status: canonical and hosted-smoke certified
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
@@ -92,7 +92,7 @@ reference player image used by hosted certification.
 
 ```bash
 uvx --from "coworld[auth]==0.1.34" coworld build \
-  --version 0.8.1 \
+  --version 0.9.1 \
   --project . \
   --compose compose.yaml \
   --template coworld_manifest.json \
