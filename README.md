@@ -33,21 +33,21 @@ observation labels.
 
 ## Gameplay
 
-[![Both colonies rush their nests at the start of a certified replay](docs/images/emerg-ant-nest-rush.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_7b867933-3ba2-4e68-92c6-f120a804cf56/sha256%3A530db427227e6bc1af3f0bc11fb80fe08e6caf5682bdf00fc9ab00b16dfffcde/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F07bb3467-e6ed-4d3d-bb54-32ff8ae18708.replay&v=2)
+[![Both colonies rush their nests at the start of a certified replay](docs/images/emerg-ant-nest-rush.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_db246875-b62a-4ac8-ae63-8431dc8c9315/sha256%3A40ac9c373465b19bb96e782cb301ea1e4fa0130471e2f40643c83e5cea6e471c/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Fa115aef2-f3e7-4ee5-9a12-d40abbd6e427.replay&v=2)
 
 *The red and blue colonies leave their nests in the hosted certification replay.*
 
-[![Ant colonies form competing public pheromone trails](docs/images/emerg-ant-pheromone-race.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_7b867933-3ba2-4e68-92c6-f120a804cf56/sha256%3A530db427227e6bc1af3f0bc11fb80fe08e6caf5682bdf00fc9ab00b16dfffcde/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F07bb3467-e6ed-4d3d-bb54-32ff8ae18708.replay&v=2)
+[![Ant colonies form competing public pheromone trails](docs/images/emerg-ant-pheromone-race.png)](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_db246875-b62a-4ac8-ae63-8431dc8c9315/sha256%3A40ac9c373465b19bb96e782cb301ea1e4fa0130471e2f40643c83e5cea6e471c/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Fa115aef2-f3e7-4ee5-9a12-d40abbd6e427.replay&v=2)
 
 *Public red and blue pheromones expose the routes each colony is building.*
 
 ## Published Coworld
 
 - Version: `emerg-ant:0.9.1`
-- Coworld ID: [`cow_069bca43-0631-413e-af25-867d2febb6e4`](https://softmax.com/observatory/v2/coworlds/cow_069bca43-0631-413e-af25-867d2febb6e4)
+- Coworld ID: [`cow_db246875-b62a-4ac8-ae63-8431dc8c9315`](https://softmax.com/observatory/v2/coworlds/cow_db246875-b62a-4ac8-ae63-8431dc8c9315)
 - Status: canonical and hosted-smoke certified
 - Source: [Metta-AI/coworld-emerg-ant](https://github.com/Metta-AI/coworld-emerg-ant)
-- Ladder replay: [watch GV55 end immediately when Blue loses its last worker at tick 820](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_069bca43-0631-413e-af25-867d2febb6e4/sha256%3A6361a27bb83995d0fca4b368e6e95682fb46ce79fae818476fe801ef91db68d7/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Fd06c6d53-14ac-4bdd-a509-6e3d3251915e.replay&v=2)
+- Full GV57 replay: [watch two colonies forage, hatch brood, and race to sixteen deliveries](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_db246875-b62a-4ac8-ae63-8431dc8c9315/sha256%3A40ac9c373465b19bb96e782cb301ea1e4fa0130471e2f40643c83e5cea6e471c/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2Fa115aef2-f3e7-4ee5-9a12-d40abbd6e427.replay&v=2)
 - Previous hatch replay: [watch food return at tick 226 activate a ninth ant](https://api.observatory.softmax-research.net/v2/coworlds/replays/static/cow_f6b8c5fc-9d3f-434e-a15f-1dbbd84322c8/sha256%3Afec79a0c3a6d3d254e06cf27ceed961fe0cf437842d22e73379c39cba0a7c453/index.html?replay=https%3A%2F%2Fsoftmax-public.s3.amazonaws.com%2Freplays%2F1437f9f0-68cd-4e82-8799-3510d6935dcc.replay&v=2)
 
 ## Competition league
