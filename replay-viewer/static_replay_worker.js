@@ -51,6 +51,12 @@ function reportFailure(error) {
   });
 }
 
+function tellPhase(phase) {
+  // Observatory load marks. The page relays these to its parent (see
+  // static_replay.js): a Worker has no window.parent of its own.
+  postMessage({ type: 'phase', phase: phase });
+}
+
 function copyIntoRuntime(bytes, callback) {
   var pointer = Module._malloc(bytes.length);
   try {
@@ -109,7 +115,9 @@ async function start() {
   var message = initMessage;
   initMessage = null;
   try {
+    tellPhase('bundle_ready');
     createBroadcastCore(message);
+    tellPhase('replay_fetch_start');
     var response = await fetch(message.replayUrl, {
       credentials: 'omit',
       mode: 'cors'
@@ -118,11 +126,22 @@ async function start() {
       throw new Error('Replay request returned HTTP ' + response.status);
     }
     var bytes = new Uint8Array(await response.arrayBuffer());
+    // Sniff the content, never the URL or headers: the public copy of a
+    // replay may be gzip (1f 8b) or zlib (78 ..) bytes served with no
+    // Content-Encoding. The wasm codec inflates either itself
+    // (allowCompressed in the replay spec); this only labels the download.
+    postMessage({
+      type: 'phase',
+      phase: 'replay_fetch_end',
+      bytes: bytes.byteLength,
+      compressed: (bytes[0] === 0x1f && bytes[1] === 0x8b) || bytes[0] === 0x78
+    });
     if (!bytes.length) throw new Error('Replay response was empty');
     var loaded = copyIntoRuntime(bytes, function (pointer, length) {
       return Module._ctf_load_replay(pointer, length);
     });
     if (!loaded) throw new Error(runtimeError());
+    tellPhase('replay_parsed');
     runtimeLoaded = true;
     ingestPacket();
     postMessage({

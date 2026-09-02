@@ -1,7 +1,19 @@
 (function () {
   'use strict';
 
+  // Observatory readiness protocol. A second channel beside the page's
+  // ?embed=1 postToShell bridge: the host keeps a "Loading replay..." overlay
+  // over this iframe until `ready`, shows `error`, and stamps each `phase`
+  // with its own clock (so no timestamps travel). Target origin is '*': the
+  // bundle cannot know its embedder and the payload is timings only.
+  function tellHost(message) {
+    if (window.parent === window) return;
+    window.parent.postMessage(Object.assign({ src: 'coworld-replay' }, message), '*');
+  }
+  tellHost({ type: 'loading' });
+
   var failed = false;
+  var readyPosted = false;
   var scriptUrl = document.currentScript && document.currentScript.src;
   var workerUrl = new URL('./static_replay_worker.js', scriptUrl || location.href);
 
@@ -11,12 +23,24 @@
     // diagnostic instead of overwriting it with the generic one.
     if (failed) return;
     failed = true;
+    tellHost({
+      type: 'error',
+      message: error && error.message ? error.message : String(error)
+    });
     console.error(error);
     var status = document.getElementById('status');
     if (status) {
       status.textContent = 'Replay failed: ' + (error.message || String(error));
       status.classList.add('show');
     }
+  }
+
+  function markReady() {
+    // One animation frame after the first drawn frame, so the host lifts its
+    // overlay onto a painted board rather than a black stage.
+    if (readyPosted) return;
+    readyPosted = true;
+    requestAnimationFrame(function () { tellHost({ type: 'ready' }); });
   }
 
   function setMismatchTick(tick) {
@@ -132,6 +156,7 @@
           if (config.onStatus) config.onStatus(message.status);
         } else if (message.type === 'firstFrame') {
           if (config.onFirstFrame) config.onFirstFrame();
+          markReady();
         } else if (message.type === 'transform') {
           transform = message.transform;
           // The view lives a thread away, so the page's controls can only learn
@@ -142,11 +167,20 @@
           setMismatchTick(message.mismatchTick);
           loaded = true;
           document.documentElement.setAttribute('data-replay-loaded', 'true');
+          markReady();
           requestAnimationFrame(animate);
         } else if (message.type === 'advanced') {
           setMismatchTick(message.mismatchTick);
           advanceInFlight = false;
           if (typeof message.draws === 'number') workerDraws = message.draws;
+        } else if (message.type === 'phase') {
+          // The Worker has no window.parent of its own; relay its load marks.
+          tellHost({
+            type: 'phase',
+            phase: message.phase,
+            bytes: message.bytes,
+            compressed: message.compressed
+          });
         } else if (message.type === 'error') {
           showFailure(new Error(message.message || 'Replay Worker failed'));
           stop();
@@ -159,7 +193,12 @@
     function start() {
       if (started || !offscreen || failed) return;
       started = true;
-      var replayUrl = new URLSearchParams(location.search).get('replay');
+      // Host mints index.html?v=2#replay=<url> (fragment is not in the HTTP
+      // request, so the immutable HTML cache key does not vary per episode).
+      // Read loc.hash first; keep ?replay= as the local-URL fallback.
+      var replayUrl =
+        new URLSearchParams((location.hash || '').slice(1)).get('replay') ||
+        new URLSearchParams(location.search).get('replay');
       if (!replayUrl) {
         showFailure(new Error('Missing required replay URL'));
         return;
