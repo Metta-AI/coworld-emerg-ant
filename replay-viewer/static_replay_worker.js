@@ -127,14 +127,17 @@ async function start() {
     }
     var bytes = new Uint8Array(await response.arrayBuffer());
     // Sniff the content, never the URL or headers: the public copy of a
-    // replay may be gzip (1f 8b) or zlib (78 ..) bytes served with no
+    // replay may be gzip or zlib bytes served with no
     // Content-Encoding. The wasm codec inflates either itself
     // (allowCompressed in the replay spec); this only labels the download.
     postMessage({
       type: 'phase',
       phase: 'replay_fetch_end',
       bytes: bytes.byteLength,
-      compressed: (bytes[0] === 0x1f && bytes[1] === 0x8b) || bytes[0] === 0x78
+      compressed: (bytes[0] === 0x1f && bytes[1] === 0x8b) ||
+        (bytes.length >= 2 && (bytes[0] & 0x0f) === 8 &&
+          (bytes[0] >> 4) <= 7 &&
+          (((bytes[0] << 8) | bytes[1]) % 31) === 0)
     });
     if (!bytes.length) throw new Error('Replay response was empty');
     var loaded = copyIntoRuntime(bytes, function (pointer, length) {

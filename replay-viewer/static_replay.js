@@ -36,11 +36,11 @@
   }
 
   function markReady() {
-    // One animation frame after the first drawn frame, so the host lifts its
-    // overlay onto a painted board rather than a black stage.
+    // Yield once after the first drawn frame. Animation frames may be throttled
+    // indefinitely in lazy offscreen iframes, but timers still let the draw land.
     if (readyPosted) return;
     readyPosted = true;
-    requestAnimationFrame(function () { tellHost({ type: 'ready' }); });
+    setTimeout(function () { tellHost({ type: 'ready' }); }, 0);
   }
 
   function setMismatchTick(tick) {
