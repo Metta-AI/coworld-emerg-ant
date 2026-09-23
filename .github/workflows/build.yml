@@ -19,7 +19,10 @@ jobs:
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libevdev-dev
       - uses: treeform/setup-nim-action@v6
-      - run: nimby sync nimby.lock -g
+      - run: |
+          cd ..
+          nimby create
+          nimby sync "$GITHUB_WORKSPACE/nimby.lock"
       # Reuse compiled C objects across runs: the release build of the deps
       # (pixie et al.) dominates the compile step and rarely changes. The key
       # includes the commit so every run saves a fresh cache; restore falls
