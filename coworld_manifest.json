@@ -11,7 +11,8 @@
   "game": {
     "name": "emerg-ant",
     "replay_viewer": {
-      "bundle": "static-replay-viewer"
+      "bundle": "static-replay-viewer",
+      "replay_compression": "gzip"
     },
     "description": "Emerg-ant is a 1v1 artificial-life colony duel. Each submitted policy controls a colony of connected copies: a fixed winged queen and seven workers start alive by default, with eight more copies waiting as brood. Every ant smells eight randomly replenishing neutral fruit patches, and each delivery to the queen hatches another copy. Ants select scout, food, danger, or home pheromones and an emission rate from off through urgent. There are no guns or items: rivals fight only by physical contact, and killing a queen collapses her colony.",
     "owner": "treeform@softmax.com",
