@@ -2,7 +2,7 @@ import
   helpers,
   std/[json, unittest],
   bitworld/spriteprotocol,
-  ctf/[broadcast, global, sim]
+  ctf/[broadcast, global, sim, training]
 
 proc antGame(goal = DefaultForageGoal): SimServer =
   var config = defaultGameConfig()
@@ -41,6 +41,30 @@ proc returnFood(sim: var SimServer, playerIndex: int, foodTeam: Team) =
   doAssert sim.flags[foodTeam].carrier == playerIndex
   sim.players[playerIndex].placeAtCenter(home.x, home.y)
   sim.checkWinCondition()
+
+suite "Emerg-ant training observation":
+  test "public food and pheromones do not reveal fogged opponents":
+    var config = defaultGameConfig()
+    config.gameMode = EmergAntMode
+    var sim = initCtfForTest(config)
+    for seat in 0 ..< 4:
+      discard sim.addPlayer("ant-" & $seat)
+    sim.startGame()
+    let
+      cx = sim.players[2].x + CollisionW div 2
+      cy = sim.players[2].y + CollisionH div 2
+    sim.pheromones.add PheromoneMark(
+      x: cx + 10, y: cy + 10, team: Blue,
+      kind: PheromoneFood, rate: 1, tick: sim.tickCount)
+    let hidden = sim.antObservation(2)
+    check hidden.len == AntObservationFeatures
+    check hidden[18] == 1'f32  # loose food has global scent
+    check hidden[18 + AntFoodPatchCount * 3 + 1 * 5] == 0'f32
+    check hidden[AntObservationFeatures - 32 +
+      (ord(Blue) * 4 + ord(PheromoneFood)) * 4 + 3] == 0.25'f32
+    sim.players[1].placeAtCenter(cx + 10, cy + 10)
+    let visible = sim.antObservation(2)
+    check visible[18 + AntFoodPatchCount * 3 + 1 * 5] == 1'f32
 
 suite "Emerg-ant config":
   test "mode is opt-in and replay-pins its forage goal":
