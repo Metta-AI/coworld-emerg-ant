@@ -34,6 +34,11 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-${{ hashFiles('nimby.lock') }}-
       - run: nim check src/ctf.nim
+      - name: Native taunt transport and canned fallback
+        run: |
+          nim c -d:release -d:ssl -o:/tmp/native-taunt-probe tools/native_taunt_probe.nim
+          python3 tools/test_native_taunts.py /tmp/native-taunt-probe
+          env -u COWORLD_LLM_ENDPOINT nim r -d:release tools/taunt_fallback_check.nim
       - name: Compile test shards (release)
         run: |
           for i in 1 2 3 4; do

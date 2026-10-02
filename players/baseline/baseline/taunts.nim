@@ -1,15 +1,7 @@
-## Bedrock-backed taunt generation for the baseline bot, built so the game
-## loop can NEVER block on it: one background worker thread owns all HTTP,
-## and the bot talks to it through non-blocking channels. If the Bedrock
-## sidecar is absent (no AWS_ENDPOINT_URL_BEDROCK_RUNTIME — local runs,
-## non-Bedrock leagues) or a call fails or dawdles, everything falls back to
-## a compiled-in bank, so the taunt system degrades to canned lines instead
-## of degrading the bot.
-##
-## Hosted-tournament contract (packages/coworld/docs/BEDROCK.md):
-## POST $AWS_ENDPOINT_URL_BEDROCK_RUNTIME/model/$BEDROCK_MODEL/invoke with an
-## Anthropic Messages body and NO auth header — the sidecar signs. Never the
-## real AWS host, never Converse.
+## Native hosted taunt generation runs on a background worker so model calls
+## cannot block the game loop. COWORLD_LLM_ENDPOINT supplies the gateway;
+## COWORLD_LLM_MODEL selects a canonical OpenRouter model. Requests use
+## /v1/messages. Without a sidecar, the bot uses its canned taunt bank.
 
 import std/[json, os, strutils, random]
 import curly
@@ -17,8 +9,8 @@ import curly
 const
   TauntMaxChars* = 10          # the shout limit; anything longer is dropped
   BankTarget = 24              # taunts to prefetch per game
-  DefaultModel = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-  # Fallback bank: used until (or instead of) the Bedrock bank arrives.
+  DefaultModel = "anthropic/claude-haiku-4.5"
+  # Fallback bank: used until (or instead of) the LLM bank arrives.
   CannedTaunts* = [
     "IN PEACE!", "OOPS SORRY", "MY BAD!", "DONT SHOOT", "BE FRIENDS",
     "FRIENDS?", "WHY FIGHT?", "IM NICE!", "TRUCE?", "PACIFIST!",
@@ -42,10 +34,10 @@ var
   started = false
 
 proc sidecarBase(): string =
-  getEnv("AWS_ENDPOINT_URL_BEDROCK_RUNTIME")
+  getEnv("COWORLD_LLM_ENDPOINT")
 
 proc modelId(): string =
-  let m = getEnv("BEDROCK_MODEL")
+  let m = getEnv("COWORLD_LLM_MODEL")
   if m.len > 0: m else: DefaultModel
 
 proc sanitizeTaunt*(raw: string): string =
@@ -72,7 +64,7 @@ proc sanitizeTaunt*(raw: string): string =
       except ValueError:
         discard
 
-proc invokeBedrock(pool: CurlPool, system, user: string, maxTokens: int): string =
+proc invokeLlm(pool: CurlPool, system, user: string, maxTokens: int): string =
   ## One blocking InvokeModel call via the sidecar. Worker thread only.
   ## Returns "" on any failure — callers always have a canned fallback.
   let base = sidecarBase()
@@ -80,19 +72,20 @@ proc invokeBedrock(pool: CurlPool, system, user: string, maxTokens: int): string
     return ""
   try:
     let body = $(%*{
-      "anthropic_version": "bedrock-2023-05-31",
+      "model": modelId(),
       "max_tokens": maxTokens,
       "system": system,
       "messages": [{"role": "user", "content": user}]
     })
     let response = pool.post(
-      base & "/model/" & modelId() & "/invoke",
+      base.strip(chars = {'/'}, leading = false) & "/v1/messages",
       @[("Content-Type", "application/json"),
-        ("Accept", "application/json")],
+        ("Accept", "application/json"),
+        ("anthropic-version", "2023-06-01")],
       body
     )
     if response.code != 200:
-      echo "taunt: bedrock ", response.code, " ",
+      echo "taunt: llm ", response.code, " ",
         response.body[0 ..< min(200, response.body.len)]
       return ""
     let data = parseJson(response.body)
@@ -100,16 +93,16 @@ proc invokeBedrock(pool: CurlPool, system, user: string, maxTokens: int): string
       if part{"type"}.getStr() == "text":
         result.add part["text"].getStr()
   except CatchableError as e:
-    echo "taunt: bedrock call failed: ", e.msg
+    echo "taunt: llm call failed: ", e.msg
 
 proc workerLoop() {.thread.} =
-  ## Owns all Bedrock I/O. Converts jobs into sanitized taunt lines.
+  ## Owns all LLM I/O. Converts jobs into sanitized taunt lines.
   let pool = newCurlPool(1)
   while true:
     let job = jobs.recv()                # blocks: this thread has nothing else
     case job.kind
     of 'B':
-      let reply = pool.invokeBedrock(
+      let reply = pool.invokeLlm(
         "You write lines for an arena-shooter bot playing wide-eyed " &
         "innocent: it insists it comes in peace, asks people to stop " &
         "shooting, wants to be friends — even as it wins. Like I COME IN " &
@@ -126,7 +119,7 @@ proc workerLoop() {.thread.} =
       if sent == 0:
         echo "taunt: bank prefetch fell back to canned lines"
     of 'R':
-      let reply = pool.invokeBedrock(
+      let reply = pool.invokeLlm(
         "You play an arena-shooter bot that acts wide-eyed innocent. The " &
         "enemy just taunted you. Reply with ONE hurt-but-friendly line — " &
         "wounded feelings, offers of peace or friendship, never a " &

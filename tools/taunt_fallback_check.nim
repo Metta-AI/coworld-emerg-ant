@@ -1,6 +1,6 @@
 import std/[os, strutils], ../players/baseline/baseline/taunts
 
-# No AWS_ENDPOINT_URL_BEDROCK_RUNTIME: the worker must fall back to canned
+# No COWORLD_LLM_ENDPOINT: the worker must fall back to canned
 # lines without blocking or crashing.
 startTaunts()
 var bank: seq[string]
